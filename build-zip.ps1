@@ -15,7 +15,7 @@ $Out = Join-Path $Root "dist\$Name.zip"
 $Skip = @(
     'settings.json', 'program.log', 'cookies.txt', 'Скачанное', 'tests', 'CLAUDE.md',  # личное и разработка
     '.venv', 'python', 'python.new', 'bin', 'dist', '.claude', 'build-zip.ps1',          # ставится само / сборка
-    '.git', '.gitignore', 'docs'                                                         # только для GitHub
+    '.git', '.gitignore', '.gitattributes', 'docs'                                                   # только для GitHub
 )
 
 $files = Get-ChildItem $Root -Force | Where-Object { $Skip -notcontains $_.Name -and $_.Name -notlike 'CLAUDE.md.tmp*' } |
