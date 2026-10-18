@@ -1,0 +1,6 @@
+yt-dlp[default]
+flask
+imageio-ffmpeg
+deno
+pystray
+pillow

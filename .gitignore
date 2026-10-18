@@ -1,0 +1,22 @@
+# Личное
+settings.json
+cookies.txt
+program.log
+Скачанное/
+
+# Ставится само при запуске
+.venv/
+python/
+python.new/
+bin/
+
+# Сборка и служебное
+dist/
+__pycache__/
+*.pyc
+.claude/
+
+# Разработка (только локально)
+CLAUDE.md
+CLAUDE.md.tmp*
+tests/

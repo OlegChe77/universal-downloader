@@ -1,0 +1,610 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Как это работает</title>
+<link rel="icon" href="/favicon.ico">
+<script>
+  // тема — та же, что выбрана на главной странице
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch { /* тема как в Windows */ }
+</script>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #16181d; --muted: #6b7280;
+    --line: #e3e5ea; --accent: #2f6df6; --accent-soft: #e8efff;
+    --ok: #16a34a; --err: #dc2626; --warn: #b45309; --chip: #f1f3f6; --code: #f6f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
+      --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
+      --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
+    --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
+    --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 60px; }
+  a { color: var(--accent); }
+  .back { display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin: 36px 0 12px; }
+  .sub { color: var(--muted); margin: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px; margin-top: 12px;
+  }
+  button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 10px;
+    padding: 10px 16px; background: var(--accent); color: #fff; font-weight: 600;
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  code, pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13.5px; }
+  code { background: var(--code); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  kbd {
+    font: 12px/1 Consolas, "Cascadia Mono", monospace; padding: 2px 5px; border-radius: 4px; white-space: nowrap;
+    border: 1px solid var(--line); border-bottom-width: 2px; background: var(--card);
+  }
+  pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; margin: 8px 0;
+  }
+  .muted { color: var(--muted); }
+
+  /* диагностика */
+  .status { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-bottom: 14px; }
+  .stat { display: flex; gap: 10px; align-items: flex-start; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; margin-top: 7px; flex-shrink: 0; background: var(--muted); }
+  .dot.ok { background: var(--ok); }
+  .dot.bad { background: var(--err); }
+  .dot.warn { background: var(--warn); }
+  .stat b { display: block; font-weight: 600; }
+  .stat span { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+  .update-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #update-msg { font-size: 14px; }
+  #update-msg.ok { color: var(--ok); }
+  #update-msg.err { color: var(--err); white-space: pre-wrap; }
+
+  /* схема */
+  .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; counter-reset: step; }
+  .step {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px; position: relative; counter-increment: step;
+  }
+  .step::before {
+    content: counter(step); display: inline-grid; place-items: center;
+    width: 22px; height: 22px; border-radius: 50%; font-size: 12px; font-weight: 700;
+    background: var(--accent-soft); color: var(--accent); margin-bottom: 6px;
+  }
+  .step b { display: block; margin-bottom: 2px; }
+  .step span { font-size: 13px; color: var(--muted); }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  tr:first-child td { border-top: 0; }
+  td:first-child { width: 34%; padding-right: 14px; }
+
+  /* неполадки */
+  details { border-top: 1px solid var(--line); }
+  details:first-child { border-top: 0; }
+  summary { cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; display: flex; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '▸'; color: var(--muted); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .fix { padding: 0 0 14px 22px; }
+  .fix ol, .fix ul { margin: 4px 0; padding-left: 20px; }
+  .fix li { margin: 3px 0; }
+  .note {
+    border-left: 3px solid var(--warn); background: var(--code);
+    padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 14px;
+  }
+
+  /* скачивать прямо с сайта */
+  .quick h3 { font-size: 16px; margin: 0 0 8px; }
+  .quick ol { margin: 10px 0; padding-left: 22px; }
+  .quick li { margin: 4px 0; }
+  .quick p { margin: 8px 0; }
+  .quick h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+  .quick h4 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 22px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+  .quick ul { margin: 6px 0; padding-left: 22px; }
+  .quick ol ul { margin: 4px 0; }
+  .brws { display: inline-flex; align-items: center; gap: 5px; }
+  .brw { width: 18px; height: 18px; flex-shrink: 0; vertical-align: -4px; }
+  .brw-tbl th { text-align: left; font-size: 13px; color: var(--muted); font-weight: 600; padding: 0 14px 6px 0; }
+  .brw-tbl td:first-child { width: auto; white-space: nowrap; }
+  .brw-tbl td:first-child .brw { margin-right: 8px; }
+  .brw-tbl td { padding-right: 14px; }
+  .more { margin-top: 10px; }
+  .bm-row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .bm, .dl-btn {
+    display: inline-block; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: #fff;
+    font-weight: 600; text-decoration: none; cursor: grab;
+  }
+  .dl-btn { cursor: pointer; }
+  .bm-note { display: none; margin-top: 8px; font-size: 14px; color: var(--accent); }
+  .bm-note.on { display: block; }
+  .drag-hint { margin-top: 12px; }
+  button.link { background: none; color: var(--accent); padding: 0; border-radius: 0; font-weight: 600; text-decoration: underline; }
+
+  @media (max-width: 720px) {
+    .flow { grid-template-columns: 1fr; }
+    td:first-child { width: 40%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="/">← К скачиванию</a>
+  <h1>Как это работает</h1>
+  <p class="sub">Что происходит внутри программы и что делать, если она перестала скачивать.</p>
+
+  <h2>Проверка программы</h2>
+  <section class="card">
+    <div class="status" id="status"><span class="muted">Проверяю…</span></div>
+    <div class="update-row">
+      <button id="update" type="button">Обновить yt-dlp</button>
+      <span id="update-msg" class="muted">Первое, что стоит сделать, если перестало качать.</span>
+    </div>
+  </section>
+
+  <h2>Как пользоваться</h2>
+  <section class="card">
+    <table>
+      <tr><td><b>Запуск</b></td><td>Ярлык «Универсальный скачиватель» на рабочем столе. Чёрного окна нет: программа живёт значком
+        со стрелкой у часов (справа внизу; если не видно — нажмите стрелочку «^» рядом с часами).
+        Щелчок по значку открывает страницу, правый щелчок — меню: «Открыть», «Папка загрузок», «Выход».</td></tr>
+      <tr><td><b>Первый запуск</b></td><td>Откроется окно с ходом установки (Python, yt-dlp, ffmpeg, Deno) — пара минут.
+        Потом окно закроется само, а значок появится у часов. Так же окно появится, если программе понадобятся новые компоненты.</td></tr>
+      <tr><td><b>Страница</b></td><td>Сверху — «Загрузки»: ход скачивания, кнопки «Показать» и «Отмена», папка для файлов
+        и галочка «спрашивать папку каждый раз». Ниже две вкладки: «По ссылке» и «Музыка».
+        Кнопка темы в углу переключает: как в Windows → светлая → тёмная.</td></tr>
+      <tr><td><b>По ссылке</b></td><td>Вставьте адрес видео, плейлиста или страницы — варианты появятся сами.
+        Выберите качество видео (MP4) или «Только звук» (MP3/M4A). Если вместо ссылки написать название песни,
+        программа сама перейдёт в «Музыку».</td></tr>
+      <tr><td><b>Музыка</b></td><td>Напишите исполнителя и название — появятся 10 вариантов с YouTube с обложками.
+        <b>MP3</b> сразу скачивает песню (с обложкой и тегами), «Ещё форматы» — видео, M4A или только кусок.
+        «Показать ещё 10» добавляет новые варианты без повторов. На карточке видно, качается песня или уже скачана.</td></tr>
+      <tr><td><b>Послушать</b></td><td>Кнопка ▶ на обложке песни (и «Послушать» в карточке «По ссылке») включает звук прямо на странице,
+        ничего не скачивая. Внизу появится плеер: пауза, перемотка, время, громкость и крестик «Закрыть».
+        Играет одна песня: если включить другую, первая остановится. Когда песня из найденных кончается, сама включается следующая;
+        ⏮ ⏭ в плеере — предыдущая и следующая (⏮ после 3-й секунды возвращает в начало песни).
+        Кнопка <b>MP3</b> в плеере скачивает то, что сейчас играет.
+        Клавиши: <kbd>Пробел</kbd> — пауза, <kbd>←</kbd> <kbd>→</kbd> — на 5 секунд назад и вперёд
+        (когда курсор не стоит в поле ввода); работают и кнопки мультимедиа на клавиатуре. Звук начинается через 2–5 секунд —
+        программа находит его через yt-dlp. Послушать нельзя прямые эфиры, плейлисты и сайты, которые отдают звук
+        кусочками, — такие видео можно только скачать.</td></tr>
+      <tr><td><b>Несколько ссылок</b></td><td>Во вкладке «По ссылке» вставьте ссылки столбиком (каждую с новой строки; Shift+Enter — новая строка вручную).
+        Появится список — выберите один вариант для всех, например «MP3» или «до 1080p».
+        Файлы скачаются по очереди, по одному. Строки без ссылки и повторы пропускаются.</td></tr>
+      <tr><td><b>Кусок видео</b></td><td>У одного видео откройте «Скачать только кусок» и укажите время: с <code>1:20</code> до <code>2:45</code>
+        (можно <code>1.20</code>, <code>80</code> или <code>1:02:03</code>), затем выберите формат — видео или MP3.
+        Пустое «до» — до конца. К имени файла добавится «(фрагмент 1.20-2.45)». Кусок режется точно по секундам,
+        поэтому после скачивания он немного перекодируется — это занимает чуть дольше.</td></tr>
+    </table>
+  </section>
+
+  <h2 id="quick">Скачивать прямо с сайта</h2>
+  <p class="muted">Чтобы не копировать адрес вручную: нажали кнопку на странице с видео — открылась программа, ссылка уже вставлена
+    и разобрана. Если страница программы уже открыта, браузер старается отправить ссылку в неё, а не в новую вкладку
+    (расширение — всегда, кнопка-закладка — когда браузер это разрешает). Есть два способа — выберите любой или оба сразу.</p>
+  <section class="card">
+    <table class="brw-tbl">
+      <tr><th>Браузер</th><th>Расширение</th><th>Кнопка-закладка</th></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#chrome"/></svg>Google Chrome</td><td>да, насовсем — <a href="#ext-chromium">как поставить</a></td><td>да</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#edge"/></svg>Microsoft Edge</td><td>да, насовсем — <a href="#ext-chromium">как поставить</a></td><td>да</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#yandex"/></svg>Яндекс Браузер</td><td>да, насовсем — <a href="#ext-chromium">как поставить</a></td><td>да</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#firefox"/></svg>Mozilla Firefox</td><td>да, до перезапуска браузера — <a href="#ext-firefox">как поставить</a></td><td>да, насовсем</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#safari"/></svg>Safari (Mac)</td><td>нет</td><td>да</td></tr>
+    </table>
+    <p class="muted">Расширение удобнее: кнопка со значком программы на панели браузера и пункт в меню правой кнопки мыши,
+      в том числе на ссылке — видео можно отправить прямо из списка или поиска, не открывая его. Кнопка-закладка ничего
+      не устанавливает и работает везде, но умеет только «отправить эту страницу».</p>
+  </section>
+
+  <section class="card quick" data-bm-box>
+    <h3>Кнопка на панели закладок <span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Яндекс Браузер"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw" role="img" aria-label="Safari"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
+    <div class="bm-row">
+      <a class="bm" data-bookmarklet draggable="true">⬇ Скачать в программе</a>
+      <span class="muted">← перетащите мышкой на панель закладок</span>
+    </div>
+    <div class="bm-note" data-bm-note role="status"></div>
+    <div class="drag-hint" data-drag-hint></div>
+    <ol>
+      <li>Покажите панель закладок: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>).</li>
+      <li>Зажмите синюю кнопку мышкой и перетащите на панель, как на картинке. Нажимать её здесь не нужно.</li>
+      <li>Откройте видео или песню на любом сайте и нажмите закладку «Скачать в программе».</li>
+    </ol>
+    <p class="muted">Не получается перетащить (например, в Яндексе панель скрыта) — <button class="link" type="button" data-copy-bookmarklet>скопируйте код закладки</button>,
+      создайте любую закладку (<kbd>Ctrl</kbd>+<kbd>D</kbd>), откройте «Изменить» и вставьте код в поле «Адрес». Если браузер запретил
+      всплывающее окно, программа откроется в этой же вкладке — кнопка «Назад» вернёт на сайт.</p>
+  </section>
+
+  <section class="card quick" id="extension">
+    <h3>Расширение <span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Яндекс Браузер"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
+    <p>Добавляет кнопку со значком программы на панель браузера и пункт «Скачать в программе» в меню правой кнопки мыши:
+      на странице — отправляет её адрес, на ссылке — саму ссылку. Работает, пока запущена программа (значок у часов).</p>
+    <p><a class="dl-btn" href="/extension.zip" download>Скачать расширение (zip)</a>
+      <span class="muted">— один архив для всех браузеров, порт программы в нём уже вписан.</span></p>
+    <p class="muted">Магазин расширений не нужен: браузеры разрешают поставить расширение из файла. Расширение ничего
+      не отправляет в интернет — оно только открывает страницу программы на вашем компьютере (<code>http://127.0.0.1</code>)
+      и передаёт ей адрес страницы или ссылки.</p>
+
+    <h4 id="ext-chromium"><span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Яндекс Браузер"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg></span> Chrome, Edge, Яндекс Браузер</h4>
+    <ol>
+      <li>Нажмите «Скачать расширение (zip)» выше. Файл <code>downloader-extension.zip</code> появится в папке «Загрузки».</li>
+      <li>Правый щелчок по нему → «Извлечь всё…» → «Извлечь». Получится папка, внутри которой сразу лежит <code>manifest.json</code>
+        (если внутри оказалась ещё одна папка — нужна именно та, где <code>manifest.json</code>).</li>
+      <li>Перенесите эту папку туда, где она будет лежать всегда, например в папку программы рядом с <code>app.py</code>.
+        Браузер не копирует расширение к себе, а берёт его из этой папки: удалите или переименуйте её — расширение перестанет работать.</li>
+      <li>Откройте страницу расширений — впишите в адресную строку и нажмите <kbd>Enter</kbd>:
+        <ul>
+          <li>Chrome — <code>chrome://extensions</code></li>
+          <li>Edge — <code>edge://extensions</code></li>
+          <li>Яндекс — <code>browser://extensions</code></li>
+        </ul></li>
+      <li>Включите <b>«Режим разработчика»</b>: в Chrome и Яндексе — переключатель справа вверху, в Edge — в левой панели
+        (если её не видно — кнопка ☰ слева вверху).</li>
+      <li>Появится строка кнопок. Нажмите <b>«Загрузить распакованное расширение»</b> (в Edge — «Загрузить распакованное»)
+        и выберите папку из шага 3 — ту, в которой лежит <code>manifest.json</code>, затем «Выбор папки».</li>
+      <li>В списке появится «Универсальный скачиватель» с включённым переключателем. Если рядом красная кнопка «Ошибки» —
+        скорее всего, выбрана не та папка: удалите расширение и выберите папку с <code>manifest.json</code>.</li>
+      <li>Закрепите кнопку на панели: значок пазла справа от адресной строки → булавка у «Универсальный скачиватель»
+        (в Edge — значок глаза «Показать на панели инструментов»).</li>
+    </ol>
+    <div class="note">Chrome и Edge при запуске иногда предлагают отключить расширения в режиме разработчика — закройте это
+      сообщение крестиком. Режим разработчика безопасен: он только разрешает ставить расширения из папки.</div>
+
+    <h4 id="ext-firefox"><span class="brws"><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span> Firefox</h4>
+    <p>Насовсем Firefox ставит только расширения, подписанные Mozilla, а это расширение собирается у вас на компьютере
+      и подписи не имеет. Поэтому в обычном Firefox оно ставится <b>временно — до закрытия браузера</b>. Это занимает
+      полминуты, распаковывать архив не нужно.</p>
+    <ol>
+      <li>Нажмите «Скачать расширение (zip)» выше и запомните, где лежит <code>downloader-extension.zip</code>.</li>
+      <li>Впишите в адресную строку <code>about:debugging#/runtime/this-firefox</code> и нажмите <kbd>Enter</kbd>
+        (или <code>about:debugging</code> → слева «Этот Firefox»).</li>
+      <li>Нажмите <b>«Загрузить временное дополнение…»</b> и выберите сам файл <code>downloader-extension.zip</code>
+        (подойдёт и <code>manifest.json</code> из распакованной папки).</li>
+      <li>В разделе «Временные расширения» появится «Универсальный скачиватель» со строкой «Фоновый скрипт: Работает».
+        Предупреждений и ошибок быть не должно.</li>
+      <li>Закрепите кнопку: значок пазла на панели → шестерёнка у «Универсальный скачиватель» → «Прикрепить к панели».</li>
+    </ol>
+    <p>После перезапуска Firefox расширение пропадёт — повторите шаги 2–3, архив можно не скачивать заново.
+      Если так неудобно, в Firefox пользуйтесь кнопкой-закладкой выше: она остаётся насовсем и делает то же самое,
+      кроме пункта в меню правой кнопки.</p>
+    <details class="more">
+      <summary>Поставить в Firefox насовсем (Developer Edition, Nightly или ESR)</summary>
+      <div class="fix">
+        <p>Обычный Firefox не разрешает неподписанные расширения. В Firefox Developer Edition, Nightly и ESR это можно включить:</p>
+        <ol>
+          <li>Откройте <code>about:config</code>, примите предупреждение, найдите <code>xpinstall.signatures.required</code>
+            и сделайте его <code>false</code> (двойной щелчок).</li>
+          <li>Переименуйте <code>downloader-extension.zip</code> в <code>downloader-extension.xpi</code>.</li>
+          <li>Откройте <code>about:addons</code> → шестерёнка → «Установить дополнение из файла…» → выберите <code>.xpi</code> → «Добавить».</li>
+        </ol>
+      </div>
+    </details>
+
+    <h4>Как пользоваться</h4>
+    <ul>
+      <li><b>Кнопка на панели</b> — откройте видео или песню и нажмите значок программы: откроется программа с этой ссылкой.</li>
+      <li><b>Правая кнопка на странице</b> или на встроенном видео → «Скачать в программе» — то же самое.</li>
+      <li><b>Правая кнопка на ссылке</b> → «Скачать в программе (эту ссылку)» — отправляет ссылку, не открывая её:
+        удобно в списке видео, в поиске, в ленте.</li>
+      <li>Если вкладка программы уже открыта, ссылка уйдёт в неё (плеер не прервётся), иначе откроется новая вкладка рядом.</li>
+    </ul>
+
+    <h4>Обновить, удалить, если не работает</h4>
+    <ul>
+      <li>Сменили порт программы (<code>port</code> в <code>settings.json</code>) — скачайте архив заново. Chrome, Edge, Яндекс:
+        замените файлы в папке расширения и нажмите на странице расширений круглую стрелку «Обновить» у расширения.
+        Firefox: на <code>about:debugging</code> — «Удалить» и загрузите новый архив.</li>
+      <li>Удалить — кнопка «Удалить» на странице расширений; после этого можно удалить и папку.</li>
+      <li>Открывается «Не удаётся получить доступ к сайту» — программа не запущена: запустите её ярлыком на рабочем столе
+        и нажмите кнопку ещё раз.</li>
+      <li>В Firefox каждый раз открывается новая вкладка, хотя программа уже открыта, — разрешите расширению доступ
+        к <code>127.0.0.1</code>: <code>about:addons</code> → «Универсальный скачиватель» → «Разрешения».</li>
+    </ul>
+  </section>
+
+  <h2>Что происходит, когда вы вставляете ссылку</h2>
+  <div class="flow">
+    <div class="step"><b>Страница</b><span>Вы вставляете ссылку или название песни в браузере.</span></div>
+    <div class="step"><b>Сервер</b><span>Программа без окна (<code>app.py</code>, значок у часов) получает запрос. Работает только на вашем компьютере.</span></div>
+    <div class="step"><b>yt-dlp</b><span>Узнаёт сайт по ссылке, достаёт список качеств видео и звука. Название ищет на YouTube.</span></div>
+    <div class="step"><b>ffmpeg</b><span>Склеивает видео со звуком в MP4 или перегоняет звук в MP3, вшивает обложку.</span></div>
+    <div class="step"><b>Файл</b><span>Готовый файл появляется в папке <code>Скачанное</code>.</span></div>
+  </div>
+  <p class="muted">Всё нужное программа ставит сама при первом запуске в свою папку: Python (ставить его в Windows не нужно), yt-dlp, ffmpeg и Deno —
+    JS-движок, без которого YouTube отдаёт только часть качеств или не отдаёт ничего.
+    Весь «ум» программы — это <a href="https://github.com/yt-dlp/yt-dlp" target="_blank" rel="noopener">yt-dlp</a>.
+    Сайты постоянно меняют защиту, разработчики yt-dlp обновляют его в ответ — поэтому почти любая поломка лечится обновлением.</p>
+
+  <h2>Что где лежит</h2>
+  <section class="card">
+    <table>
+      <tr><td>Ярлык на рабочем столе</td><td>Обычный запуск, без окна. Сам обновляет yt-dlp раз в сутки (заработает со следующего запуска).</td></tr>
+      <tr><td><code>Запуск.bat</code></td><td>Запуск с окном: проверяет и обновляет все компоненты (Python тоже), заново создаёт ярлык, если его удалили,
+        и запускает программу значком у часов.</td></tr>
+      <tr><td><code>launch.vbs</code></td><td>То, что запускает ярлык: открывает программу без окна, а если чего-то не хватает — показывает установку.</td></tr>
+      <tr><td><code>program.log</code></td><td>Что программа писала при последнем запуске без окна, включая ошибки. Пригодится, если значок не появился.</td></tr>
+      <tr><td><code>Скачанное</code></td><td>Папка для загрузок по умолчанию. Другую можно выбрать на главной кнопкой «Изменить».</td></tr>
+      <tr><td><code>extension</code></td><td>Расширение для Chrome, Edge, Яндекса и Firefox. Ставьте его из архива со страницы (см. «Скачивать прямо с сайта») —
+        в архиве уже вписан порт программы.</td></tr>
+      <tr><td><code>settings.json</code></td><td>Настройки: выбранная папка, «спрашивать каждый раз» и порт страницы (<code>port</code>, обычно 8765). Удалите — вернутся настройки по умолчанию.</td></tr>
+      <tr><td><code>cookies.txt</code></td><td>Не обязателен. Нужен для сайтов, которые требуют вход в аккаунт (см. ниже).</td></tr>
+      <tr><td><code>app.py</code></td><td>Сама программа: сервер, поиск, скачивание.</td></tr>
+      <tr><td><code>web</code></td><td>Страницы, которые вы видите в браузере, и значок программы (<code>icon.ico</code>).</td></tr>
+      <tr><td><code>bin\ffmpeg.exe</code></td><td>ffmpeg. Появляется сам при первом запуске.</td></tr>
+      <tr><td><code>python</code></td><td>Свой Python программы и её библиотеки. Можно удалить — при запуске установится заново.</td></tr>
+    </table>
+  </section>
+
+  <h2>Если перестало работать</h2>
+  <p class="muted">Найдите свой случай. Текст ошибки виден на странице у загрузки, а ошибки запуска — в файле <code>program.log</code> в папке программы.
+    «Перезапустить программу» ниже значит: правый щелчок по значку у часов → «Выход», затем снова ярлык на рабочем столе.</p>
+  <section class="card">
+    <details open>
+      <summary>Перестал качать YouTube (или другой сайт), хотя раньше работало</summary>
+      <div class="fix">
+        <p>Почти всегда сайт поменял защиту, и нужна свежая версия yt-dlp.</p>
+        <ol>
+          <li>Нажмите «Обновить yt-dlp» вверху этой страницы.</li>
+          <li>Перезапустите программу (значок у часов → «Выход», затем ярлык).</li>
+          <li>Попробуйте ещё раз.</li>
+        </ol>
+        <p>Если после обновления не заработало — исправление ещё не вышло. Обычно его выпускают за 1–3 дня.
+          Посмотреть, знают ли о проблеме, можно в <a href="https://github.com/yt-dlp/yt-dlp/issues" target="_blank" rel="noopener">списке проблем yt-dlp</a>:
+          поищите по названию сайта.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>«Сайт требует вход в аккаунт» / «Sign in to confirm you're not a bot»</summary>
+      <div class="fix">
+        <p>Сайт хочет видеть, что вы вошли в аккаунт. Дайте программе cookies из браузера:</p>
+        <ol>
+          <li>Установите в Chrome или Edge расширение <b>Get cookies.txt LOCALLY</b> (в Firefox — <b>cookies.txt</b>).</li>
+          <li>Откройте нужный сайт (например, youtube.com) и убедитесь, что вошли в аккаунт.</li>
+          <li>Нажмите на значок расширения → <b>Export</b>.</li>
+          <li>Переименуйте файл в <code>cookies.txt</code> и положите в папку программы, рядом с <code>Запуск.bat</code>.</li>
+          <li>Попробуйте снова — перезапуск не нужен.</li>
+        </ol>
+        <div class="note">cookies.txt даёт доступ к вашему аккаунту. Никому его не отправляйте.
+          Cookies со временем устаревают — если ошибка вернулась, выгрузите их заново.</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>YouTube показывает мало качеств или пишет про JavaScript / «n challenge»</summary>
+      <div class="fix">
+        <p>YouTube нужен JS-движок (Deno). Проверьте строку «JS-движок» в проверке вверху.</p>
+        <ol>
+          <li>Нажмите «Выход» в меню значка у часов и запустите <code>Запуск.bat</code> — он доставит Deno сам (нужен интернет).</li>
+          <li>Если строка всё ещё красная — сделайте чистую переустановку (пункт ниже).</li>
+          <li>Не помогло — обновите yt-dlp кнопкой вверху.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Страница не открывается</summary>
+      <div class="fix">
+        <ul>
+          <li>Программа работает, пока у часов есть её значок. Нет значка — запустите ярлык на рабочем столе.</li>
+          <li>Адрес страницы: <a href="http://127.0.0.1:8765">http://127.0.0.1:8765</a>. Порт можно сменить в <code>settings.json</code>
+            (строка <code>"port": 8765</code>, затем перезапустить программу) — например, если 8765 занят другой программой.
+            После смены порта перетащите кнопку-закладку заново и переустановите расширение.</li>
+          <li>Значок не появляется — запустите <code>Запуск.bat</code>: он покажет в окне, что идёт не так,
+            а ошибки самой программы смотрите в <code>program.log</code>. Если не удалось скачать Python или компоненты — проверьте интернет
+            (python.org и pypi.org должны открываться) и запустите снова.</li>
+          <li>Антивирус может блокировать <code>ffmpeg.exe</code> или сам скрипт — добавьте папку программы в исключения.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Ошибки при запуске, «ModuleNotFoundError», всё сломалось после обновления</summary>
+      <div class="fix">
+        <p>Переустановите программу начисто — ваши файлы в <code>Скачанное</code> не пострадают:</p>
+        <ol>
+          <li>Закройте программу: значок у часов → «Выход».</li>
+          <li>Удалите папки <code>python</code> и <code>bin</code> в папке программы.</li>
+          <li>Запустите <code>Запуск.bat</code> — он всё установит заново (нужен интернет, около минуты).</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Скачалось, но нет звука, видео не открывается или ошибка «ffmpeg»</summary>
+      <div class="fix">
+        <ul>
+          <li>Проверьте строку «ffmpeg» вверху. Если её нет — удалите папку <code>bin</code> и перезапустите программу.</li>
+          <li>Видео в 1440p и 4K с YouTube сжаты кодеками VP9/AV1, их открывает не каждый плеер.
+            Поставьте <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener">VLC</a> или скачайте в 1080p.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>«Этот сайт не поддерживается» / «Видео защищено DRM»</summary>
+      <div class="fix">
+        <ul>
+          <li>Проверьте, что ссылка ведёт на страницу с самим видео, а не на главную или ленту.</li>
+          <li>Сайт есть в <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">списке поддерживаемых</a>?
+            Если нет — программа попробует найти видео на странице сама, но не всегда получается.</li>
+          <li>Netflix, Кинопоиск, Okko, Spotify, Apple Music и подобные защищены DRM — скачать оттуда нельзя.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>«Послушать» не играет или пишет ошибку</summary>
+      <div class="fix">
+        <ul>
+          <li>Подождите несколько секунд: пока программа ищет звук, на кнопке крутится колёсико.</li>
+          <li>Ошибка видна в плеере под названием. «Звук приходит кусочками» — с этого сайта послушать нельзя, но скачать можно.</li>
+          <li>Нажмите ▶ в плеере ещё раз — программа найдёт звук заново. Не помогло — обновите yt-dlp кнопкой вверху.</li>
+          <li>Нет звука, а время идёт — проверьте громкость в плеере (значок динамика) и в Windows.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Качает очень медленно</summary>
+      <div class="fix">
+        <p>Скорость задаёт сам сайт. VK и Rutube отдают видео маленькими кусками — это дольше, чем YouTube.
+          Помогает выбрать качество пониже. Если медленно стало только сейчас — обновите yt-dlp.</p>
+      </div>
+    </details>
+  </section>
+
+  <h2 id="errors">Ошибки и что делать</h2>
+  <p class="muted">Программа пишет у загрузки понятное объяснение, а исходный текст ошибки — под «Подробнее».
+    Если объяснения нет (текст на английском) — найдите похожие слова в левом столбце.</p>
+  <section class="card">
+    <table>
+      <tr><td><b>Сайт требует вход в аккаунт</b><br><small class="muted">Sign in, login, cookies, registered users</small></td>
+        <td>Видео видят только вошедшие в аккаунт. Положите <code>cookies.txt</code> в папку программы (как — выше, в «Если перестало работать»).</td></tr>
+      <tr><td><b>Подтвердите, что вы не робот</b><br><small class="muted">Sign in to confirm you're not a bot</small></td>
+        <td>YouTube не доверяет адресу: так бывает с VPN и с адресами, откуда качают много. Выключите VPN или смените сервер; не помогло — <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Возрастное ограничение 18+</b><br><small class="muted">confirm your age, age-restricted</small></td>
+        <td>Нужен вход в аккаунт, где подтверждён возраст: <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Платное / для подписчиков</b><br><small class="muted">members-only, premium, purchase</small></td>
+        <td>Скачать можно, только если у вашего аккаунта есть доступ: <code>cookies.txt</code> этого аккаунта.</td></tr>
+      <tr><td><b>Видео приватное</b><br><small class="muted">private video</small></td>
+        <td>Автор закрыл видео. Скачать можно только из аккаунта, которому оно открыто: <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Недоступно в вашей стране</b><br><small class="muted">geo restricted, not available in your country</small></td>
+        <td>Сайт показывает видео только в некоторых странах. С зарубежным VPN так бывает у Rutube, VK, ok.ru; без VPN — у зарубежных сайтов.</td></tr>
+      <tr><td><b>Видео удалено</b><br><small class="muted">Video unavailable, has been removed</small></td>
+        <td>Проверьте ссылку в браузере. Если видео там играет — правый щелчок по самому видео → «Скачать в программе».</td></tr>
+      <tr><td><b>Ошибка 404</b><br><small class="muted">HTTP Error 404: Not Found</small></td>
+        <td>Ссылка на файл устарела или видео удалили. Откройте страницу в браузере и пришлите видео оттуда (правый щелчок → «Скачать в программе»).</td></tr>
+      <tr><td><b>Ошибка 403 — сайт отказал</b><br><small class="muted">HTTP Error 403: Forbidden</small></td>
+        <td>Попробуйте через минуту. Не включайте и не переключайте VPN во время загрузки. Повторяется — обновите yt-dlp кнопкой вверху.</td></tr>
+      <tr><td><b>Слишком много запросов</b><br><small class="muted">HTTP Error 429</small></td>
+        <td>Сайт временно ограничил загрузки. Подождите 10–30 минут или смените сервер VPN.</td></tr>
+      <tr><td><b>Сбой на стороне сайта</b><br><small class="muted">HTTP Error 500, 502, 503</small></td>
+        <td>Сайт сейчас работает с ошибками. Попробуйте позже.</td></tr>
+      <tr><td><b>Сайт изменил страницу</b><br><small class="muted">Unable to extract, please report this issue</small></td>
+        <td>yt-dlp не понял новую страницу сайта. Обновите yt-dlp; не помогло — исправление выйдет через несколько дней.</td></tr>
+      <tr><td><b>Сайт не поддерживается</b><br><small class="muted">Unsupported URL</small></td>
+        <td>Нужна ссылка на страницу с самим видео, а не на ленту. Проверьте <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">список сайтов</a>.</td></tr>
+      <tr><td><b>Сайт закрыт для yt-dlp</b><br><small class="muted">[Liability] … will not be supported</small></td>
+        <td>Разработчики yt-dlp отказались от сайта по юридическим причинам (например, Suno). Обновление не поможет.</td></tr>
+      <tr><td><b>Защита DRM</b><br><small class="muted">DRM protected</small></td>
+        <td>Netflix, Кинопоиск, Okko, Ivi, Spotify, платная музыка — скачать нельзя.</td></tr>
+      <tr><td><b>Трансляция ещё не началась</b><br><small class="muted">Premieres in, live event will begin</small></td>
+        <td>Подождите начала. Идущую трансляцию программа пишет, пока она идёт.</td></tr>
+      <tr><td><b>Нет такого качества</b><br><small class="muted">Requested format is not available</small></td>
+        <td>Разберите ссылку заново и выберите другой вариант.</td></tr>
+      <tr><td><b>Нет связи с сайтом</b><br><small class="muted">timed out, connection reset, getaddrinfo failed</small></td>
+        <td>Проверьте интернет. С VPN — смените сервер или выключите его.</td></tr>
+      <tr><td><b>Защищённое соединение</b><br><small class="muted">SSL, certificate verify failed</small></td>
+        <td>Проверьте дату и время на компьютере. Так бывает, когда антивирус проверяет HTTPS или VPN подменяет соединение.</td></tr>
+      <tr><td><b>Нет места на диске</b><br><small class="muted">No space left, WinError 112</small></td>
+        <td>Освободите место или выберите другую папку загрузок.</td></tr>
+      <tr><td><b>Нет доступа к папке</b><br><small class="muted">Permission denied, WinError 5</small></td>
+        <td>Выберите другую папку загрузок или добавьте её в исключения антивируса.</td></tr>
+      <tr><td><b>Файл занят</b><br><small class="muted">WinError 32, used by another process</small></td>
+        <td>Закройте файл в плеере и попробуйте снова.</td></tr>
+      <tr><td><b>Слишком длинный путь</b><br><small class="muted">File name too long, WinError 206</small></td>
+        <td>Выберите папку поближе к корню диска, например <code>D:\Загрузки</code>.</td></tr>
+      <tr><td><b>Ошибка ffmpeg</b><br><small class="muted">Postprocessing, conversion failed</small></td>
+        <td>Проверьте строку «ffmpeg» в проверке вверху; выберите другой вариант.</td></tr>
+    </table>
+  </section>
+
+  <h2 id="vpn">Если включён VPN</h2>
+  <section class="card">
+    <ul>
+      <li><b>VPN для всего компьютера</b> (отдельная программа) — программа ходит в сеть через него, как и браузер.</li>
+      <li><b>VPN-расширение в браузере</b> на программу не действует: оно меняет только сам браузер.</li>
+      <li><b>VPN только для выбранных программ</b> (раздельное туннелирование) — добавьте в список
+        <code>python\python.exe</code> из папки программы.</li>
+      <li><b>YouTube через VPN</b> чаще просит «подтвердить, что вы не робот». Смените сервер или положите <code>cookies.txt</code>.</li>
+      <li><b>Rutube, VK, ok.ru, онлайн-кинотеатры</b> с зарубежного VPN могут не отдавать видео — для них VPN лучше выключить.</li>
+    </ul>
+    <div class="note">Не включайте и не переключайте VPN во время загрузки или прослушивания: ссылки на видео привязаны
+      к адресу, и загрузка оборвётся с ошибкой 403. Тогда просто начните её заново.</div>
+  </section>
+
+  <h2>Ручные команды</h2>
+  <p class="muted">Если кнопки не помогают. Откройте PowerShell в папке программы
+    (в Проводнике: Shift + правый клик по пустому месту → «Открыть окно PowerShell здесь»).</p>
+  <section class="card">
+    <p>Обновить yt-dlp:</p>
+    <pre>python\python.exe -m pip install -U "yt-dlp[default]"</pre>
+    <p>Посмотреть, что yt-dlp видит по ссылке, и полный текст ошибки:</p>
+    <pre>python\python.exe -m yt_dlp -F "ссылка"</pre>
+    <p>Узнать версию yt-dlp:</p>
+    <pre>python\python.exe -m yt_dlp --version</pre>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+
+function stat(state, title, text) {
+  return `<div class="stat"><i class="dot ${state}"></i><div><b>${esc(title)}</b><span>${esc(text)}</span></div></div>`;
+}
+
+async function loadStatus() {
+  try {
+    const s = await (await fetch('/api/status')).json();
+    const js = s.deno || s.node;
+    $('status').innerHTML = [
+      stat('ok', 'yt-dlp', `версия ${s.ytdlp}`),
+      stat(s.ffmpeg ? 'ok' : 'bad', 'ffmpeg', s.ffmpeg ? 'на месте' : 'не найден — удалите папку bin и перезапустите'),
+      stat(js ? 'ok' : 'bad', 'JS-движок (для YouTube)', js ? (s.deno ? s.deno.split('(')[0].trim() : `Node.js ${s.node}`) : 'не найден — перезапустите Запуск.bat'),
+      stat(s.cookies ? 'ok' : 'warn', 'cookies.txt', s.cookies ? 'есть — используется для входа' : 'нет — нужен только для сайтов со входом'),
+      stat('ok', 'Python', s.python),
+      stat('ok', 'Папка загрузок', s.downloads),
+    ].join('');
+  } catch {
+    $('status').innerHTML = stat('bad', 'Программа не отвечает', 'Запустите Запуск.bat и обновите страницу');
+  }
+}
+
+$('update').addEventListener('click', async () => {
+  const btn = $('update'), msg = $('update-msg');
+  btn.disabled = true;
+  btn.textContent = 'Обновляю…';
+  msg.className = 'muted';
+  msg.textContent = 'Это займёт до минуты.';
+  try {
+    const res = await fetch('/api/update', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Не получилось обновить');
+    msg.className = 'ok';
+    msg.textContent = d.before === d.after
+      ? `У вас последняя версия (${d.after}).`
+      : `Обновлено: ${d.before} → ${d.after}. Перезапустите программу: значок у часов → «Выход», затем ярлык на рабочем столе.`;
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = `Ошибка: ${e.message}\nПроверьте интернет или используйте ручную команду ниже.`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Обновить yt-dlp';
+  }
+});
+
+loadStatus();
+</script>
+<script src="/quick.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+* text=auto
+*.bat text eol=crlf
+*.vbs text eol=crlf
+*.png binary
+*.ico binary
