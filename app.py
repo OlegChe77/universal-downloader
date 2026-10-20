@@ -197,10 +197,30 @@ print(path or '')
 
 # Во встроенном Python нет tkinter — тогда окно выбора папки из Windows через PowerShell.
 # Начальная папка — через переменную окружения, чтобы не возиться с кавычками.
+# Окно должно оказаться поверх браузера: владелец — невидимая TopMost-форма, её надо показать
+# (у не показанной формы TopMost не действует), а фокус Windows отдаёт только активному процессу —
+# поэтому на миг подключаемся к потоку окна браузера (AttachThreadInput) и забираем фокус себе.
 PICK_FOLDER_PS = r'''
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Windows.Forms
-$owner = New-Object System.Windows.Forms.Form -Property @{ TopMost = $true }
+Add-Type -Namespace Udl -Name Win -MemberDefinition @"
+[DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+[DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, IntPtr pid);
+[DllImport("user32.dll")] public static extern bool AttachThreadInput(uint a, uint b, bool attach);
+[DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hWnd);
+[DllImport("kernel32.dll")] public static extern uint GetCurrentThreadId();
+"@
+$owner = New-Object System.Windows.Forms.Form -Property @{
+    TopMost = $true; ShowInTaskbar = $false; FormBorderStyle = 'None'; Opacity = 0
+    StartPosition = 'CenterScreen'; Size = New-Object System.Drawing.Size(1, 1)
+}
+$owner.Show()
+$fg = [Udl.Win]::GetWindowThreadProcessId([Udl.Win]::GetForegroundWindow(), [IntPtr]::Zero)
+$me = [Udl.Win]::GetCurrentThreadId()
+if ($fg -and $fg -ne $me) { [void][Udl.Win]::AttachThreadInput($me, $fg, $true) }
+[void][Udl.Win]::SetForegroundWindow($owner.Handle)
+$owner.Activate()
+if ($fg -and $fg -ne $me) { [void][Udl.Win]::AttachThreadInput($me, $fg, $false) }
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
 $dialog.Description = 'Куда сохранить файлы?'
 $dialog.SelectedPath = $env:UDL_PICK_INITIAL
@@ -1124,13 +1144,19 @@ def api_batch():
     folder, error = check_download(data)
     if error:
         return jsonify(error=error), 400
-    urls = list(dict.fromkeys(u.strip() for u in data.get('urls') or [] if isinstance(u, str) and URL_RE.match(u.strip())))
+    # titles — необязательно, по порядку ссылок (песни из поиска «Музыки» — названия уже известны)
+    titles = data.get('titles') if isinstance(data.get('titles'), list) else []
+    urls = {}
+    for i, u in enumerate(data.get('urls') or []):
+        if isinstance(u, str) and URL_RE.match(u.strip()):
+            title = titles[i] if i < len(titles) and isinstance(titles[i], str) else ''
+            urls.setdefault(u.strip(), title.strip()[:300] or u.strip())
     if not urls:
         return jsonify(error='Не нашёл ни одной ссылки.'), 400
     seq = next(request_seq)
     ids = []
-    for i, url in enumerate(urls):
-        task = new_task(data, folder, url, url, seq, i, from_list=True)
+    for i, (url, title) in enumerate(urls.items()):
+        task = new_task(data, folder, url, title, seq, i, from_list=True)
         task['status'], task['stage'] = 'queued', 'В очереди'
         download_queue.put(task)
         ids.append(task['id'])

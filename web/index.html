@@ -143,10 +143,9 @@
   .folder-bar b { font-weight: 600; overflow-wrap: anywhere; }
   .ask { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; margin-left: auto; }
   .ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
-  .proxy-box { margin-top: 10px; }
-  .proxy-box summary { font-size: 13.5px; }
-  .proxy { display: grid; gap: 8px; padding: 0 14px 12px; font-size: 13.5px; }
+  .proxy { display: grid; gap: 12px; font-size: 14px; }
   .proxy p { margin: 0; }
+  .proxy-state b { overflow-wrap: anywhere; }
   .proxy-row { display: flex; flex-wrap: wrap; gap: 6px; }
   .proxy-row input {
     flex: 1 1 240px; min-width: 0; padding: 7px 10px; font: inherit; color: inherit;
@@ -173,7 +172,7 @@
   .tab b { display: block; font-size: 15px; }
   .tab small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
   .panel { padding: 20px; border-top-left-radius: 0; }
-  .panel.music-first { border-top-left-radius: 16px; }
+  .panel.not-first { border-top-left-radius: 16px; }
 
   .field { display: flex; gap: 8px; }
   .field textarea, .field input {
@@ -262,30 +261,39 @@
   /* найденная музыка */
   .search-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 20px 0 12px; }
   .search-head b { font-size: 16px; }
-  .hits { display: grid; grid-template-columns: repeat(auto-fill, minmax(214px, 1fr)); gap: 16px; }
-  .hit {
-    display: flex; flex-direction: column; min-width: 0; background: var(--card-2);
-    border: 1px solid var(--line); border-radius: 14px; overflow: hidden; transition: border-color .15s, transform .15s;
+  /* выбор нескольких песен: полоса над списком остаётся на виду при прокрутке */
+  .pick-bar {
+    position: sticky; top: 0; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+    margin-bottom: 8px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--card);
   }
-  .hit:hover { border-color: var(--faint); }
-  .cover { position: relative; aspect-ratio: 16/9; background: var(--chip); }
+  .pick-all { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--muted); }
+  .pick-all b { color: var(--text); }
+  .pick-actions { display: flex; gap: 6px; margin-left: auto; }
+  .pick-bar input, .pick input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; cursor: pointer; }
+  /* найденные песни — компактный список */
+  .hits { display: grid; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .hits:empty { display: none; }
+  .hit {
+    display: grid; grid-template-columns: auto 80px minmax(0, 1fr) auto; align-items: center; gap: 12px;
+    min-width: 0; padding: 7px 12px; border-top: 1px solid var(--line); transition: background .15s;
+  }
+  .hit:first-child { border-top: 0; }
+  .hit:hover { background: var(--card-2); }
+  .hit.picked { background: var(--accent-soft); }
+  .pick { display: grid; place-items: center; align-self: stretch; padding: 0 2px; cursor: pointer; }
+  .cover { position: relative; width: 80px; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; background: var(--chip); }
   .cover img { display: block; width: 100%; height: 100%; object-fit: cover; }
-  .cover-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: rgba(0, 0, 0, .35); }
+  .cover-bar { position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: rgba(0, 0, 0, .35); }
   .cover-bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
   .hit.st-done .cover-bar i { background: var(--ok); }
-  .hit-body { display: flex; flex-direction: column; gap: 3px; padding: 10px 12px 12px; flex: 1; min-width: 0; }
-  .hit-title {
-    font-weight: 600; line-height: 1.35; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-    overflow-wrap: anywhere;
-  }
+  .hit-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .hit-title { font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hit-sub { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .hit-state { font-size: 12.5px; font-weight: 600; color: var(--accent-text); min-height: 0; }
+  .hit-state { font-size: 12.5px; font-weight: 600; color: var(--accent-text); }
   .hit-state:empty { display: none; }
   .hit.st-done .hit-state { color: var(--ok); }
   .hit.st-error .hit-state { color: var(--err); }
-  .hit-actions { display: flex; gap: 6px; margin-top: auto; padding-top: 8px; }
-  .hit-actions .btn { flex: 1; padding-left: 8px; padding-right: 8px; }
-  .hit-actions .mp3 { flex: 1.2; }
+  .hit-actions { display: flex; gap: 6px; }
   .more-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 18px; }
   .more-row .btn { min-width: 220px; }
   .end-note { font-size: 13px; color: var(--muted); }
@@ -295,6 +303,7 @@
   @keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
   .hit.skeleton .cover { background: none; }
   .hit.skeleton .cover .sk { position: absolute; inset: 0; border-radius: 0; }
+  .hit.skeleton .pick { width: 21px; }
   .sk-line { height: 12px; margin: 4px 0; }
   .loading-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
   dialog .loading-row { margin: 0; padding: 0; border: 0; }
@@ -321,7 +330,7 @@
   /* всплывающее сообщение */
   .toast {
     position: fixed; left: 50%; bottom: 22px; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
-    display: flex; align-items: center; gap: 12px; max-width: calc(100vw - 32px); padding: 11px 16px; border-radius: 12px;
+    display: flex; align-items: center; gap: 12px; width: max-content; max-width: calc(100vw - 32px); padding: 11px 16px; border-radius: 12px;
     background: #1d2129; color: #f1f3f6; box-shadow: 0 10px 30px rgba(0, 0, 0, .3); font-size: 14px; transition: opacity .2s, transform .2s; z-index: 10;
   }
   :root[data-theme="dark"] .toast { background: #2c313b; }
@@ -331,12 +340,12 @@
 
   /* прослушивание */
   .cover .listen {
-    position: absolute; left: 8px; bottom: 10px; width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%;
-    display: grid; place-items: center; background: rgba(0, 0, 0, .66); color: #fff; transition: background .15s, transform .15s;
+    position: absolute; inset: 0; margin: auto; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%;
+    display: grid; place-items: center; background: rgba(0, 0, 0, .62); color: #fff; transition: background .15s, transform .15s;
   }
-  .cover .listen:hover { background: var(--accent); transform: scale(1.06); }
-  .cover .listen .icon { width: 18px; height: 18px; }
-  .hit.is-current { border-color: var(--accent); }
+  .cover .listen:hover { background: var(--accent); transform: scale(1.08); }
+  .cover .listen .icon { width: 14px; height: 14px; }
+  .hit.is-current { box-shadow: inset 3px 0 var(--accent); }
   .hit.is-current .cover .listen { background: var(--accent); }
   .listen .icon.fill, .player .icon.fill { fill: currentColor; stroke: none; }
   .meta .listen-row { margin-top: 12px; }
@@ -422,7 +431,7 @@
     .thumb-wrap { width: 100%; }
     .tab small { display: none; }
     .tab { flex: 1; justify-content: center; }
-    .panel.music-first { border-top-right-radius: 0; }
+    .panel.is-last { border-top-right-radius: 0; }  /* вкладки во всю ширину: крайняя справа прилегает к углу */
   }
   @media (max-width: 560px) {
     .quick-body { grid-template-columns: 1fr; }
@@ -431,6 +440,8 @@
     .brand h1 { font-size: 19px; }
     .brand p { display: none; }
     .brand img { width: 34px; height: 34px; }
+    .tab { padding: 10px 6px; gap: 6px; }
+    .tab b { font-size: 14px; white-space: nowrap; }
     .top-tools .label { display: none; }
     .panel { padding: 16px; }
     .field { flex-direction: column; }
@@ -438,14 +449,16 @@
     .cut-box summary small { display: none; }
     .ask { margin-left: 0; }
     .tasks { max-height: 250px; }
-    .hits { grid-template-columns: 1fr; gap: 10px; }
-    .hit { flex-direction: row; }
-    .cover { width: 122px; flex-shrink: 0; aspect-ratio: auto; min-height: 92px; }
-    .hit-body { padding: 8px 10px 10px; }
-    .hit-actions .btn { font-size: 12.5px; padding: 6px; }
+    .hit { grid-template-columns: auto 72px minmax(0, 1fr); gap: 4px 10px; padding: 8px 10px; }
+    .cover { width: 72px; grid-row: span 2; align-self: start; }
+    .pick { grid-row: span 2; }
+    .hit-actions { grid-column: 3; }
+    .hit-actions .btn { font-size: 12.5px; padding: 5px 9px; }
+    .pick-bar { padding: 8px 10px; }
+    .pick-actions { margin-left: 0; width: 100%; }
+    .pick-actions .btn { flex: 1; }
     .more-row .btn { width: 100%; }
     .loading-row .sk { width: 100px; }
-    .cover .listen { left: 6px; bottom: 8px; width: 34px; height: 34px; }
     .player-in {
       padding: 8px 12px; gap: 2px 10px;
       grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -568,22 +581,6 @@
         <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
       </label>
     </div>
-    <details class="cut-box proxy-box" id="proxy-box">
-      <summary><svg class="icon"><use href="#i-shield"/></svg>VPN и прокси <small id="proxy-state"></small></summary>
-      <div class="proxy">
-        <p class="muted">VPN-расширение в браузере на программу не действует: она ходит в интернет сама.
-          Для закрытых сайтов (YouTube, Instagram, Pornhub…) включите VPN-программу на компьютере. Если у неё есть
-          прокси (v2rayN, Hiddify, NekoBox, Clash, Happ…), программа сама найдёт его, когда сайт не откроется
-          напрямую, — или нажмите «Найти». <a href="/help#vpn">Подробнее</a></p>
-        <div class="proxy-row">
-          <input id="proxy" placeholder="адрес прокси, например socks5://127.0.0.1:10808" autocomplete="off" spellcheck="false" aria-label="Адрес прокси">
-          <button class="btn ghost small" id="proxy-find" type="button">Найти</button>
-          <button class="btn primary small" id="proxy-save" type="button">Сохранить</button>
-        </div>
-        <label class="ask"><input type="checkbox" id="proxy-all"> все сайты через прокси</label>
-        <div class="cut-note" id="proxy-note"></div>
-      </div>
-    </details>
   </section>
 
   <div class="tabs" role="tablist" aria-label="Что скачиваем">
@@ -594,6 +591,10 @@
     <button class="tab" role="tab" id="tab-music" data-tab="music" aria-controls="panel-music" aria-selected="false" tabindex="-1" type="button">
       <svg class="icon"><use href="#i-music"/></svg>
       <span><b>Музыка</b><small>поиск песни по названию</small></span>
+    </button>
+    <button class="tab" role="tab" id="tab-vpn" data-tab="vpn" aria-controls="panel-vpn" aria-selected="false" tabindex="-1" type="button">
+      <svg class="icon"><use href="#i-shield"/></svg>
+      <span><b>VPN</b><small>закрытые сайты, прокси</small></span>
     </button>
   </div>
 
@@ -663,7 +664,7 @@
     </section>
   </section>
 
-  <section class="card panel" id="panel-music" role="tabpanel" aria-labelledby="tab-music" hidden>
+  <section class="card panel not-first" id="panel-music" role="tabpanel" aria-labelledby="tab-music" hidden>
     <form class="field" id="music-form">
       <input id="query" type="search" placeholder="Исполнитель и название песни" autocomplete="off" spellcheck="false" aria-label="Исполнитель и название песни">
       <button class="btn primary" id="music-go" type="submit"><svg class="icon"><use href="#i-search"/></svg>Искать</button>
@@ -673,10 +674,11 @@
       <span><b>MP3</b>&nbsp;— сразу скачать песню с обложкой и тегами</span>
       <span><b>Ещё форматы</b>&nbsp;— видео, M4A или только кусок</span>
       <span><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
+      <span><b>Галочки</b>&nbsp;— выбрать несколько песен и скачать одной кнопкой</span>
     </div>
     <div class="music-note" id="music-note">Музыку здесь ищем и качаем <b>только с YouTube</b>. Песню с другого сайта
       (SoundCloud, VK, Яндекс Музыка…) скачивайте на вкладке «По ссылке»: вставьте ссылку и выберите «Только звук»,
-      если сайт поддерживается. YouTube без VPN может не открываться — см. «VPN и прокси» выше.</div>
+      если сайт поддерживается. YouTube без VPN может не открываться — см. вкладку «VPN».</div>
     <div class="examples" id="examples">
       Например:
       <button class="example" type="button">Кино — Группа крови</button>
@@ -685,10 +687,34 @@
     </div>
     <div class="error hidden" id="music-error"></div>
     <div class="search-head hidden" id="search-head"><b id="search-title"></b><span class="muted" id="search-count"></span></div>
+    <div class="pick-bar hidden" id="pick-bar">
+      <label class="pick-all"><input type="checkbox" id="pick-all"><span id="pick-count">Выбрать все</span></label>
+      <div class="pick-actions">
+        <button class="btn primary small" id="pick-mp3" type="button" data-option="a_mp3" data-label="MP3" disabled><svg class="icon"><use href="#i-download"/></svg>Скачать MP3</button>
+        <button class="btn ghost small" id="pick-m4a" type="button" data-option="a_m4a" data-label="M4A" disabled>M4A</button>
+      </div>
+    </div>
     <div class="hits" id="hits"></div>
     <div class="more-row hidden" id="more-row">
       <button class="btn ghost" id="more" type="button">Показать ещё 10</button>
       <span class="end-note hidden" id="more-end">Больше ничего не нашлось — попробуйте написать запрос иначе.</span>
+    </div>
+  </section>
+
+  <section class="card panel not-first is-last" id="panel-vpn" role="tabpanel" aria-labelledby="tab-vpn" hidden>
+    <div class="proxy">
+      <p class="proxy-state">Сейчас: <b id="proxy-state">…</b></p>
+      <p class="muted">VPN-расширение в браузере на программу не действует: она ходит в интернет сама.
+        Для закрытых сайтов (YouTube, Instagram, Pornhub…) включите VPN-программу на компьютере. Если у неё есть
+        прокси (v2rayN, Hiddify, NekoBox, Clash, Happ…), программа сама найдёт его, когда сайт не откроется
+        напрямую, — или нажмите «Найти». <a href="/help#vpn">Подробнее</a></p>
+      <div class="proxy-row">
+        <input id="proxy" placeholder="адрес прокси, например socks5://127.0.0.1:10808" autocomplete="off" spellcheck="false" aria-label="Адрес прокси">
+        <button class="btn ghost small" id="proxy-find" type="button">Найти</button>
+        <button class="btn primary small" id="proxy-save" type="button">Сохранить</button>
+      </div>
+      <label class="ask"><input type="checkbox" id="proxy-all"> все сайты через прокси</label>
+      <div class="cut-note" id="proxy-note"></div>
     </div>
   </section>
 
@@ -849,16 +875,18 @@ $('theme').addEventListener('click', () => {
 applyTheme(store.get('theme') || 'auto');
 
 // ---------- вкладки ----------
+const TABS = ['link', 'music', 'vpn'];
+const TAB_FOCUS = {link: 'url', music: 'query', vpn: 'proxy'};
 function setTab(name, focus = false) {
-  ['link', 'music'].forEach(t => {
+  TABS.forEach(t => {
     const on = t === name;
     $('tab-' + t).setAttribute('aria-selected', on);
     $('tab-' + t).tabIndex = on ? 0 : -1;
     $('panel-' + t).hidden = !on;
   });
-  $('panel-music').classList.toggle('music-first', name === 'music');
   store.set('tab', name);
-  if (focus) $(name === 'link' ? 'url' : 'query').focus();
+  if (name === 'vpn') loadSettings();
+  if (focus) $(TAB_FOCUS[name]).focus();
 }
 document.querySelector('.tabs').addEventListener('click', e => {
   const tab = e.target.closest('.tab');
@@ -866,11 +894,12 @@ document.querySelector('.tabs').addEventListener('click', e => {
 });
 document.querySelector('.tabs').addEventListener('keydown', e => {
   if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
-  const next = $('tab-link').getAttribute('aria-selected') === 'true' ? 'music' : 'link';
+  const cur = TABS.findIndex(t => $('tab-' + t).getAttribute('aria-selected') === 'true');
+  const next = TABS[(cur + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
   setTab(next);
   $('tab-' + next).focus();
 });
-setTab(store.get('tab') === 'music' ? 'music' : 'link');
+setTab(TABS.includes(store.get('tab')) ? store.get('tab') : 'link');
 
 // ---------- карточка вариантов ----------
 const chip = o => `<button class="chip" type="button" data-id="${esc(o.id)}" data-label="${esc(o.label)}">
@@ -1092,30 +1121,73 @@ let searchQuery = '';
 let tasksByUrl = new Map();
 
 const skeletonCard = () => `<article class="hit skeleton" aria-hidden="true">
+    <span class="pick"></span>
     <div class="cover"><div class="sk"></div></div>
-    <div class="hit-body"><div class="sk sk-line" style="width:90%"></div><div class="sk sk-line" style="width:60%"></div>
-    <div class="hit-actions"><div class="sk" style="height:30px;flex:1"></div><div class="sk" style="height:30px;flex:1"></div></div></div>
+    <div class="hit-body"><div class="sk sk-line" style="width:70%"></div><div class="sk sk-line" style="width:40%"></div></div>
+    <div class="hit-actions"><div class="sk" style="height:30px;width:150px"></div></div>
   </article>`;
 
 function hitCard(h, i) {
+  const sub = [h.uploader || 'YouTube', h.duration ? duration(h.duration) : ''].filter(Boolean).join(' · ');
   return `<article class="hit" data-url="${esc(h.url)}">
+    <label class="pick" title="Выбрать"><input type="checkbox" data-pick="${i}" aria-label="Выбрать: ${esc(h.title)}"></label>
     <div class="cover">
       <img src="${esc(h.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">
-      ${h.duration ? `<span class="dur">${duration(h.duration)}</span>` : ''}
       <button class="listen" type="button" data-hit="${i}" data-act="listen" data-listen="${esc(h.url)}" aria-label="Послушать" title="Послушать"></button>
       <div class="cover-bar hidden"><i></i></div>
     </div>
     <div class="hit-body">
       <div class="hit-title" title="${esc(h.title)}">${esc(h.title)}</div>
-      <div class="hit-sub" title="${esc(h.uploader)}">${esc(h.uploader || 'YouTube')}</div>
+      <div class="hit-sub" title="${esc(sub)}">${esc(sub)}</div>
       <div class="hit-state"></div>
-      <div class="hit-actions">
-        <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="Скачать песню в MP3">${icon('download')}MP3</button>
-        <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео, M4A или только кусок">Ещё форматы</button>
-      </div>
+    </div>
+    <div class="hit-actions">
+      <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="Скачать песню в MP3">${icon('download')}MP3</button>
+      <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео, M4A или только кусок">Ещё форматы</button>
     </div>
   </article>`;
 }
+
+// ---------- выбор нескольких песен ----------
+const pickBoxes = () => [...document.querySelectorAll('#hits [data-pick]')];
+const pickedHits = () => pickBoxes().filter(b => b.checked).map(b => hits[b.dataset.pick]);
+
+function updatePickBar() {
+  const boxes = pickBoxes();
+  const n = boxes.filter(b => b.checked).length;
+  $('pick-bar').classList.toggle('hidden', !boxes.length);
+  $('pick-all').checked = n > 0 && n === boxes.length;
+  $('pick-all').indeterminate = n > 0 && n < boxes.length;
+  $('pick-count').innerHTML = n ? `Выбрано <b>${n}</b> из ${boxes.length}` : 'Выбрать все';
+  $('pick-mp3').disabled = $('pick-m4a').disabled = !n;
+  boxes.forEach(b => b.closest('.hit').classList.toggle('picked', b.checked));
+}
+
+$('hits').addEventListener('change', e => { if (e.target.matches('[data-pick]')) updatePickBar(); });
+$('pick-all').addEventListener('change', e => {
+  pickBoxes().forEach(b => { b.checked = e.target.checked; });
+  updatePickBar();
+});
+
+async function downloadPicked(btn) {
+  const list = pickedHits();
+  if (!list.length) return;
+  const dir = await targetDir();
+  if (!dir) return;
+  const {option, label} = btn.dataset;
+  btn.disabled = true;
+  try {
+    const r = await api('/api/batch', {urls: list.map(h => h.url), titles: list.map(h => h.title), option, label, dir});
+    pickBoxes().forEach(b => { b.checked = false; });
+    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'песня', 'песни', 'песен')} (${label}) — скачаются по одной.`, {toDownloads: true});
+  } catch (err) {
+    showError('music-error', err);
+  }
+  updatePickBar();
+  poll();
+}
+$('pick-mp3').addEventListener('click', e => downloadPicked(e.currentTarget));
+$('pick-m4a').addEventListener('click', e => downloadPicked(e.currentTarget));
 
 async function runSearch() {
   const q = $('query').value.trim();
@@ -1137,10 +1209,12 @@ async function runSearch() {
   $('search-title').textContent = `Ищу «${q}»…`;
   $('search-count').textContent = '';
   $('hits').innerHTML = skeletonCard().repeat(6);
+  updatePickBar();
   try {
     renderSearch(await api('/api/info', {url: q}));
   } catch (e) {
     $('hits').innerHTML = '';
+    updatePickBar();
     $('search-head').classList.add('hidden');
     showError('music-error', e);
   } finally {
@@ -1163,6 +1237,7 @@ function renderSearch(data) {
   $('more').classList.toggle('hidden', !data.more);
   $('more-end').classList.toggle('hidden', data.more);
   updateHitStates();
+  updatePickBar();
   syncListen();
 }
 
@@ -1225,7 +1300,8 @@ function updateHitStates() {
   document.querySelectorAll('.hit[data-url]').forEach(card => {
     const t = tasksByUrl.get(card.dataset.url);
     const st = t && t.status !== 'cancelled' ? t.status : '';
-    card.className = 'hit' + (st ? ' st-' + st : '') + (card.dataset.url === player.url ? ' is-current' : '');
+    card.className = 'hit' + (st ? ' st-' + st : '') + (card.dataset.url === player.url ? ' is-current' : '')
+      + (card.querySelector('[data-pick]').checked ? ' picked' : '');
     const bar = card.querySelector('.cover-bar');
     const state = card.querySelector('.hit-state');
     const mp3 = card.querySelector('[data-act="mp3"]');
@@ -1521,8 +1597,8 @@ function renderProxy() {
   if (document.activeElement !== $('proxy')) $('proxy').value = proxy;
   $('proxy-all').checked = !!settings.proxy_all;
   const sites = ['YouTube', ...(settings.proxy_sites || []).filter(s => !/youtube|youtu\.be/.test(s))];
-  $('proxy-state').textContent = !proxy ? '— не используется'
-    : settings.proxy_all ? `— ${proxy}, все сайты` : `— ${proxy}: ${sites.join(', ')}`;
+  $('proxy-state').textContent = !proxy ? 'прокси не используется, программа ходит напрямую'
+    : settings.proxy_all ? `${proxy}, все сайты` : `${proxy}: ${sites.join(', ')}`;
 }
 
 function proxyNote(text, kind = '') {
@@ -1564,7 +1640,6 @@ $('proxy-all').addEventListener('change', async e => {
   settings = await api('/api/settings', {proxy_all: e.target.checked});
   renderSettings();
 });
-$('proxy-box').addEventListener('toggle', () => { if ($('proxy-box').open) loadSettings(); });
 
 async function loadSettings() {
   try {
@@ -1575,7 +1650,7 @@ async function loadSettings() {
 
 // Открывает окно Windows «Выбор папки». Возвращает путь или null, если окно закрыли.
 async function chooseFolder() {
-  toast('Выберите папку в открывшемся окне Windows (если его не видно — оно на панели задач).', {sticky: true});
+  toast('Выберите папку в открывшемся окне Windows.', {sticky: true});
   try {
     const r = await api('/api/folder/pick', {});
     if (r.cancelled) return null;
