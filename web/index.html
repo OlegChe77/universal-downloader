@@ -143,6 +143,22 @@
   .folder-bar b { font-weight: 600; overflow-wrap: anywhere; }
   .ask { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; margin-left: auto; }
   .ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  .proxy-box { margin-top: 10px; }
+  .proxy-box summary { font-size: 13.5px; }
+  .proxy { display: grid; gap: 8px; padding: 0 14px 12px; font-size: 13.5px; }
+  .proxy p { margin: 0; }
+  .proxy-row { display: flex; flex-wrap: wrap; gap: 6px; }
+  .proxy-row input {
+    flex: 1 1 240px; min-width: 0; padding: 7px 10px; font: inherit; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; outline: none;
+  }
+  .proxy-row input:focus { border-color: var(--accent); }
+  .proxy .ask { margin-left: 0; width: fit-content; }
+  .music-note {
+    margin-top: 12px; padding: 9px 12px; border-radius: 10px; font-size: 13.5px;
+    background: var(--card-2); border: 1px solid var(--line); color: var(--muted);
+  }
+  .music-note b { color: var(--text); }
 
   /* вкладки */
   .tabs { display: flex; gap: 8px; margin-bottom: -1px; position: relative; z-index: 1; }
@@ -453,6 +469,7 @@
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/></symbol>
   <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5.5l11-2V16"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></symbol>
   <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13.5" height="12" rx="2.5"/><path d="m16 10.5 5.5-3.5v10L16 13.5"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8 20 19.5M8.5 16 20 4.5"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
@@ -551,6 +568,22 @@
         <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
       </label>
     </div>
+    <details class="cut-box proxy-box" id="proxy-box">
+      <summary><svg class="icon"><use href="#i-shield"/></svg>VPN и прокси <small id="proxy-state"></small></summary>
+      <div class="proxy">
+        <p class="muted">VPN-расширение в браузере на программу не действует: она ходит в интернет сама.
+          Для закрытых сайтов (YouTube, Instagram, Pornhub…) включите VPN-программу на компьютере. Если у неё есть
+          прокси (v2rayN, Hiddify, NekoBox, Clash, Happ…), программа сама найдёт его, когда сайт не откроется
+          напрямую, — или нажмите «Найти». <a href="/help#vpn">Подробнее</a></p>
+        <div class="proxy-row">
+          <input id="proxy" placeholder="адрес прокси, например socks5://127.0.0.1:10808" autocomplete="off" spellcheck="false" aria-label="Адрес прокси">
+          <button class="btn ghost small" id="proxy-find" type="button">Найти</button>
+          <button class="btn primary small" id="proxy-save" type="button">Сохранить</button>
+        </div>
+        <label class="ask"><input type="checkbox" id="proxy-all"> все сайты через прокси</label>
+        <div class="cut-note" id="proxy-note"></div>
+      </div>
+    </details>
   </section>
 
   <div class="tabs" role="tablist" aria-label="Что скачиваем">
@@ -641,6 +674,9 @@
       <span><b>Ещё форматы</b>&nbsp;— видео, M4A или только кусок</span>
       <span><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
     </div>
+    <div class="music-note" id="music-note">Музыку здесь ищем и качаем <b>только с YouTube</b>. Песню с другого сайта
+      (SoundCloud, VK, Яндекс Музыка…) скачивайте на вкладке «По ссылке»: вставьте ссылку и выберите «Только звук»,
+      если сайт поддерживается. YouTube без VPN может не открываться — см. «VPN и прокси» выше.</div>
     <div class="examples" id="examples">
       Например:
       <button class="example" type="button">Кино — Группа крови</button>
@@ -1476,7 +1512,59 @@ function renderSettings() {
   $('folder-path').textContent = settings.download_dir;
   $('folder-path').title = settings.download_dir;
   $('ask-every').checked = settings.ask_every_time;
+  renderProxy();
 }
+
+// ---------- VPN и прокси ----------
+function renderProxy() {
+  const proxy = settings.proxy || '';
+  if (document.activeElement !== $('proxy')) $('proxy').value = proxy;
+  $('proxy-all').checked = !!settings.proxy_all;
+  const sites = ['YouTube', ...(settings.proxy_sites || []).filter(s => !/youtube|youtu\.be/.test(s))];
+  $('proxy-state').textContent = !proxy ? '— не используется'
+    : settings.proxy_all ? `— ${proxy}, все сайты` : `— ${proxy}: ${sites.join(', ')}`;
+}
+
+function proxyNote(text, kind = '') {
+  $('proxy-note').textContent = text;
+  $('proxy-note').className = 'cut-note' + (kind ? ' ' + kind : '');
+}
+
+async function checkProxy(proxy) {
+  proxyNote(proxy ? 'Проверяю, открывается ли YouTube через этот прокси…' : 'Ищу прокси VPN-программы на компьютере…');
+  try {
+    const r = await api('/api/proxy/check', {proxy});
+    if (r.ok) {
+      settings.proxy = r.proxy;
+      proxyNote(`Готово: YouTube открывается через ${r.proxy}.`, 'on');
+    } else {
+      proxyNote(r.error, 'bad');
+    }
+  } catch (e) {
+    proxyNote(e.message, 'bad');
+  }
+  renderProxy();
+}
+
+$('proxy-find').addEventListener('click', () => checkProxy(''));
+$('proxy-save').addEventListener('click', async () => {
+  const proxy = $('proxy').value.trim();
+  try {
+    settings = await api('/api/settings', {proxy});
+  } catch (e) {
+    proxyNote(e.message, 'bad');
+    return;
+  }
+  renderSettings();
+  if (proxy) checkProxy(proxy);
+  else proxyNote('Прокси выключен: программа ходит в интернет напрямую.');
+});
+$('proxy').addEventListener('keydown', e => { if (e.key === 'Enter') $('proxy-save').click(); });
+$('proxy-all').addEventListener('change', async e => {
+  settings = await api('/api/settings', {proxy_all: e.target.checked});
+  renderSettings();
+});
+$('proxy-box').addEventListener('toggle', () => { if ($('proxy-box').open) loadSettings(); });
 
 async function loadSettings() {
   try {
@@ -1606,6 +1694,27 @@ function takeIncoming() {
   return true;
 }
 addEventListener('hashchange', takeIncoming);
+
+// ---------- программа уже открыта ----------
+// Повторный запуск (ярлык, «Открыть» у часов) спрашивает открытые страницы «есть кто?». Отвечаем — и новая
+// вкладка не откроется, а эта помигает заголовком, чтобы её было легко найти.
+const PAGE_TITLE = document.title;
+let flashTimer = 0;
+function flashTitle() {
+  clearInterval(flashTimer);
+  let n = 0;
+  flashTimer = setInterval(() => {
+    n++;
+    document.title = n % 2 ? '● Программа уже открыта' : PAGE_TITLE;
+    if (n >= 16 || (n % 2 === 0 && document.visibilityState === 'visible' && document.hasFocus())) clearInterval(flashTimer);
+  }, 700);
+}
+if (window.EventSource) {
+  new EventSource('/api/events').addEventListener('message', e => {
+    if (e.data === 'ping') api('/api/here', {}).catch(() => {});
+    else if (e.data === 'here') flashTitle();
+  });
+}
 
 renderTasks([]);
 poll();

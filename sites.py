@@ -5,16 +5,21 @@
 - ЯПлакалъ (yaplakal.com): плеер в теме — <div id="yfp-<пост>-<id>" rel="yapfiles">, iframe
   рисует JS, поэтому общий разборщик его не видит и берёт мусорный <audio> (→ HTTP 404).
 - Одноклассники (ok.ru): встроенный падает на новом формате плеера (см. OdnoklassnikiIE).
+- Встроенный плеер с другого сайта (iframe): общий разборщик заходит только в плееры известных
+  сайтов. Если на странице больше ничего нет — идём в iframe сами (см. GenericIE). Так берутся
+  KVS-плееры (kvsplayer.com, на многих сайтах «для взрослых») и другие плееры с чужих доменов.
 """
 import base64
 import re
 from urllib.parse import urljoin
 
-from yt_dlp.extractor import import_extractors
+from yt_dlp.extractor import gen_extractor_classes, import_extractors
 from yt_dlp.extractor.common import InfoExtractor
+from yt_dlp.extractor.generic import GenericIE as _GenericIE
 from yt_dlp.extractor.odnoklassniki import OdnoklassnikiIE as _OdnoklassnikiIE
 from yt_dlp.globals import extractors as _extractors
-from yt_dlp.utils import ExtractorError, int_or_none, unescapeHTML, url_or_none
+from yt_dlp.utils import (ExtractorError, extract_attributes, int_or_none, smuggle_url, unescapeHTML,
+                          unsmuggle_url, url_or_none)
 
 PLAYER_URL = 'https://api.yapfiles.ru/get_player/?v={}'
 # встроенные плееры других сайтов в теме ЯПлакалъ — их разберут свои разборщики yt-dlp
@@ -109,6 +114,64 @@ class OdnoklassnikiIE(_OdnoklassnikiIE):
         return super()._parse_json(json_string, *args, **kwargs)
 
 
+# iframe с рекламой, счётчиками, комментариями — не плееры
+IFRAME_SKIP = re.compile(r'(?i)(?:\b|_)(?:ads?|adv|banners?|exoclick|juicyads|trafficjunky|tsyndicate|popunder|counter'
+                         r'|metrika|analytics|googletagmanager|doubleclick|recaptcha|captcha|disqus|comments?|chat'
+                         r'|facebook\.com/plugins|vk\.com/widget|twitter\.com/widgets)(?:\b|_)')
+IFRAME_PLAYER = re.compile(r'(?i)/(?:embed|player|iframe|e|v|video|videos|play|watch)(?:[/._?=-]|$)')
+
+
+def player_iframe(page_url, webpage):
+    """Адрес встроенного плеера (iframe) на странице или None. Подходят iframe с «во весь экран»
+    или с /embed/, /player/ в адресе, лучше — с тем и другим; крошечные (1×1) и рекламные пропускаем."""
+    found = []
+    for tag in re.findall(r'<iframe\b[^>]*>', webpage, re.I):
+        attrs = extract_attributes(tag)
+        src = url_or_none(urljoin(page_url, unescapeHTML(attrs.get('src') or attrs.get('data-src') or '')))
+        if not src or src.split('#')[0] == page_url.split('#')[0] or IFRAME_SKIP.search(src):
+            continue
+        if any(int_or_none(attrs.get(k)) in (0, 1) for k in ('width', 'height')):
+            continue
+        rank = ('allowfullscreen' in tag.lower()) + bool(IFRAME_PLAYER.search(src.split('?')[0]))
+        if rank:
+            found.append((-rank, len(found), src))
+    return min(found)[2] if found else None
+
+
+class GenericIE(_GenericIE):
+    """Общий разборщик + вход во встроенный плеер с другого сайта (iframe).
+
+    Пример: sexlends.org — на странице только <iframe src="https://vwfastdelivery.com/embed/…">, а внутри
+    KVS-плеер (kt_player), который общий разборщик понимает, если открыть сам iframe. В iframe идём,
+    только если на странице ничего не нашлось, и только на один уровень вглубь; Referer — адрес
+    страницы (без него такие плееры часто не отдают видео)."""
+
+    def _real_extract(self, url):
+        self._udl_nested = bool(unsmuggle_url(url, {})[1].get('udl_iframe'))
+        return super()._real_extract(url)
+
+    def _extract_kvs(self, url, webpage, video_id):
+        info = super()._extract_kvs(url, webpage, video_id)
+        # у плеера для встраивания заголовок «Название / Embed Player», а само название — в flashvars
+        title = self._search_regex(r"\bvideo_title\s*:\s*'([^']+)'", webpage, 'title', default=None)
+        if title:
+            info['title'] = unescapeHTML(title)
+        return info
+
+    def _extract_embeds(self, url, webpage, *, urlh=None, info_dict={}):
+        embeds = list(super()._extract_embeds(url, webpage, urlh=urlh, info_dict=info_dict))
+        if embeds or getattr(self, '_udl_nested', False):
+            return embeds
+        page_url = urlh.url if urlh else unsmuggle_url(url)[0]
+        frame = player_iframe(page_url, webpage)
+        if not frame:
+            return []
+        self._downloader.write_debug(f'Player iframe: {frame}')
+        if any(ie.suitable(frame) for ie in gen_extractor_classes() if ie.ie_key() != 'Generic'):
+            return [self.url_result(frame)]  # у сайта плеера есть свой разборщик
+        return [self.url_result(smuggle_url(frame, {'referer': page_url, 'udl_iframe': True}), 'Generic')]
+
+
 OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE}
 
 
@@ -117,6 +180,7 @@ def register():
     import_extractors()
     ies = _extractors.value
     rest = {k: v for k, v in ies.items() if k not in OURS}
+    rest['GenericIE'] = GenericIE  # общий остаётся на своём месте, последним: он берёт всё, что не взяли другие
     ies.clear()
     ies.update(OURS)
     ies.update(rest)

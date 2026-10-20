@@ -37,6 +37,7 @@ if TRAY:  # окна нет — всё, что программа пишет (и
 import imageio_ffmpeg
 import yt_dlp
 import yt_dlp.downloader.external
+import yt_dlp.networking.exceptions
 import yt_dlp.postprocessor.ffmpeg
 from yt_dlp.postprocessor.metadataparser import MetadataParserPP
 from yt_dlp.utils import download_range_func
@@ -54,8 +55,11 @@ COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
 DEFAULT_PORT = 8765
-DEFAULT_SETTINGS = {'download_dir': str(DOWNLOADS), 'ask_every_time': True, 'port': DEFAULT_PORT}
+# proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
+DEFAULT_SETTINGS = {'download_dir': str(DOWNLOADS), 'ask_every_time': True, 'port': DEFAULT_PORT,
+                    'proxy': '', 'proxy_all': False, 'proxy_sites': []}
 HOST = '127.0.0.1'
+PROTOCOL = 'udl-downloader'  # ссылка udl-downloader: запускает программу (так её включает расширение браузера)
 
 PRESET_HEIGHTS = [2160, 1440, 1080, 720, 480, 360]
 SEARCH_LIMIT = 10
@@ -234,6 +238,8 @@ def base_opts():
 VPN_HINT = ' Если включён VPN — выключите его или смените сервер.'
 COOKIES_HINT = ' Нужен cookies.txt из браузера, где вы вошли на сайт: положите его в папку программы (как — на странице «Помощь»).'
 UPDATE_HINT = ' Обновите yt-dlp на странице «Помощь».'
+BLOCK_HINT = (' Если сайт заблокирован (YouTube, Instagram, Pornhub…), нужен VPN для всего компьютера или его прокси: '
+              'VPN-расширение в браузере на программу не действует. Как быть — «Помощь» → «Если включён VPN».')
 
 # (регулярное выражение по тексту ошибки, объяснение). Порядок важен: сначала узкие случаи.
 # yt-dlp дописывает к разным ошибкам «Use --cookies…», поэтому «вход в аккаунт» стоит после
@@ -290,14 +296,17 @@ ERROR_RULES = [
      'Повторяется — обновите yt-dlp на странице «Помощь».'),
     (r'http error 5\d\d|service unavailable|bad gateway|internal server error',
      'У сайта сбой на его стороне. Попробуйте позже.'),
+    # так провайдер обрывает соединение с заблокированным сайтом
+    (r'unexpected_eof|eof occurred in violation',
+     'Сайт не открывается: соединение оборвали — похоже, он заблокирован.' + BLOCK_HINT),
     (r'certificate|\bssl\b|\btls\b',
      'Не удалось установить защищённое соединение с сайтом. Проверьте дату и время на компьютере; '
      'так бывает, когда антивирус проверяет HTTPS или VPN подменяет соединение.'),
     (r'getaddrinfo|name or service not known|failed to resolve|nodename nor servname|no address associated',
-     'Не удалось найти сайт в сети. Проверьте интернет.' + VPN_HINT),
+     'Не удалось найти сайт в сети. Проверьте интернет.' + BLOCK_HINT),
     (r'timed out|timeout|connection (reset|refused|aborted)|remote end closed|network is unreachable|'
      r'unable to connect|max retries|winerror 100(5\d|6\d)|incompleteread|connection broken|got only',
-     'Связь с сайтом прервалась. Проверьте интернет и попробуйте ещё раз.' + VPN_HINT),
+     'Сайт не отвечает или связь прервалась. Проверьте интернет и попробуйте ещё раз.' + BLOCK_HINT),
     (r'no space left|errno 28|winerror 112|not enough space',
      'На диске не хватает места. Освободите место или выберите другую папку для загрузок.'),
     (r'being used by another process|winerror 32',
@@ -480,6 +489,104 @@ class Cancelled(Exception):
     pass
 
 
+# ---------- прокси VPN-программы ----------
+# VPN-расширение браузера меняет только сам браузер. Но многие VPN-программы для компьютера (v2rayN, Hiddify,
+# NekoBox, Clash, Happ…) держат на компьютере прокси — через него программа и ходит на закрытые сайты.
+# Порты, которые эти программы ставят по умолчанию (http — первым: ffmpeg умеет только его).
+PROXY_PORTS = [10809, 10808, 2080, 12334, 7890, 7897, 2081, 1080, 9150, 9050]
+PROXY_RE = re.compile(r'^(https?|socks5h?|socks4a?)://(\[[\da-f:]+\]|[\w.-]+):(\d{1,5})/?$', re.I)
+YOUTUBE_SITE = re.compile(r'(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)$')
+# так выглядит сайт, закрытый провайдером: соединение рвут, не отвечают или не находят адрес
+BLOCKED_ERROR = re.compile(r'timed? ?out|connection (reset|aborted|refused)|remote end closed|winerror 100(54|60|61)|'
+                           r'unexpected_eof|eof occurred in violation|getaddrinfo|failed to resolve|'
+                           r'unable to connect|network is unreachable', re.I)
+proxy_lock = threading.Lock()
+
+
+def site_of(url):
+    if url.startswith('ytsearch'):
+        return 'youtube.com'
+    host = urllib.parse.urlsplit(url if '://' in url else 'https://' + url).hostname or ''
+    return host.lower().removeprefix('www.').removeprefix('m.')
+
+
+def normalize_proxy(text):
+    """«127.0.0.1:10808» → «http://127.0.0.1:10808»; None — если это не адрес прокси."""
+    text = text.strip()
+    if text and '://' not in text:
+        text = 'http://' + text
+    m = PROXY_RE.match(text)
+    return text.rstrip('/') if m and 0 < int(m.group(3)) < 65536 else None
+
+
+def proxy_alive(proxy):
+    """Слушает ли прокси (VPN-программу могли выключить)."""
+    p = urllib.parse.urlsplit(proxy)
+    try:
+        with socket.create_connection((p.hostname, p.port), timeout=1):
+            return True
+    except OSError:
+        return False
+
+
+def proxy_for(url):
+    """Прокси для этой ссылки или None. Через прокси: YouTube, сайты, которые не открылись
+    напрямую, или все сайты, если так выбрано. Прокси не отвечает — идём напрямую."""
+    s = load_settings()
+    if not s['proxy']:
+        return None
+    site = site_of(url)
+    if s['proxy_all'] or YOUTUBE_SITE.search(site) or site in s['proxy_sites']:
+        return s['proxy'] if proxy_alive(s['proxy']) else None
+    return None
+
+
+def proxy_works(proxy):
+    """Открывается ли через прокси YouTube (закрытый сайт, по нему и проверяем)."""
+    try:
+        with yt_dlp.YoutubeDL({**base_opts(), 'proxy': proxy, 'socket_timeout': 8}) as ydl:
+            ydl.urlopen(yt_dlp.networking.Request('https://www.youtube.com/generate_204')).close()
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def find_proxy():
+    """Ищет прокси VPN-программы на этом компьютере (по портам, которые они ставят по умолчанию)."""
+    for port in PROXY_PORTS:
+        with socket.socket() as sock:
+            sock.settimeout(0.3)
+            if sock.connect_ex(('127.0.0.1', port)) != 0:
+                continue
+        for scheme in ('http', 'socks5h'):
+            proxy = f'{scheme}://127.0.0.1:{port}'
+            if proxy_works(proxy):
+                return proxy
+    return None
+
+
+def via_proxy(url, work):
+    """work(proxy) обращается к сайту через yt-dlp (proxy — адрес или None).
+    Сайт не открылся напрямую (похоже на блокировку) — пробуем ещё раз через прокси: заданный в настройках
+    или найденный на компьютере. Получилось — запоминаем сайт (и прокси): дальше сразу через него."""
+    proxy = proxy_for(url)
+    try:
+        return work(proxy)
+    except Exception as e:  # noqa: BLE001
+        if proxy or not BLOCKED_ERROR.search(str(e)):
+            raise
+        with proxy_lock:  # несколько загрузок разом не ищут прокси одновременно
+            saved = load_settings()['proxy']
+            proxy = saved if saved and proxy_alive(saved) else find_proxy()
+        if not proxy:
+            raise
+    result = work(proxy)
+    with proxy_lock:
+        s = load_settings()
+        save_settings(proxy=proxy, proxy_sites=sorted(set(s['proxy_sites']) | {site_of(url)}))
+    return result
+
+
 def remove_partial(task):
     """Удаляет недокачанные куски (.part, фрагменты HLS) после отмены."""
     gc.collect()  # закрываем брошенные файловые дескрипторы, иначе Windows не даст удалить
@@ -542,9 +649,13 @@ def run_task(task):
         opts['progress_hooks'] = [progress]
         opts['postprocessor_hooks'] = [pp_progress]
         opts['post_hooks'] = [lambda path: task['files'].append(path)]
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            ydl.add_post_processor(SafeNamesPP(ydl, task['dir']), when='video')
-            ydl.download([task['url']])
+
+        def work(proxy):
+            with yt_dlp.YoutubeDL({**opts, 'proxy': proxy} if proxy else opts) as ydl:
+                ydl.add_post_processor(SafeNamesPP(ydl, task['dir']), when='video')
+                ydl.download([task['url']])
+
+        via_proxy(task['url'], work)
         task['status'] = 'done'
         task['stage'] = 'Готово'
         task['percent'] = 100
@@ -660,10 +771,14 @@ def search(query, exclude=()):
     exclude — id уже показанных видео. YouTube на каждый запрос слегка меняет
     порядок выдачи, поэтому «следующие 10» — это первые 10 ещё не показанных."""
     exclude = set(exclude)
-    opts = base_opts()
-    opts['extract_flat'] = 'in_playlist'
-    with yt_dlp.YoutubeDL(opts) as ydl:
-        info = ydl.extract_info(f'ytsearch{len(exclude) + 2 * SEARCH_LIMIT}:{query}', download=False)
+    target = f'ytsearch{len(exclude) + 2 * SEARCH_LIMIT}:{query}'
+
+    def work(proxy):
+        opts = {**base_opts(), 'extract_flat': 'in_playlist', 'proxy': proxy}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(target, download=False)
+
+    info = via_proxy(target, work)
     results = []
     for e in info.get('entries') or []:
         if not e or not e.get('id') or e['id'] in exclude:
@@ -698,11 +813,13 @@ def api_info():
             return jsonify(error='Ничего не найдено. Попробуйте написать иначе.'), 404
         return jsonify(search=True, query=url, append=bool(exclude), results=results,
                        more=len(results) == SEARCH_LIMIT)
-    opts = base_opts()
-    opts['extract_flat'] = 'in_playlist'
-    try:
+    def work(proxy):
+        opts = {**base_opts(), 'extract_flat': 'in_playlist', 'proxy': proxy}
         with yt_dlp.YoutubeDL(opts) as ydl:
-            info = ydl.extract_info(url, download=False)
+            return ydl.extract_info(url, download=False)
+
+    try:
+        info = via_proxy(url, work)
     except Exception as e:  # noqa: BLE001
         return error_response(e)
 
@@ -756,10 +873,9 @@ class StreamError(Exception):
 
 
 def resolve_stream(url):
-    opts = base_opts()
-    opts['format'] = STREAM_FORMAT
-    opts['extract_flat'] = 'in_playlist'  # плейлист не разбираем целиком — его всё равно не послушать
-    try:
+    def work(proxy):
+        # плейлист не разбираем целиком — его всё равно не послушать
+        opts = {**base_opts(), 'format': STREAM_FORMAT, 'extract_flat': 'in_playlist', 'proxy': proxy}
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if info.get('_type') == 'playlist' or info.get('entries'):
@@ -767,8 +883,12 @@ def resolve_stream(url):
             if info.get('is_live'):
                 raise StreamError('Прямой эфир здесь не послушать.')
             src = info.get('url')
-            headers = dict(info.get('http_headers') or {})
-            cookie = ydl.cookiejar.get_cookie_header(src) if src else ''
+            return info, proxy, (ydl.cookiejar.get_cookie_header(src) if src else '')
+
+    try:
+        info, proxy, cookie = via_proxy(url, work)
+        src = info.get('url')
+        headers = dict(info.get('http_headers') or {})
     except StreamError:
         raise
     except Exception as e:  # noqa: BLE001
@@ -782,7 +902,7 @@ def resolve_stream(url):
         headers['Cookie'] = cookie
     headers.pop('Range', None)
     return {
-        'src': src, 'headers': headers, 'size': info.get('filesize'),
+        'src': src, 'headers': headers, 'size': info.get('filesize'), 'proxy': proxy,
         'mime': STREAM_MIME.get(info.get('ext'), 'application/octet-stream'),
         'meta': {
             'title': info.get('title') or '', 'uploader': info.get('uploader') or info.get('channel') or '',
@@ -837,7 +957,20 @@ upstream_opener = urllib.request.build_opener(NoCookieRedirect)
 def open_upstream(stream, start, end):
     if urllib.parse.urlsplit(stream['src']).scheme not in ('http', 'https'):
         raise urllib.error.URLError('поток не по http(s)')
-    req = urllib.request.Request(stream['src'], headers={**stream['headers'], 'Range': f'bytes={start}-{end}'})
+    headers = {**stream['headers'], 'Range': f'bytes={start}-{end}'}
+    if stream.get('proxy'):
+        # ссылка на поток привязана к адресу, с которого её нашли, — качаем через тот же прокси,
+        # сетью yt-dlp (она умеет и socks). Куки он подставит сам и только своему сайту.
+        headers.pop('Cookie', None)
+        if 'ydl' not in stream:
+            stream['ydl'] = yt_dlp.YoutubeDL({**base_opts(), 'proxy': stream['proxy'], 'socket_timeout': 20})
+        try:
+            return stream['ydl'].urlopen(yt_dlp.networking.Request(stream['src'], headers=headers))
+        except yt_dlp.networking.exceptions.HTTPError as e:
+            raise urllib.error.HTTPError(stream['src'], e.status, e.reason, e.response.headers, None) from None
+        except yt_dlp.networking.exceptions.RequestError as e:
+            raise urllib.error.URLError(str(e)) from None
+    req = urllib.request.Request(stream['src'], headers=headers)
     return upstream_opener.open(req, timeout=20)
 
 
@@ -1083,7 +1216,9 @@ def api_open():
 
 @app.get('/api/settings')
 def api_settings():
-    return jsonify(download_dir=str(download_dir()), ask_every_time=load_settings()['ask_every_time'])
+    s = load_settings()
+    return jsonify(download_dir=str(download_dir()), ask_every_time=s['ask_every_time'],
+                   proxy=s['proxy'], proxy_all=s['proxy_all'], proxy_sites=s['proxy_sites'])
 
 
 @app.post('/api/settings')
@@ -1091,7 +1226,106 @@ def api_settings_save():
     data = json_body()
     if 'ask_every_time' in data:
         save_settings(ask_every_time=bool(data['ask_every_time']))
+    if 'proxy_all' in data:
+        save_settings(proxy_all=bool(data['proxy_all']))
+    if 'proxy' in data:
+        proxy = normalize_proxy(text_arg(data, 'proxy')) if text_arg(data, 'proxy') else ''
+        if proxy is None:
+            return jsonify(error='Это не похоже на адрес прокси. Пример: socks5://127.0.0.1:10808'), 400
+        save_settings(proxy=proxy)
     return api_settings()
+
+
+@app.post('/api/proxy/check')
+def api_proxy_check():
+    """С адресом — проверяет этот прокси, без адреса — ищет прокси VPN-программы на компьютере."""
+    text = text_arg(json_body(), 'proxy')
+    if text:
+        proxy = normalize_proxy(text)
+        if proxy is None:
+            return jsonify(error='Это не похоже на адрес прокси. Пример: socks5://127.0.0.1:10808'), 400
+        if not proxy_alive(proxy):
+            return jsonify(ok=False, error='По этому адресу никто не отвечает. Включена ли VPN-программа?')
+        if not proxy_works(proxy):
+            return jsonify(ok=False, error='Прокси отвечает, но YouTube через него не открылся.')
+    else:
+        proxy = find_proxy()
+        if not proxy:
+            return jsonify(ok=False, error='Прокси VPN-программы на компьютере не найден. Включите VPN-программу '
+                                           'или впишите адрес из её настроек (раздел «Прокси», «SOCKS», «Порт»).')
+    save_settings(proxy=proxy)
+    return jsonify(ok=True, proxy=proxy)
+
+
+# ---------- открытые вкладки программы ----------
+# Каждая открытая страница держит поток событий /api/events. Повторный запуск (ярлык, «Открыть» у часов)
+# спрашивает страницы «есть кто?» и, если какая-то отозвалась, новую вкладку не открывает.
+pages = set()                     # очереди сообщений для открытых страниц
+pages_lock = threading.Lock()
+page_answered = threading.Event()
+tray_icon = None
+
+
+@app.get('/api/events')
+def api_events():
+    q = queue.Queue()
+    with pages_lock:
+        pages.add(q)
+
+    def stream():
+        try:
+            yield 'retry: 2000\n\n'
+            while True:
+                try:
+                    yield f'data: {q.get(timeout=15)}\n\n'
+                except queue.Empty:
+                    yield ': ping\n\n'  # так и узнаём, что вкладку закрыли: запись не пройдёт
+        finally:
+            with pages_lock:
+                pages.discard(q)
+
+    return Response(stream(), mimetype='text/event-stream', headers={'Cache-Control': 'no-store'})
+
+
+@app.post('/api/here')
+def api_here():
+    page_answered.set()
+    return jsonify(ok=True)
+
+
+def tell_pages(message):
+    with pages_lock:
+        for q in pages:
+            q.put(message)
+        return bool(pages)
+
+
+def notify(text):
+    """Всплывающее сообщение у значка возле часов (без значка — в консоль)."""
+    print(text)
+    if tray_icon is not None:
+        try:
+            tray_icon.notify(text, 'Универсальный скачиватель')
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def show_page():
+    """Открывает страницу программы, только если её нет ни в одной вкладке. Если есть — вкладка мигает
+    заголовком, а у часов всплывает подсказка. True — открыли новую вкладку."""
+    page_answered.clear()
+    if tell_pages('ping') and page_answered.wait(2):
+        tell_pages('here')
+        notify('Программа уже открыта — во вкладке браузера «Универсальный скачиватель».')
+        return False
+    webbrowser.open(f'http://{HOST}:{PORT}')
+    return True
+
+
+@app.post('/api/show')
+def api_show():
+    """Программу запустили ещё раз (второй процесс) — показываем страницу."""
+    return jsonify(opened=show_page())
 
 
 @app.post('/api/folder/pick')
@@ -1161,29 +1395,73 @@ def update_ytdlp_daily():
         print('Не удалось обновить yt-dlp:', out.stderr.strip()[-500:])
 
 
-def run_tray(url):
+def register_protocol():
+    """Ссылка udl-downloader: запускает программу без новой вкладки — так её включает кнопка расширения
+    в браузере. Пишем в реестр пользователя (HKCU) при каждом запуске: папку программы могли перенести.
+    Тестовый запуск (DOWNLOADER_PORT) реестр не трогает — иначе ссылка вела бы во временную копию."""
+    if os.name != 'nt' or os.environ.get('DOWNLOADER_PORT'):
+        return
+    import winreg
+    wscript = Path(os.environ.get('SystemRoot', 'C:\\Windows')) / 'System32' / 'wscript.exe'
+    root = rf'Software\Classes\{PROTOCOL}'
+    values = {
+        root: {'': 'URL:Универсальный скачиватель', 'URL Protocol': ''},
+        root + r'\DefaultIcon': {'': str(ICON)},
+        root + r'\shell\open': {'FriendlyAppName': 'Универсальный скачиватель'},
+        root + r'\shell\open\command': {'': f'"{wscript}" "{BASE / "launch.vbs"}" --no-browser'},
+    }
+    try:
+        for key, items in values.items():
+            with winreg.CreateKey(winreg.HKEY_CURRENT_USER, key) as k:
+                for name, value in items.items():
+                    winreg.SetValueEx(k, name, 0, winreg.REG_SZ, value)
+    except OSError as e:
+        print('Не удалось прописать ссылку udl-downloader:', e)
+
+
+def open_page_later():
+    """Первый запуск: ждём пару секунд — вкладка, оставшаяся с прошлого раза, сама переподключится,
+    и тогда новую не открываем."""
+    deadline = time.time() + 2.5
+    while time.time() < deadline and not pages:
+        time.sleep(0.1)
+    show_page()
+
+
+def run_tray():
+    global tray_icon
     import pystray
     from PIL import Image
 
+    def open_page():  # в своём потоке: ответа страниц ждём до 2 с, а меню у часов не должно зависать
+        threading.Thread(target=show_page, daemon=True).start()
+
     menu = pystray.Menu(
-        pystray.MenuItem('Открыть', lambda: webbrowser.open(url), default=True),  # и по щелчку на значке
+        pystray.MenuItem('Открыть', open_page, default=True),  # и по щелчку на значке
         pystray.MenuItem('Папка загрузок', open_downloads),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem('Выход', quit_app),
     )
-    pystray.Icon('downloader', Image.open(ICON), 'Универсальный скачиватель', menu).run()
+    tray_icon = pystray.Icon('downloader', Image.open(ICON), 'Универсальный скачиватель', menu)
+    tray_icon.run()
 
 
 def main():
     url = f'http://{HOST}:{PORT}'
     owner = port_owner()
-    if owner == 'ours':  # уже запущено — просто открываем страницу
-        webbrowser.open(url)
+    if owner == 'ours':  # уже запущено — открываем страницу, только если её нет ни в одной вкладке
+        if '--no-browser' not in sys.argv:
+            req = urllib.request.Request(f'{url}/api/show', b'{}', {'Content-Type': 'application/json'})
+            try:
+                urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=10).close()
+            except OSError:
+                webbrowser.open(url)
         return
     if owner == 'other':
         fail(BUSY_TEXT.format(port=PORT))
         return
     prepare_ffmpeg()
+    register_protocol()
     DOWNLOADS.mkdir(exist_ok=True)
     if TRAY:
         logging.getLogger('werkzeug').setLevel(logging.ERROR)  # иначе каждый запрос страницы пишется в лог
@@ -1195,7 +1473,7 @@ def main():
         fail(BUSY_TEXT.format(port=PORT))
         return
     if '--no-browser' not in sys.argv:
-        threading.Timer(1.0, webbrowser.open, args=(url,)).start()
+        threading.Thread(target=open_page_later, daemon=True).start()
     if not TRAY:
         print(f'Универсальный скачиватель запущен: {url}')
         print('Не закрывайте это окно, пока скачиваете. Закрыть — Ctrl+C.')
@@ -1208,7 +1486,7 @@ def main():
     print(f'Запущено: {url}')
     threading.Thread(target=server.serve_forever, daemon=True).start()
     threading.Thread(target=update_ytdlp_daily, daemon=True).start()
-    run_tray(url)
+    run_tray()
 
 
 if __name__ == '__main__':
