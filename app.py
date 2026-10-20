@@ -240,6 +240,107 @@ def pick_folder(initial):
     return str(Path(path)) if path else None
 
 
+def _user32():
+    """Свой экземпляр user32 с типами для 64-битных HWND (общий windll.user32 не трогаем)."""
+    import ctypes
+    from ctypes import wintypes
+    u = ctypes.WinDLL('user32')
+    u.EnumWindows.argtypes = [ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM), wintypes.LPARAM]
+    for name in ('GetClassNameW', 'GetWindowTextW'):
+        getattr(u, name).argtypes = [wintypes.HWND, wintypes.LPWSTR, ctypes.c_int]
+    for name in ('IsWindowVisible', 'IsIconic', 'BringWindowToTop', 'SetForegroundWindow'):
+        getattr(u, name).argtypes = [wintypes.HWND]
+    u.ShowWindow.argtypes = [wintypes.HWND, ctypes.c_int]
+    u.GetForegroundWindow.restype = wintypes.HWND
+    u.GetWindowThreadProcessId.argtypes = [wintypes.HWND, wintypes.LPVOID]
+    u.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
+    u.PeekMessageW.argtypes = [wintypes.LPVOID, wintypes.HWND, wintypes.UINT, wintypes.UINT, wintypes.UINT]
+    return u
+
+
+def explorer_windows():
+    """Видимые окна Проводника: {hwnd: заголовок}."""
+    import ctypes
+    from ctypes import wintypes
+    u = _user32()
+    found = {}
+
+    @ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
+    def each(hwnd, _):
+        buf = ctypes.create_unicode_buffer(512)
+        u.GetClassNameW(hwnd, buf, 512)
+        if buf.value == 'CabinetWClass' and u.IsWindowVisible(hwnd):
+            u.GetWindowTextW(hwnd, buf, 512)
+            found[hwnd] = buf.value
+        return True
+
+    u.EnumWindows(each, 0)
+    return found
+
+
+def bring_to_front(hwnd):
+    """Как в PICK_FOLDER_PS: Windows отдаёт фокус только активному процессу, поэтому на миг
+    подключаемся к потоку активного окна (браузера) и делаем окно Проводника активным."""
+    import ctypes
+    from ctypes import wintypes
+    u = _user32()
+    u.PeekMessageW(ctypes.byref(wintypes.MSG()), None, 0, 0, 0)  # без очереди сообщений AttachThreadInput не работает
+    if u.IsIconic(hwnd):
+        u.ShowWindow(hwnd, 9)  # SW_RESTORE
+    fg = u.GetWindowThreadProcessId(u.GetForegroundWindow(), None)
+    me = ctypes.windll.kernel32.GetCurrentThreadId()
+    attached = bool(fg and fg != me and u.AttachThreadInput(me, fg, True))
+    try:
+        u.BringWindowToTop(hwnd)
+        u.SetForegroundWindow(hwnd)
+    finally:
+        if attached:
+            u.AttachThreadInput(me, fg, False)
+    return u.GetForegroundWindow() == hwnd
+
+
+def show_in_explorer(path, select=False):
+    """Открывает папку (или папку с выделенным файлом) в Проводнике поверх всех окон.
+    Окно открывает уже запущенный explorer.exe, не наш процесс, а уже открытую папку он только
+    подсвечивает на панели задач — окно остаётся за браузером. Ждём новое окно (или открытое
+    с этой папкой — его узнаём по заголовку) и выводим вперёд."""
+    path = Path(path)
+    folder = path.parent if select else path
+    before = set(explorer_windows())
+    if select:
+        subprocess.Popen(f'explorer /select,"{path}"')
+    else:
+        os.startfile(path)  # уже открытую папку покажет в её окне, а не во втором
+
+    def raise_window(hwnd):
+        for _ in range(5):  # только что созданное окно иногда не сразу принимает фокус
+            if bring_to_front(hwnd):
+                return
+            time.sleep(0.2)
+
+    def focus():
+        names = {folder.name.lower(), str(folder).lower()}
+        start = time.time()
+        raised_old = False
+        while time.time() - start < 6:
+            time.sleep(0.1)
+            now = explorer_windows()
+            new = [h for h in now if h not in before]
+            if new:
+                return raise_window(new[0])
+            elapsed = time.time() - start
+            # новое окно не появилось — значит, Проводник показал папку в открытом окне;
+            # выводим его (пока он занят запросом, фокус не даётся — пробуем снова),
+            # но ещё немного ждём: с /select он иногда открывает новое
+            same = [h for h, title in now.items() if title.lower() in names]
+            if same and not raised_old and elapsed > 0.5:
+                raised_old = bring_to_front(same[0])
+            if raised_old and elapsed > 3:
+                return
+
+    threading.Thread(target=focus, daemon=True).start()
+
+
 def base_opts():
     opts = {
         'quiet': True,
@@ -309,6 +410,10 @@ ERROR_RULES = [
     (r'http error 404|404: not found|code 3419392776',
      'Видео удалено или ссылка устарела (ошибка 404). Откройте его в браузере; если играет, '
      'нажмите правой кнопкой на самом видео → «Скачать в программе».'),
+    # 410 — страницу убрали насовсем, но так же отвечают сайты, ушедшие из страны (PornHub и др.)
+    (r'http error 410|410: gone',
+     'Страница удалена или сайт закрыт для вашей страны: проверьте ссылку в браузере; '
+     'если открывается только с VPN — включите прокси во вкладке «VPN».'),
     # 3436169992 — так ffmpeg сообщает HTTP 403 (AVERROR_HTTP_FORBIDDEN), бывает при загрузке куска
     (r'http error 403|forbidden|code 3436169992',
      'Сайт отказал в доступе (ошибка 403). Попробуйте ещё раз через минуту. Ссылки на видео привязаны '
@@ -519,7 +624,8 @@ YOUTUBE_SITE = re.compile(r'(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)
 # так выглядит сайт, закрытый провайдером: соединение рвут, не отвечают или не находят адрес
 BLOCKED_ERROR = re.compile(r'timed? ?out|connection (reset|aborted|refused)|remote end closed|winerror 100(54|60|61)|'
                            r'unexpected_eof|eof occurred in violation|getaddrinfo|failed to resolve|'
-                           r'unable to connect|network is unreachable', re.I)
+                           r'unable to connect|network is unreachable|'
+                           r'http error 410|410: gone', re.I)  # 410 — сайт ушёл из страны (PornHub)
 proxy_lock = threading.Lock()
 
 
@@ -1232,11 +1338,9 @@ def api_open():
     if os.name != 'nt':
         return jsonify(ok=False)
     if files:
-        subprocess.Popen(f'explorer /select,"{files[-1]}"')
+        show_in_explorer(files[-1], select=True)
     else:
-        folder = download_dir()
-        folder.mkdir(exist_ok=True)
-        os.startfile(folder)
+        open_downloads()
     return jsonify(ok=True)
 
 
@@ -1392,7 +1496,7 @@ BUSY_TEXT = ('Порт {port} занят другой программой, по
 def open_downloads():
     folder = download_dir()
     folder.mkdir(exist_ok=True)
-    os.startfile(folder)
+    show_in_explorer(folder)
 
 
 def quit_app(icon):

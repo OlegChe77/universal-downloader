@@ -348,7 +348,10 @@
   .hit.is-current { box-shadow: inset 3px 0 var(--accent); }
   .hit.is-current .cover .listen { background: var(--accent); }
   .listen .icon.fill, .player .icon.fill { fill: currentColor; stroke: none; }
+  .listen-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .meta .listen-row { margin-top: 12px; }
+  .batch .listen-row { margin-top: 14px; }
+  .result.music [data-clear-link] { display: none; }  /* в окне «Ещё форматы» — песня из «Музыки», очищать нечего */
   .btn.listen.on { border-color: var(--accent); color: var(--accent-text); }
   .listen .spinner { width: 15px; height: 15px; }
   html.has-player { scroll-padding-bottom: 96px; }
@@ -528,11 +531,11 @@
     <summary>
       <svg class="icon"><use href="#i-download"/></svg>
       <span class="q-title">Скачивать прямо с сайта <small>— расширение и кнопка-закладка для всех браузеров</small></span>
-      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
+      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
     </summary>
     <div class="quick-body">
       <div class="quick-col">
-        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
+        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
         <p>Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
           и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
         <div class="quick-actions">
@@ -540,22 +543,22 @@
           <a class="link" href="/help#extension">Подробная инструкция</a>
         </div>
         <ul class="q-steps">
-          <li><b>Chrome, Edge, Яндекс:</b> распакуйте архив в постоянную папку → страница расширений
-            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>) →
+          <li><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
+            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
             «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
           <li><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
             сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
         </ul>
       </div>
       <div class="quick-col" data-bm-box>
-        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
+        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
         <p>Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
           на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
         <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
         <div class="bm-note" data-bm-note role="status"></div>
         <div class="drag-hint" data-drag-hint></div>
         <p class="muted small">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
-          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>).
+          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
           Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
           и вставьте его вместо адреса закладки.</p>
       </div>
@@ -602,6 +605,7 @@
     <form class="field" id="link-form">
       <textarea id="url" rows="1" placeholder="Вставьте ссылку, например https://youtu.be/…" autocomplete="off" spellcheck="false" aria-label="Ссылка на видео или страницу"></textarea>
       <button class="btn primary" id="go" type="submit"><svg class="icon"><use href="#i-search"/></svg>Найти</button>
+      <button class="btn ghost hidden" id="url-clear" type="button" title="Очистить поле и убрать найденное"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
     </form>
     <div class="hints">
       <span>Скопируйте адрес из браузера и вставьте сюда — варианты появятся сами</span>
@@ -621,8 +625,9 @@
             <span class="badge" id="site"></span>
             <div class="title" id="title"></div>
             <div class="muted" id="info"></div>
-            <div class="listen-row" id="listen-row">
+            <div class="listen-row">
               <button class="btn ghost small listen" id="result-listen" type="button" title="Послушать перед скачиванием"></button>
+              <button class="btn ghost small" type="button" data-clear-link title="Очистить поле и убрать найденное"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
             </div>
           </div>
         </div>
@@ -660,6 +665,9 @@
       <div class="group">
         <h3><svg class="icon"><use href="#i-music"/></svg>Только звук</h3>
         <div class="chips" id="batch-audio"></div>
+      </div>
+      <div class="listen-row">
+        <button class="btn ghost small" type="button" data-clear-link title="Очистить поле и убрать список"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
       </div>
     </section>
   </section>
@@ -927,7 +935,7 @@ function renderResult(r) {
   $('video-group').classList.toggle('hidden', !video.length);
   $('audio').innerHTML = r.options.filter(o => o.kind === 'audio').map(chip).join('');
   $('result-listen').dataset.listen = r.url;
-  $('listen-row').classList.toggle('hidden', !!(r.playlist || r.live));
+  $('result-listen').classList.toggle('hidden', !!(r.playlist || r.live));
   syncListen();
   $('cut-group').classList.toggle('hidden', r.playlist || r.live);
   $('cut-group').open = false;
@@ -1029,8 +1037,28 @@ let batch = null;
 function resetLink() {
   hideError('link-error');
   $('batch').classList.add('hidden');
+  batch = null;
   if ($('result').parentElement === $('link-slot')) $('result').classList.add('hidden');
   linkCurrent = null;
+}
+
+// «Очистить» видна, только когда есть что убирать, и не во время разбора
+function updateLinkClear() {
+  const busy = !$('link-loading').classList.contains('hidden');
+  const any = $('url').value.trim() || linkCurrent || batch || !$('link-error').classList.contains('hidden');
+  $('url-clear').classList.toggle('hidden', busy || !any);
+}
+
+function clearLink() {
+  resetLink();
+  if ($('dlg').open) $('dlg').close();  // окно вернёт карточку во вкладку и спрячет её
+  current = null;
+  $('cut-group').open = false;
+  $('cut-start').value = $('cut-end').value = '';
+  $('url').value = '';
+  growInput();
+  updateLinkClear();
+  $('url').focus();
 }
 
 async function analyzeLink() {
@@ -1038,12 +1066,13 @@ async function analyzeLink() {
   if (!text) { $('url').focus(); return; }
   resetLink();
   const list = parseLinks(text);
-  if (list) { renderBatch(list); return; }
+  if (list) { renderBatch(list); updateLinkClear(); return; }
   if (!URL_RE.test(text)) {
     // похоже на название песни — ищем в «Музыке»
     $('query').value = text;
     $('url').value = '';
     growInput();
+    updateLinkClear();
     setTab('music');
     toast('Это не ссылка — ищу песню по названию в разделе «Музыка».');
     runSearch();
@@ -1051,6 +1080,7 @@ async function analyzeLink() {
   }
   $('go').disabled = true;
   $('link-loading').classList.remove('hidden');
+  updateLinkClear();
   try {
     const data = await api('/api/info', {url: text});
     linkCurrent = data;
@@ -1060,6 +1090,7 @@ async function analyzeLink() {
   } finally {
     $('go').disabled = false;
     $('link-loading').classList.add('hidden');
+    updateLinkClear();
   }
 }
 
@@ -1089,6 +1120,7 @@ $('batch').addEventListener('click', async e => {
     growInput();
     toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'файл', 'файла', 'файлов')} (${btn.dataset.label}) — скачаются по одному.`, {toDownloads: true});
     batch = null;
+    updateLinkClear();
     poll();
   } catch (err) {
     showError('link-error', err);
@@ -1102,7 +1134,8 @@ function growInput() {
 }
 
 $('link-form').addEventListener('submit', e => { e.preventDefault(); analyzeLink(); });
-$('url').addEventListener('input', growInput);
+$('url').addEventListener('input', () => { growInput(); updateLinkClear(); });
+document.querySelectorAll('#url-clear, [data-clear-link]').forEach(b => b.addEventListener('click', clearLink));
 $('url').addEventListener('keydown', e => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault();
