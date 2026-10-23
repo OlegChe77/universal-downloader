@@ -153,6 +153,8 @@
   }
   .proxy-row input:focus { border-color: var(--accent); }
   .proxy .ask { margin-left: 0; width: fit-content; }
+  .doh { display: grid; gap: 6px; border-top: 1px solid var(--line); padding-top: 12px; }
+  .doh .ask { color: var(--text); }
   .music-note {
     margin-top: 12px; padding: 9px 12px; border-radius: 10px; font-size: 13.5px;
     background: var(--card-2); border: 1px solid var(--line); color: var(--muted);
@@ -795,6 +797,12 @@
       </div>
       <label class="ask"><input type="checkbox" id="proxy-all"> все сайты через прокси</label>
       <div class="cut-note" id="proxy-note"></div>
+      <div class="doh">
+        <label class="ask"><input type="checkbox" id="doh"> Защищённый DNS</label>
+        <p class="muted">Искать адреса сайтов через DNS по HTTPS (Cloudflare, Google), если DNS провайдера их не находит —
+          ошибка «Не удалось найти сайт в сети». Помогает вместе с zapret и похожими программами.
+          Кусок видео (с–до) ищет адреса сам, ему галочка не поможет. <a href="/help#doh">Подробнее</a></p>
+      </div>
     </div>
   </section>
 
@@ -1771,6 +1779,7 @@ function renderProxy() {
   const proxy = settings.proxy || '';
   if (document.activeElement !== $('proxy')) $('proxy').value = proxy;
   $('proxy-all').checked = !!settings.proxy_all;
+  $('doh').checked = !!settings.doh;
   const sites = ['YouTube', ...(settings.proxy_sites || []).filter(s => !/youtube|youtu\.be/.test(s))];
   $('proxy-state').textContent = !proxy ? 'прокси не используется, программа ходит напрямую'
     : settings.proxy_all ? `${proxy}, все сайты` : `${proxy}: ${sites.join(', ')}`;
@@ -1813,6 +1822,10 @@ $('proxy-save').addEventListener('click', async () => {
 $('proxy').addEventListener('keydown', e => { if (e.key === 'Enter') $('proxy-save').click(); });
 $('proxy-all').addEventListener('change', async e => {
   settings = await api('/api/settings', {proxy_all: e.target.checked});
+  renderSettings();
+});
+$('doh').addEventListener('change', async e => {
+  settings = await api('/api/settings', {doh: e.target.checked});
   renderSettings();
 });
 

@@ -66,8 +66,9 @@ UPDATE_CACHE = Path(sys.prefix) / 'app-update.json'  # когда проверя
 UPDATE_EVERY = 3 * 24 * 3600
 DEV_COPY = (BASE / '.git').exists()  # папка разработки обновляется через git, а не архивом
 # proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
+# doh — защищённый DNS: адреса, которые не нашёл системный DNS, искать через DNS по HTTPS
 DEFAULT_SETTINGS = {'download_dir': str(DOWNLOADS), 'ask_every_time': True, 'port': DEFAULT_PORT,
-                    'proxy': '', 'proxy_all': False, 'proxy_sites': []}
+                    'proxy': '', 'proxy_all': False, 'proxy_sites': [], 'doh': False}
 HOST = '127.0.0.1'
 PROTOCOL = 'udl-downloader'  # ссылка udl-downloader: запускает программу (так её включает расширение браузера)
 
@@ -372,6 +373,7 @@ COOKIES_HINT = ' Нужен cookies.txt из браузера, где вы во�
 UPDATE_HINT = ' Обновите yt-dlp на странице «Помощь».'
 BLOCK_HINT = (' Если сайт заблокирован (YouTube, Instagram, Pornhub…), нужен VPN для всего компьютера или его прокси: '
               'VPN-расширение в браузере на программу не действует. Как быть — «Помощь» → «Если включён VPN».')
+DOH_HINT = ' Интернет есть, а провайдер прячет адрес сайта — включите «Защищённый DNS» на вкладке «VPN».'
 
 # (регулярное выражение по тексту ошибки, объяснение). Порядок важен: сначала узкие случаи.
 # yt-dlp дописывает к разным ошибкам «Use --cookies…», поэтому «вход в аккаунт» стоит после
@@ -450,7 +452,7 @@ ERROR_RULES = [
      'Не удалось установить защищённое соединение с сайтом. Проверьте дату и время на компьютере; '
      'так бывает, когда антивирус проверяет HTTPS или VPN подменяет соединение.'),
     (r'getaddrinfo|name or service not known|failed to resolve|nodename nor servname|no address associated',
-     'Не удалось найти сайт в сети. Проверьте интернет.' + BLOCK_HINT),
+     'Не удалось найти сайт в сети. Проверьте интернет.' + DOH_HINT + BLOCK_HINT),
     (r'timed out|timeout|connection (reset|refused|aborted)|remote end closed|network is unreachable|'
      r'unable to connect|max retries|winerror 100(5\d|6\d)|incompleteread|connection broken|got only',
      'Сайт не отвечает или связь прервалась. Проверьте интернет и попробуйте ещё раз.' + BLOCK_HINT),
@@ -480,7 +482,8 @@ def human_error(err):
     bare = URL_IN_TEXT.sub('<url>', ERROR_PREFIX.sub('', msg))
     for rx, text in ERROR_RULES:
         if rx.search(bare):
-            return text
+            # защищённый DNS уже включён — не советуем его включить
+            return text.replace(DOH_HINT, '') if DOH_HINT in text and load_settings()['doh'] else text
     return msg
 
 
@@ -889,6 +892,58 @@ def via_proxy(url, work):
         s = load_settings()
         save_settings(proxy=proxy, proxy_sites=sorted(set(s['proxy_sites']) | {site_of(url)}))
     return result
+
+
+# Защищённый DNS. Провайдер может прятать адреса закрытых сайтов (getaddrinfo failed), а zapret и т. п. только
+# пропускают соединение. С галочкой адрес, который не нашёл системный DNS, спрашиваем у Cloudflare/Google
+# по HTTPS — по IP, самим серверам DNS не нужен (Quad9 по HTTP/1.1 не отвечает). Действует на всё, что ходит
+# через socket (yt-dlp, прослушивание, поиск); ffmpeg (кусок) и curl_cffi (TikTok, Instagram) ищут адреса сами.
+DOH_SERVERS = ['https://1.1.1.1/dns-query', 'https://8.8.8.8/resolve',
+               'https://1.0.0.1/dns-query', 'https://8.8.4.4/resolve']
+system_getaddrinfo = socket.getaddrinfo
+doh_cache = {}  # (имя, тип записи) → (адреса, до какого времени)
+
+
+def doh_lookup(host, rtype=1):
+    """Адреса имени (rtype 1 — IPv4, 28 — IPv6) через DNS по HTTPS; [] — нет такого имени или серверы молчат."""
+    key = (host, rtype)
+    hit = doh_cache.get(key)
+    if hit and hit[1] > time.time():
+        return hit[0]
+    for server in DOH_SERVERS:
+        req = urllib.request.Request(f'{server}?name={urllib.parse.quote(host)}&type={rtype}',
+                                     headers={'Accept': 'application/dns-json'})
+        try:
+            with urllib.request.urlopen(req, timeout=4) as r:
+                answers = [a for a in json.load(r).get('Answer', []) if a.get('type') == rtype]
+        except (OSError, ValueError, AttributeError):
+            continue
+        ttl = min([a.get('TTL', 300) for a in answers] or [60])
+        doh_cache[key] = [a['data'] for a in answers], time.time() + min(max(ttl, 60), 3600)
+        return doh_cache[key][0]
+    return []
+
+
+def getaddrinfo_doh(host, port, family=0, type=0, proto=0, flags=0):  # noqa: A002 — как у socket.getaddrinfo
+    """socket.getaddrinfo: системный DNS, а если он не нашёл имя и включён защищённый DNS — DNS по HTTPS."""
+    try:
+        return system_getaddrinfo(host, port, family, type, proto, flags)
+    except socket.gaierror:
+        name = (host.decode() if isinstance(host, bytes) else host or '').rstrip('.').lower()
+        try:
+            name = name.encode('idna').decode() if '.' in name and load_settings()['doh'] else ''
+        except UnicodeError:
+            name = ''
+        ips = doh_lookup(name, 1) if name and family != socket.AF_INET6 else []
+        if name and not ips and family != socket.AF_INET:
+            ips = doh_lookup(name, 28)
+        if not ips:
+            raise
+        return [info for ip in ips
+                for info in system_getaddrinfo(ip, port, family, type, proto, flags | socket.AI_NUMERICHOST)]
+
+
+socket.getaddrinfo = getaddrinfo_doh
 
 
 def remove_partial(task):
@@ -1979,7 +2034,7 @@ def api_open():
 def api_settings():
     s = load_settings()
     return jsonify(download_dir=str(download_dir()), ask_every_time=s['ask_every_time'],
-                   proxy=s['proxy'], proxy_all=s['proxy_all'], proxy_sites=s['proxy_sites'])
+                   proxy=s['proxy'], proxy_all=s['proxy_all'], proxy_sites=s['proxy_sites'], doh=s['doh'])
 
 
 @app.post('/api/settings')
@@ -1989,6 +2044,8 @@ def api_settings_save():
         save_settings(ask_every_time=bool(data['ask_every_time']))
     if 'proxy_all' in data:
         save_settings(proxy_all=bool(data['proxy_all']))
+    if 'doh' in data:
+        save_settings(doh=bool(data['doh']))
     if 'proxy' in data:
         proxy = normalize_proxy(text_arg(data, 'proxy')) if text_arg(data, 'proxy') else ''
         if proxy is None:
