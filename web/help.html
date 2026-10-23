@@ -39,7 +39,30 @@
   }
   main { max-width: 860px; margin: 0 auto; padding: 32px 16px 60px; }
   a { color: var(--accent); }
-  .back { display: inline-block; margin-bottom: 16px; text-decoration: none; }
+  .back { display: inline-block; text-decoration: none; }
+  .head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  /* «Помощь проекту» — как на главной */
+  a.donate {
+    position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 12px; font-weight: 600; font-size: 15.5px; text-decoration: none;
+    color: #fff; background: linear-gradient(135deg, #ff8a3d 0%, #ff5a6e 55%, #e8448f 100%);
+    box-shadow: 0 4px 14px rgba(255, 90, 110, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+  }
+  a.donate::after {
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+    transition: transform .6s;
+  }
+  a.donate:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 20px rgba(255, 90, 110, .45); }
+  a.donate:hover::after { transform: translateX(120%); }
+  a.donate svg { width: 19px; height: 19px; fill: currentColor; animation: beat 2.4s ease-in-out infinite; }
+  @keyframes beat { 0%, 70%, 100% { transform: scale(1); } 78% { transform: scale(1.2); } 86% { transform: scale(.95); } }
+  @media (prefers-reduced-motion: reduce) { a.donate svg { animation: none; } a.donate::after { display: none; } }
+  :root[data-theme="dark"] a.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) a.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  }
   h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
   h2 { font-size: 19px; margin: 36px 0 12px; }
   .sub { color: var(--muted); margin: 0; }
@@ -150,7 +173,13 @@
 </head>
 <body>
 <main>
-  <a class="back" href="/">← К скачиванию</a>
+  <div class="head-row">
+    <a class="back" href="/">← К скачиванию</a>
+    <a class="donate" href="https://www.donationalerts.com/r/olegche" target="_blank" rel="noopener"
+       title="Поддержать разработку программы (DonationAlerts)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg>Помощь проекту
+    </a>
+  </div>
   <h1>Как это работает</h1>
   <p class="sub">Что происходит внутри программы и что делать, если она перестала скачивать.</p>
 

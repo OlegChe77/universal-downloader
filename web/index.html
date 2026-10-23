@@ -82,8 +82,33 @@
   .brand img { width: 40px; height: 40px; }
   .brand h1 { font-size: 22px; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
   .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
+  .top-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
   .top-tools { display: flex; gap: 8px; }
+  .top-tools .btn { flex: 1; }
   a.btn { color: inherit; text-decoration: none; }
+
+  /* «Помощь проекту» — тёплая, заметнее остальных кнопок */
+  a.btn.donate {
+    position: relative; overflow: hidden; padding: 11px 20px; border-radius: 12px; font-size: 15.5px;
+    color: #fff; background: linear-gradient(135deg, #ff8a3d 0%, #ff5a6e 55%, #e8448f 100%);
+    box-shadow: 0 4px 14px rgba(255, 90, 110, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+  }
+  a.btn.donate::after {  /* блик пробегает при наведении */
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+    transition: transform .6s;
+  }
+  a.btn.donate:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 20px rgba(255, 90, 110, .45); }
+  a.btn.donate:hover::after { transform: translateX(120%); }
+  a.btn.donate:active { transform: none; }
+  a.btn.donate .icon { width: 19px; height: 19px; fill: currentColor; stroke: none; animation: beat 2.4s ease-in-out infinite; }
+  @keyframes beat { 0%, 70%, 100% { transform: scale(1); } 78% { transform: scale(1.2); } 86% { transform: scale(.95); } }
+  @media (prefers-reduced-motion: reduce) { a.btn.donate .icon { animation: none; } a.btn.donate::after { display: none; } }
+  :root[data-theme="dark"] a.btn.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) a.btn.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  }
 
   .card {
     background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
@@ -493,6 +518,9 @@
     .tab { padding: 10px 6px; gap: 6px; }
     .tab b { font-size: 14px; white-space: nowrap; }
     .top-tools .label { display: none; }
+    .top-side { width: 100%; flex-direction: row; }
+    .top-side .donate { flex: 1; }
+    .top-tools .btn { flex: none; }
     .panel { padding: 16px; }
     .field { flex-direction: column; }
     .field .btn { align-self: stretch; min-height: 46px; }
@@ -554,6 +582,7 @@
   <symbol id="i-mute" viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="m16 9.5 5 5M21 9.5l-5 5"/></symbol>
   <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 3.5h10a1 1 0 0 1 1 1V21l-6-4-6 4V4.5a1 1 0 0 1 1-1z"/></symbol>
   <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 1 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 1 0 0 4H19v4a1 1 0 0 1-1 1h-4v-1.5a2 2 0 1 0-4 0V20H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
 </svg>
 
@@ -566,13 +595,19 @@
         <p>Видео и музыка с YouTube, VK, Rutube, SoundCloud и ещё 1000+ сайтов — прямо на компьютер</p>
       </div>
     </div>
-    <div class="top-tools">
-      <button class="btn ghost small" id="theme" type="button" title="Сменить тему оформления">
-        <svg class="icon"><use href="#i-auto"/></svg><span class="label">Тема: как в Windows</span>
-      </button>
-      <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
-        <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
+    <div class="top-side">
+      <a class="btn donate" href="https://www.donationalerts.com/r/olegche" target="_blank" rel="noopener"
+         title="Поддержать разработку программы (DonationAlerts)">
+        <svg class="icon"><use href="#i-heart"/></svg>Помощь проекту
       </a>
+      <div class="top-tools">
+        <button class="btn ghost small" id="theme" type="button" title="Сменить тему оформления">
+          <svg class="icon"><use href="#i-auto"/></svg><span class="label">Тема: как в Windows</span>
+        </button>
+        <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
+          <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
+        </a>
+      </div>
     </div>
   </header>
 
