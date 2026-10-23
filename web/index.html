@@ -114,18 +114,13 @@
     background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
   }
 
-  /* загрузки */
-  .dl { padding: 14px 18px 12px; margin-bottom: 22px; }
-  .dl-head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+  /* загрузки и папка — внизу открытой вкладки («По ссылке» или «Музыка»), под найденным */
+  .dl { margin-top: 18px; }
+  .dl-head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; margin-top: 14px; }
   .dl-head h2 { font-size: 17px; margin: 0; }
   .dl-summary { color: var(--muted); font-size: 13.5px; flex: 1; }
-  .dl-tools { display: flex; gap: 6px; }
   .tasks { margin-top: 8px; max-height: 330px; overflow-y: auto; }
-  .empty {
-    display: flex; align-items: center; gap: 12px; padding: 12px 14px; margin: 4px 0 2px;
-    color: var(--muted); background: var(--card-2); border: 1px dashed var(--line); border-radius: 12px; font-size: 14px;
-  }
-  .empty .icon { width: 22px; height: 22px; color: var(--faint); }
+  .tasks:empty { display: none; }
   .task { display: flex; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
   .task:first-child { border-top: 0; }
   .task-icon {
@@ -161,7 +156,7 @@
   .err-more code { display: block; margin-top: 4px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .err-help { display: inline-block; margin-top: 4px; font-size: 12.5px; color: inherit; white-space: normal; }
   .folder-bar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 10px; padding-top: 10px;
+    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-top: 14px;
     border-top: 1px solid var(--line); font-size: 13.5px;
   }
   .folder-bar .icon { width: 16px; height: 16px; color: var(--muted); }
@@ -402,7 +397,6 @@
   .meta .listen-row { margin-top: 12px; }
   .batch .listen-row { margin-top: 14px; }
   .result.music [data-clear-link] { display: none; }  /* в окне «Ещё форматы» — песня из «Музыки», очищать нечего */
-  .btn.listen.on { border-color: var(--accent); color: var(--accent-text); }
   .listen .spinner { width: 15px; height: 15px; }
   html.has-player { scroll-padding-bottom: 96px; }
   .has-player main { padding-bottom: 120px; }
@@ -573,7 +567,6 @@
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12.5 4.5 4.5L19 7.5"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
-  <symbol id="i-inbox" viewBox="0 0 24 24"><path d="M3.5 13.5 6 5.5h12l2.5 8v5h-17z"/><path d="M3.5 13.5h5l1 2h5l1-2h5"/></symbol>
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z"/></symbol>
   <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4.5" width="4" height="15" rx="1.2"/><rect x="14" y="4.5" width="4" height="15" rx="1.2"/></symbol>
   <symbol id="i-prev" viewBox="0 0 24 24"><rect x="5" y="5" width="2.6" height="14" rx="1"/><path d="M19 5.8v12.4a1 1 0 0 1-1.55.83L9.2 13.1a1.3 1.3 0 0 1 0-2.2l8.25-5.93A1 1 0 0 1 19 5.8z"/></symbol>
@@ -651,27 +644,6 @@
     </div>
   </details>
 
-  <section class="card dl" id="downloads" aria-labelledby="dl-title">
-    <div class="dl-head">
-      <h2 id="dl-title">Загрузки</h2>
-      <span class="dl-summary" id="dl-summary"></span>
-      <div class="dl-tools">
-        <button class="btn ghost small hidden" id="clear-done" type="button" title="Убрать из списка всё, что уже скачано, отменено или не удалось">Убрать готовые</button>
-        <button class="btn ghost small" id="open-folder" type="button"><svg class="icon"><use href="#i-folder"/></svg>Открыть папку</button>
-      </div>
-    </div>
-    <div class="tasks" id="tasks" aria-live="polite"></div>
-    <div class="folder-bar">
-      <svg class="icon"><use href="#i-folder"/></svg>
-      <span class="muted">Сохранять в:</span>
-      <b id="folder-path">…</b>
-      <button class="link" id="change-folder" type="button">Изменить</button>
-      <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
-        <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
-      </label>
-    </div>
-  </section>
-
   <div class="tabs" role="tablist" aria-label="Что скачиваем">
     <button class="tab" role="tab" id="tab-link" data-tab="link" aria-controls="panel-link" aria-selected="true" type="button">
       <svg class="icon"><use href="#i-link"/></svg>
@@ -712,7 +684,6 @@
             <div class="title" id="title"></div>
             <div class="muted" id="info"></div>
             <div class="listen-row">
-              <button class="btn ghost small listen" id="result-listen" type="button" title="Послушать перед скачиванием"></button>
               <button class="btn ghost small" type="button" data-clear-link title="Очистить поле и убрать найденное"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
             </div>
           </div>
@@ -777,6 +748,25 @@
       <div class="listen-row">
         <button class="btn ghost small" type="button" data-clear-link title="Очистить поле и убрать список"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
       </div>
+    </section>
+
+    <section class="dl" id="downloads" aria-label="Загрузки">
+      <div class="folder-bar">
+        <svg class="icon"><use href="#i-folder"/></svg>
+        <span class="muted">Сохранять в:</span>
+        <b id="folder-path">…</b>
+        <button class="link" id="change-folder" type="button">Выбрать папку</button>
+        <button class="link" id="open-folder" type="button">Открыть</button>
+        <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
+          <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
+        </label>
+      </div>
+      <div class="dl-head hidden" id="dl-head">
+        <h2>Загрузки</h2>
+        <span class="dl-summary" id="dl-summary"></span>
+        <button class="btn ghost small hidden" id="clear-done" type="button" title="Убрать из списка всё, что уже скачано, отменено или не удалось">Убрать готовые</button>
+      </div>
+      <div class="tasks" id="tasks" aria-live="polite"></div>
     </section>
   </section>
 
@@ -884,7 +874,7 @@
   <audio id="p-audio" preload="auto"></audio>
 </section>
 
-<div class="toast" id="toast" role="status"><span id="toast-text"></span><button class="link hidden" id="toast-action" type="button">К загрузкам ↑</button></div>
+<div class="toast" id="toast" role="status"><span id="toast-text"></span><button class="link hidden" id="toast-action" type="button">К загрузкам</button></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -963,16 +953,18 @@ const hideError = box => $(box).classList.add('hidden');
 let toastTimer = null;
 function toast(msg, {toDownloads = false, sticky = false} = {}) {
   $('toast-text').textContent = msg;
-  // кнопка «К загрузкам» нужна, только если блок загрузок прокручен за край экрана
-  const offscreen = $('downloads').getBoundingClientRect().bottom < 60;
+  // кнопка «К загрузкам» нужна, только если блок загрузок за краем экрана
+  const r = $('downloads').getBoundingClientRect();
+  const offscreen = r.bottom < 60 || r.top > innerHeight - 60;
   $('toast-action').classList.toggle('hidden', !(toDownloads && offscreen));
+  $('toast-action').textContent = 'К загрузкам ' + (r.top > 0 ? '↓' : '↑');
   $('toast').classList.add('show');
   clearTimeout(toastTimer);
   if (!sticky) toastTimer = setTimeout(hideToast, 4500);
 }
 function hideToast() { $('toast').classList.remove('show'); }
 $('toast-action').addEventListener('click', () => {
-  $('downloads').scrollIntoView({behavior: 'smooth', block: 'start'});
+  $('downloads').scrollIntoView({behavior: 'smooth', block: 'nearest'});
   hideToast();
 });
 
@@ -1007,6 +999,7 @@ function setTab(name, focus = false) {
     $('tab-' + t).tabIndex = on ? 0 : -1;
     $('panel-' + t).hidden = !on;
   });
+  if (name !== 'vpn') $('panel-' + name).append($('downloads'));  // загрузки и папка — под найденным
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
   if (focus) $(TAB_FOCUS[name]).focus();
@@ -1056,19 +1049,17 @@ function renderResult(r) {
   $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
     + (tracks.length && video.length ? '<option value="all">Все дорожки сразу (только видео)</option>' : '');
   $('track-group').classList.toggle('hidden', !tracks.length);
-  // субтитры — только к видео; заранее выбраны русские, если они настоящие (автоперевод есть почти везде)
+  // субтитры — только к видео; всегда заранее выбраны русские (сделанные людьми, иначе автоматические или автоперевод)
   const subs = video.length ? r.subtitles || [] : [];
   $('subs').innerHTML = '<option value="">Без субтитров</option>'
     + subs.map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join('');
-  const ru = subs.findIndex(s => !s.auto && s.id.toLowerCase().startsWith('ru'));
+  const isRu = s => s.id.toLowerCase().startsWith('ru');
+  const ru = [subs.findIndex(s => isRu(s) && !s.auto), subs.findIndex(isRu)].find(i => i >= 0) ?? -1;
   $('subs').value = ru < 0 ? '' : String(ru);
   $('subs-mode').value = store.get('subsMode') === 'embed' ? 'embed' : 'file';
   $('subs-group').classList.toggle('hidden', !subs.length);
   $('loop').value = 'loop';  // как на сайте
   $('loop-group').classList.toggle('hidden', !(r.loop && video.length));
-  $('result-listen').dataset.listen = r.url;
-  $('result-listen').classList.toggle('hidden', !!(r.playlist || r.live));
-  syncListen();
   // у COUB кусок не нужен: видео короче звука, кусок дальше петли вышел бы без картинки
   $('cut-group').classList.toggle('hidden', !!(r.playlist || r.live || r.loop));
   $('cut-group').open = false;
@@ -1203,7 +1194,6 @@ async function startDownload(btn) {
   }
   poll();
 }
-$('result-listen').addEventListener('click', () => listen(current));
 $('result').addEventListener('click', e => {
   const btn = e.target.closest('.chip');
   if (btn) startDownload(btn);
@@ -1917,9 +1907,9 @@ function renderTasks(list) {
     count('done') && `готово ${count('done')}`, count('error') && `с ошибкой ${count('error')}`,
   ].filter(Boolean).join(' · ');
   $('clear-done').classList.toggle('hidden', !list.some(t => !['running', 'queued'].includes(t.status)));
+  $('dl-head').classList.toggle('hidden', !list.length);
   if (!list.length) {
-    $('tasks').innerHTML = `<div class="empty">${icon('inbox')}<span>Здесь будет видно, как идёт скачивание.
-      Вставьте ссылку ниже или найдите песню в разделе «Музыка».</span></div>`;
+    $('tasks').innerHTML = '';
     return;
   }
   // список перерисовывается при каждом опросе — открытое «Подробнее» не должно захлопываться

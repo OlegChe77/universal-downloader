@@ -1,9 +1,12 @@
 ﻿# Запуск Универсального скачивателя: ставит всё недостающее и запускает программу.
-# Вызывается из Запуск.bat. Файл должен быть в UTF-8 с BOM, иначе Windows PowerShell 5.1 испортит русский текст.
+# Вызывается из Запуск.bat (с окном) и из launch.vbs с --hidden (без окна: ход установки — значок у часов,
+# ошибка — окно сообщения). Файл должен быть в UTF-8 с BOM, иначе Windows PowerShell 5.1 испортит русский текст.
 
 $Host.UI.RawUI.WindowTitle = 'Универсальный скачиватель'
 $ProgressPreference = 'SilentlyContinue'  # без этого Invoke-WebRequest качает в разы медленнее
 Set-Location $PSScriptRoot
+$Hidden = $args -contains '--hidden'
+$AppArgs = @($args | Where-Object { $_ -ne '--hidden' })
 
 # Свой Python лежит в папке программы (python\): встроенный (embeddable) Python с python.org,
 # ставить Python в систему не нужно. Хэши сверены с python.org (MD5) и PyPI (SHA-256).
@@ -17,6 +20,11 @@ $PyDir = Join-Path $PSScriptRoot 'python'
 $Python = Join-Path $PyDir 'python.exe'
 
 function Fail($message) {
+    if ($Hidden) {
+        if ($Tray) { $Tray.Dispose() }
+        [System.Windows.Forms.MessageBox]::Show($message, 'Универсальный скачиватель', 'OK', 'Error') | Out-Null
+        exit 1
+    }
     Write-Host ''
     Write-Host $message -ForegroundColor Red
     Read-Host 'Нажмите Enter, чтобы закрыть окно'
@@ -100,6 +108,25 @@ function Install-Python {
     }
 }
 
+# Ярлык нажали ещё раз, пока идёт установка, — вторая не нужна: программу запустит первая
+$Mutex = [System.Threading.Mutex]::new($false, 'Local\udl-start-' + ($PSScriptRoot -replace '[\\:]', '_'))
+try { $owned = $Mutex.WaitOne(0) } catch [System.Threading.AbandonedMutexException] { $owned = $true }
+if (-not $owned) {
+    if (-not $Hidden) { Write-Host 'Установка уже идёт - программа запустится сама.'; Start-Sleep -Seconds 4 }
+    exit 0
+}
+
+$Tray = $null
+if ($Hidden) {
+    Add-Type -AssemblyName System.Windows.Forms, System.Drawing
+    $Tray = New-Object System.Windows.Forms.NotifyIcon
+    $Tray.Icon = New-Object System.Drawing.Icon (Join-Path $PSScriptRoot 'web\icon.ico')
+    $Tray.Text = 'Универсальный скачиватель: установка...'
+    $Tray.Visible = $true
+    $Tray.ShowBalloonTip(15000, 'Универсальный скачиватель',
+        'Устанавливаю нужные компоненты — это займёт пару минут. Страница откроется сама.', 'Info')
+}
+
 if (-not (Test-Python $Python)) {
     if (Test-Path $PyDir) { Write-Host 'Python программы повреждён, ставлю заново...' }
     else { Write-Host 'Первый запуск: устанавливаю всё нужное, это займёт пару минут...' }
@@ -124,7 +151,8 @@ if ($LASTEXITCODE -ne 0) {
 New-DesktopShortcut
 
 # Программа работает без окна: значок у часов, меню по правому щелчку
-Start-Process -FilePath $Python -ArgumentList (@('app.py', '--tray') + $args) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
+Start-Process -FilePath $Python -ArgumentList (@('app.py', '--tray') + $AppArgs) -WorkingDirectory $PSScriptRoot -WindowStyle Hidden
+if ($Hidden) { $Tray.Dispose(); exit 0 }
 Write-Host ''
 Write-Host 'Готово! Программа работает в фоне: значок со стрелкой у часов (справа внизу).' -ForegroundColor Green
 Write-Host 'Это окно закроется само.'

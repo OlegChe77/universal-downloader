@@ -619,8 +619,9 @@ SUB_ID = re.compile(r'[\w-]{1,40}')
 
 def subtitle_list(info):
     """Субтитры: [{id, label, auto}], первыми — русские. Свои (subtitles) — все. Автоматические у YouTube —
-    распознанный оригинал («en-orig») и автоперевод на 150 языков; перевод YouTube не отдаёт (HTTP 429 на любой
-    формат, проверено 2026-10), поэтому только оригинал. У других сайтов автоматических немного — показываем все."""
+    распознанный оригинал («en-orig») и автоперевод на 150 языков; из перевода берём только русский, когда
+    русских нет (YouTube отдаёт его через раз, бывает HTTP 429 — тогда видео качается без субтитров).
+    У других сайтов автоматических немного — показываем все."""
     def usable(d):
         return {k: v for k, v in (d or {}).items() if v and k != 'live_chat' and SUB_ID.fullmatch(k)}
 
@@ -636,6 +637,8 @@ def subtitle_list(info):
         lang = k.removesuffix('-orig')
         if lang not in subs:  # свои субтитры на этом языке лучше распознанных
             out.append({'id': k, 'label': f'{lang_label(lang, name(auto[k]))} — автоматические', 'auto': True})
+    if orig and 'ru' in auto and not any(s['id'].lower().startswith('ru') for s in out):
+        out.append({'id': 'ru', 'label': f'{lang_label("ru", "")} — автоперевод', 'auto': True})
     main = (info.get('language') or '').split('-')[0].lower()
     out.sort(key=lambda s: (not s['id'].lower().startswith('ru'),
                             not (main and s['id'].lower().startswith(main)), s['auto'], s['label']))
