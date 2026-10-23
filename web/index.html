@@ -534,6 +534,7 @@
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-subs" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6.5 11.5h4M13 11.5h4.5M6.5 15h7M15.5 15h2"/></symbol>
   <symbol id="i-cut"viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8 20 19.5M8.5 16 20 4.5"/></symbol>
+  <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11.5V10a3.5 3.5 0 0 1 3.5-3.5H19m0 0-3-3m3 3-3 3M20 12.5V14a3.5 3.5 0 0 1-3.5 3.5H5m0 0 3 3m-3-3 3-3"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
@@ -703,6 +704,13 @@
           </span>
           <div class="track-note hidden" id="subs-note"></div>
         </div>
+        <label class="track-row hidden" id="loop-group">
+          <svg class="icon"><use href="#i-repeat"/></svg><span>Видео со звуком</span>
+          <select id="loop" aria-label="Как склеить короткое видео с длинным звуком">
+            <option value="loop">по кругу, пока играет звук</option>
+            <option value="once">один раз, звук обрезать</option>
+          </select>
+        </label>
         <div class="formats">
           <div class="group video-group" id="video-group">
             <h3><svg class="icon"><use href="#i-video"/></svg>Видео со звуком</h3>
@@ -992,7 +1000,9 @@ function renderResult(r) {
   $('thumb-dur').classList.toggle('hidden', !r.duration || !r.thumbnail);
   $('site').textContent = r.site || 'Сайт';
   $('title').textContent = r.title;
-  $('info').textContent = [r.uploader, r.playlist ? `плейлист · ${r.count} ${plural(r.count, 'видео', 'видео', 'видео')}` : duration(r.duration),
+  // COUB: видео — петля на секунды, звук — целая песня
+  const length = r.loop ? `видео ${duration(r.loop.video)}, звук ${duration(r.loop.audio)}` : duration(r.duration);
+  $('info').textContent = [r.uploader, r.playlist ? `плейлист · ${r.count} ${plural(r.count, 'видео', 'видео', 'видео')}` : length,
     r.live ? 'прямой эфир' : ''].filter(Boolean).join(' · ');
   const video = r.options.filter(o => o.kind === 'video');
   $('video').innerHTML = video.map(chip).join('');
@@ -1011,10 +1021,13 @@ function renderResult(r) {
   $('subs').value = ru < 0 ? '' : String(ru);
   $('subs-mode').value = store.get('subsMode') === 'embed' ? 'embed' : 'file';
   $('subs-group').classList.toggle('hidden', !subs.length);
+  $('loop').value = 'loop';  // как на сайте
+  $('loop-group').classList.toggle('hidden', !(r.loop && video.length));
   $('result-listen').dataset.listen = r.url;
   $('result-listen').classList.toggle('hidden', !!(r.playlist || r.live));
   syncListen();
-  $('cut-group').classList.toggle('hidden', r.playlist || r.live);
+  // у COUB кусок не нужен: видео короче звука, кусок дальше петли вышел бы без картинки
+  $('cut-group').classList.toggle('hidden', !!(r.playlist || r.live || r.loop));
   $('cut-group').open = false;
   $('cut-start').value = $('cut-end').value = '';
   $('cut-end').placeholder = r.duration ? duration(r.duration) : 'конец';
@@ -1129,10 +1142,13 @@ async function startDownload(btn) {
   const r = current;
   const {name, ...track} = trackFor(btn.dataset.id);
   const {name: subsName, ...subs} = subsFor(btn.dataset.id);
+  const loop = r.loop && btn.dataset.id.startsWith('v') ? $('loop').value : '';
   try {
     await api('/api/download', {
       url: r.url, title: r.title, playlist: r.playlist, count: r.count,
-      option: btn.dataset.id, label: [btn.dataset.label, name, subsName].filter(Boolean).join(' · '), dir, ...track, ...subs,
+      option: btn.dataset.id, dir, ...track, ...subs,
+      label: [btn.dataset.label, name, subsName, {loop: 'по кругу', once: 'один раз'}[loop]].filter(Boolean).join(' · '),
+      ...(loop ? {loop: loop === 'loop'} : {}),
       ...(cut.end ? {start: cut.start, end: cut.end} : {}),
     });
     btn.classList.add('added');

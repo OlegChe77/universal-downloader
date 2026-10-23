@@ -765,6 +765,28 @@ class SafeNamesPP(yt_dlp.postprocessor.PostProcessor):
         return [], info
 
 
+class CoubLoopPP(yt_dlp.postprocessor.ffmpeg.FFmpegPostProcessor):
+    """COUB: картинка — петля на несколько секунд, звук — целая песня. После склейки видео замирало
+    на первом круге. loop — крутить видео по кругу до конца звука (как на сайте), иначе звук обрезается
+    по видео. Без перекодирования: -stream_loop + -c copy, ~0,1 с на пятиминутный ролик."""
+
+    def __init__(self, downloader, loop):
+        super().__init__(downloader)
+        self.loop = loop
+
+    def run(self, info):
+        path = info.get('filepath')
+        if info.get('extractor_key') != 'Coub' or len(info.get('requested_formats') or ()) < 2 or not path:
+            return [], info  # только склеенные видео + звук (MP3/M4A и кусок сюда не попадают)
+        temp = yt_dlp.utils.prepend_extension(path, 'temp')
+        self.to_screen('Зацикливаю видео под длину звука' if self.loop else 'Обрезаю звук по видео')
+        self.real_run_ffmpeg([(path, ['-stream_loop', '-1'] if self.loop else []), (path, [])],
+                             [(temp, ['-map', '0:v:0', '-map', '1:a:0', '-c', 'copy', '-shortest',
+                                      '-movflags', '+faststart'])])
+        os.replace(temp, path)
+        return [], info
+
+
 class Cancelled(Exception):
     pass
 
@@ -936,6 +958,8 @@ def run_task(task):
         def run(o):
             with yt_dlp.YoutubeDL(o) as ydl:
                 ydl.add_post_processor(SafeNamesPP(ydl, task['dir']), when='video')
+                if task['kind'] == 'video' and not task['section']:
+                    ydl.add_post_processor(CoubLoopPP(ydl, task['loop']), when='post_process')
                 ydl.download([task['url']])
 
         def work(proxy):
@@ -1341,7 +1365,20 @@ def api_info():
         options=video_options(info) + AUDIO_OPTIONS,
         tracks=audio_tracks(info),
         subtitles=subtitle_list(info),
+        loop=coub_loop(info),
     )
+
+
+def coub_loop(info):
+    """COUB: видео — петля на несколько секунд, звук — целая песня. Тогда {video, audio} в секундах — на странице
+    выбор «по кругу / один раз», иначе None. Длины звука в API нет; MP3 «med» у COUB — 128 кбит/с, считаем по размеру."""
+    if info.get('extractor_key') != 'Coub' or not info.get('duration'):
+        return None
+    med = next((f for f in info.get('formats') or () if f.get('format_id') == 'html5-audio-med'), {})
+    audio = round(med['filesize'] / 16000, 1) if med.get('filesize') else None
+    if not audio or audio < info['duration'] + 1:
+        return None
+    return {'video': info['duration'], 'audio': audio}
 
 
 # ---------- прослушивание ----------
@@ -1666,6 +1703,7 @@ def new_task(data, folder, url, title, seq, index=0, section=None, from_list=Fal
         'section': section, 'from_list': from_list,
         'track': text_arg(data, 'track'), 'langs': data['langs'] if isinstance(data.get('langs'), list) else [],
         'subs': parse_subs(data) if option.startswith('v') and not section and not from_list else None,
+        'loop': data.get('loop') is not False,  # COUB: видео по кругу под звук, если не выбрали иначе
         'status': 'running', 'stage': 'Подготовка', 'percent': 0,
         'speed': '', 'eta': '', 'item': '', 'error': '', 'error_detail': '',
         'files': [], 'tmp': set(), 'procs': [], 'cancel': False,
