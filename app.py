@@ -1497,6 +1497,11 @@ def resolve_stream(url):
         raise StreamError(human_error(e)) from None
     if not src:
         raise StreamError('Не нашёл звук по этой ссылке.')
+    # ссылка YouTube (клиент TV) открывается только через несколько секунд, до этого — 403;
+    # при скачивании yt-dlp ждёт сам (available_at), для прослушивания ждём здесь
+    delay = (info.get('available_at') or 0) - time.time()
+    if delay > 0:
+        time.sleep(min(delay, 20))
     if cookie:
         headers['Cookie'] = cookie
     headers.pop('Range', None)
