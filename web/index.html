@@ -260,6 +260,9 @@
     background: var(--card); border: 1px solid var(--line); border-radius: 8px; outline: none; cursor: pointer;
   }
   .track-row select:focus { border-color: var(--accent); }
+  .track-row .selects { margin-left: auto; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; min-width: 0; }
+  .track-row .selects select { margin-left: 0; }
+  .track-row .track-note { width: 100%; font-size: 13px; font-weight: 400; color: var(--muted); }
 
   /* список ссылок */
   .batch .links {
@@ -529,7 +532,8 @@
   <symbol id="i-video" viewBox="0 0 24 24"><rect x="2.5" y="6" width="13.5" height="12" rx="2.5"/><path d="m16 10.5 5.5-3.5v10L16 13.5"/></symbol>
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
-  <symbol id="i-cut" viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8 20 19.5M8.5 16 20 4.5"/></symbol>
+  <symbol id="i-subs" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6.5 11.5h4M13 11.5h4.5M6.5 15h7M15.5 15h2"/></symbol>
+  <symbol id="i-cut"viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8 20 19.5M8.5 16 20 4.5"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
@@ -688,6 +692,17 @@
           <svg class="icon"><use href="#i-music"/></svg><span>Звуковая дорожка</span>
           <select id="track" aria-label="Звуковая дорожка"></select>
         </label>
+        <div class="track-row hidden" id="subs-group">
+          <svg class="icon"><use href="#i-subs"/></svg><span>Субтитры</span>
+          <span class="selects">
+            <select id="subs" aria-label="Язык субтитров"></select>
+            <select id="subs-mode" aria-label="Как сохранить субтитры">
+              <option value="file">отдельным файлом .srt</option>
+              <option value="embed">вшить в MP4</option>
+            </select>
+          </span>
+          <div class="track-note hidden" id="subs-note"></div>
+        </div>
         <div class="formats">
           <div class="group video-group" id="video-group">
             <h3><svg class="icon"><use href="#i-video"/></svg>Видео со звуком</h3>
@@ -988,6 +1003,14 @@ function renderResult(r) {
   $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
     + (tracks.length && video.length ? '<option value="all">Все дорожки сразу (только видео)</option>' : '');
   $('track-group').classList.toggle('hidden', !tracks.length);
+  // субтитры — только к видео; заранее выбраны русские, если они настоящие (автоперевод есть почти везде)
+  const subs = video.length ? r.subtitles || [] : [];
+  $('subs').innerHTML = '<option value="">Без субтитров</option>'
+    + subs.map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join('');
+  const ru = subs.findIndex(s => !s.auto && s.id.toLowerCase().startsWith('ru'));
+  $('subs').value = ru < 0 ? '' : String(ru);
+  $('subs-mode').value = store.get('subsMode') === 'embed' ? 'embed' : 'file';
+  $('subs-group').classList.toggle('hidden', !subs.length);
   $('result-listen').dataset.listen = r.url;
   $('result-listen').classList.toggle('hidden', !!(r.playlist || r.live));
   syncListen();
@@ -1045,7 +1068,33 @@ function renderCut() {
     const o = current.options.find(x => x.id === btn.dataset.id);
     if (o && o.size) btn.querySelector('small').textContent = ['MP4', fmtSize((o.size + extra) * part)].join(' · ');
   });
+  renderSubs(cut);
 }
+
+const SUBS_HINT = {
+  file: 'Файл .srt ляжет рядом с видео — плеер (VLC, «Кино и ТВ») подхватит его сам. К MP3 и M4A субтитров нет.',
+  embed: 'Субтитры будут внутри MP4 — включаются в меню субтитров плеера. К MP3 и M4A субтитров нет.',
+};
+
+function renderSubs(cut = cutState()) {
+  const on = $('subs').value !== '';
+  $('subs-mode').classList.toggle('hidden', !on);
+  $('subs-note').classList.toggle('hidden', !on);
+  $('subs-note').textContent = cut.end ? 'К куску субтитры не добавляются — только к видео целиком.' : SUBS_HINT[$('subs-mode').value];
+}
+
+// выбранные субтитры для этого варианта: только видео целиком
+function subsFor(id) {
+  const s = $('subs').value === '' ? null : (current.subtitles || [])[$('subs').value];
+  if (!s || !id.startsWith('v') || cutState().end) return {};
+  return {subs: {lang: s.id, auto: s.auto, embed: $('subs-mode').value === 'embed'},
+    name: 'субтитры ' + s.label.replace(/ — .*/, '').toLowerCase() + ($('subs-mode').value === 'embed' ? ' (вшиты)' : '')};
+}
+$('subs').addEventListener('change', () => renderSubs());
+$('subs-mode').addEventListener('change', () => {
+  store.set('subsMode', $('subs-mode').value);
+  renderSubs();
+});
 
 // выбранная дорожка для этого варианта: «все сразу» бывает только у видео, MP3/M4A — первая (русская или оригинал)
 function trackFor(id) {
@@ -1079,10 +1128,11 @@ async function startDownload(btn) {
   if (!dir) return;
   const r = current;
   const {name, ...track} = trackFor(btn.dataset.id);
+  const {name: subsName, ...subs} = subsFor(btn.dataset.id);
   try {
     await api('/api/download', {
       url: r.url, title: r.title, playlist: r.playlist, count: r.count,
-      option: btn.dataset.id, label: btn.dataset.label + (name ? ` · ${name}` : ''), dir, ...track,
+      option: btn.dataset.id, label: [btn.dataset.label, name, subsName].filter(Boolean).join(' · '), dir, ...track, ...subs,
       ...(cut.end ? {start: cut.start, end: cut.end} : {}),
     });
     btn.classList.add('added');

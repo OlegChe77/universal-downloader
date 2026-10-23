@@ -605,6 +605,55 @@ def audio_format(track, langs):
     return 'ba[language^=ru]'
 
 
+# ---------- субтитры ----------
+SUB_ID = re.compile(r'[\w-]{1,40}')
+
+
+def subtitle_list(info):
+    """Субтитры: [{id, label, auto}], первыми — русские. Свои (subtitles) — все. Автоматические у YouTube —
+    распознанный оригинал («en-orig») и автоперевод на 150 языков; перевод YouTube не отдаёт (HTTP 429 на любой
+    формат, проверено 2026-10), поэтому только оригинал. У других сайтов автоматических немного — показываем все."""
+    def usable(d):
+        return {k: v for k, v in (d or {}).items() if v and k != 'live_chat' and SUB_ID.fullmatch(k)}
+
+    def name(formats):
+        return next((f['name'] for f in formats if f.get('name')), '')
+
+    subs = usable(info.get('subtitles'))
+    out = [{'id': k, 'label': lang_label(k, name(v)), 'auto': False} for k, v in subs.items()]
+    auto = usable(info.get('automatic_captions'))
+    orig = [k for k in auto if k.endswith('-orig')]
+    picks = orig or (list(auto) if len(auto) <= 10 else [k for k in ('ru', 'en') if k in auto])
+    for k in picks:
+        lang = k.removesuffix('-orig')
+        if lang not in subs:  # свои субтитры на этом языке лучше распознанных
+            out.append({'id': k, 'label': f'{lang_label(lang, name(auto[k]))} — автоматические', 'auto': True})
+    main = (info.get('language') or '').split('-')[0].lower()
+    out.sort(key=lambda s: (not s['id'].lower().startswith('ru'),
+                            not (main and s['id'].lower().startswith(main)), s['auto'], s['label']))
+    return out
+
+
+def subtitle_opts(opts, subs):
+    """Добавить к настройкам загрузки субтитры: subs = {lang, auto, embed}. Всегда .srt — его открывает
+    любой плеер; вшитые в MP4 включаются в меню плеера, отдельный файл лежит рядом с видео."""
+    opts['writeautomaticsub' if subs['auto'] else 'writesubtitles'] = True
+    opts['subtitleslangs'] = [subs['lang']]
+    opts['subtitlesformat'] = 'srt/best'  # YouTube отдаёт srt сам, остальное переводит ffmpeg
+    pps = [{'key': 'FFmpegSubtitlesConvertor', 'format': 'srt', 'when': 'before_dl'}]
+    if subs['embed']:
+        pps.append({'key': 'FFmpegEmbedSubtitle', 'already_have_subtitle': False})  # .srt после вшивания удаляется
+    opts['postprocessors'] = pps + opts.get('postprocessors', [])
+
+
+def without_subtitles(opts):
+    keys = ('writesubtitles', 'writeautomaticsub', 'subtitleslangs', 'subtitlesformat')
+    out = {k: v for k, v in opts.items() if k not in keys}
+    out['postprocessors'] = [p for p in opts.get('postprocessors', [])
+                             if p['key'] not in ('FFmpegSubtitlesConvertor', 'FFmpegEmbedSubtitle')]
+    return out
+
+
 AUDIO_OPTIONS = [
     {'id': 'a_mp3', 'kind': 'audio', 'label': 'MP3', 'note': 'лучшее качество'},
     {'id': 'a_m4a', 'kind': 'audio', 'label': 'M4A', 'note': 'без перекодирования'},
@@ -618,9 +667,10 @@ def clock(sec):
     return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
-def download_opts(option, playlist, folder, section=None, track='', langs=()):
+def download_opts(option, playlist, folder, section=None, track='', langs=(), subs=None):
     """section — (начало, конец) в секундах, если нужен только кусок видео.
-    track — язык звуковой дорожки, 'all' — все дорожки из langs (только видео), пусто — русская, если есть."""
+    track — язык звуковой дорожки, 'all' — все дорожки из langs (только видео), пусто — русская, если есть.
+    subs — субтитры {lang, auto, embed} (только видео целиком: к куску они бы не совпали по времени)."""
     opts = base_opts()
     opts['noplaylist'] = not playlist
     opts['windowsfilenames'] = True
@@ -655,6 +705,8 @@ def download_opts(option, playlist, folder, section=None, track='', langs=()):
             opts['postprocessor_args'] = {'merger+ffmpeg_o': ['-disposition:a', '0', '-disposition:a:0', 'default']}
             # язык у каждой дорожки — плеер (VLC, «Кино и ТВ») покажет «Русский», «English»…
             opts['postprocessors'] = [{'key': 'FFmpegMetadata', 'add_metadata': True}]
+        if subs and not section:
+            subtitle_opts(opts, subs)
     else:
         codec = option.split('_', 1)[1]
         audio = audio_format('' if track == 'all' else track, ())
@@ -875,16 +927,27 @@ def run_task(task):
     task_of_thread[threading.get_ident()] = task
     try:
         opts = download_opts(task['option'], task['playlist'], Path(task['dir']), task['section'],
-                             task['track'], task['langs'])
+                             task['track'], task['langs'], task['subs'])
         opts['match_filter'] = got_info  # вызывается, когда сведения о видео уже получены
         opts['progress_hooks'] = [progress]
         opts['postprocessor_hooks'] = [pp_progress]
         opts['post_hooks'] = [lambda path: task['files'].append(path)]
 
-        def work(proxy):
-            with yt_dlp.YoutubeDL({**opts, 'proxy': proxy} if proxy else opts) as ydl:
+        def run(o):
+            with yt_dlp.YoutubeDL(o) as ydl:
                 ydl.add_post_processor(SafeNamesPP(ydl, task['dir']), when='video')
                 ydl.download([task['url']])
+
+        def work(proxy):
+            o = {**opts, 'proxy': proxy} if proxy else opts
+            try:
+                run(o)
+            except yt_dlp.utils.DownloadError as e:
+                # субтитры качаются до видео: не скачались (429 и т. п.) — видео всё равно нужно
+                if not o.get('subtitleslangs') or 'Unable to download video subtitles' not in str(e):
+                    raise
+                run(without_subtitles(o))
+                task['label'] += ' · без субтитров (сайт их не отдал)'
 
         via_proxy(task['url'], work)
         task['status'] = 'done'
@@ -1277,6 +1340,7 @@ def api_info():
         live=bool(info.get('is_live')),
         options=video_options(info) + AUDIO_OPTIONS,
         tracks=audio_tracks(info),
+        subtitles=subtitle_list(info),
     )
 
 
@@ -1551,10 +1615,20 @@ def check_download(data):
     langs = data.get('langs') if isinstance(data.get('langs'), list) else []
     if track and track != 'all' and not LANG_ID.fullmatch(track) or len(langs) > 60 or             not all(isinstance(x, str) and LANG_ID.fullmatch(x) for x in langs):
         return None, 'Неизвестная звуковая дорожка.'
+    if data.get('subs') is not None and not parse_subs(data):
+        return None, 'Неизвестные субтитры.'
     folder = Path(text_arg(data, 'dir')) if text_arg(data, 'dir') else download_dir()
     if not folder.is_absolute() or not folder.is_dir():
         return None, f'Папка не найдена: {folder}'
     return folder, None
+
+
+def parse_subs(data):
+    """{'lang': 'ru', 'auto': false, 'embed': true} → такой же словарь или None."""
+    subs = data.get('subs')
+    if not isinstance(subs, dict) or not isinstance(subs.get('lang'), str) or not SUB_ID.fullmatch(subs['lang']):
+        return None
+    return {'lang': subs['lang'], 'auto': subs.get('auto') is True, 'embed': subs.get('embed') is True}
 
 
 def parse_section(data):
@@ -1591,6 +1665,7 @@ def new_task(data, folder, url, title, seq, index=0, section=None, from_list=Fal
         'dir': str(folder),
         'section': section, 'from_list': from_list,
         'track': text_arg(data, 'track'), 'langs': data['langs'] if isinstance(data.get('langs'), list) else [],
+        'subs': parse_subs(data) if option.startswith('v') and not section and not from_list else None,
         'status': 'running', 'stage': 'Подготовка', 'percent': 0,
         'speed': '', 'eta': '', 'item': '', 'error': '', 'error_detail': '',
         'files': [], 'tmp': set(), 'procs': [], 'cancel': False,
