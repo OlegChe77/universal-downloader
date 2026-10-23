@@ -5,12 +5,15 @@
 - ЯПлакалъ (yaplakal.com): плеер в теме — <div id="yfp-<пост>-<id>" rel="yapfiles">, iframe
   рисует JS, поэтому общий разборщик его не видит и берёт мусорный <audio> (→ HTTP 404).
 - Одноклассники (ok.ru): встроенный падает на новом формате плеера (см. OdnoklassnikiIE).
+- COMDI (comdi.com): эфиры и их записи, плеер встраивается на сайты скриптом embed-player.js
+  с data-watchKey — без своего разборщика «Unsupported URL» (см. ComdiIE).
 - Встроенный плеер с другого сайта (iframe): общий разборщик заходит только в плееры известных
   сайтов. Если на странице больше ничего нет — идём в iframe сами (см. GenericIE). Так берутся
   KVS-плееры (kvsplayer.com, на многих сайтах «для взрослых») и другие плееры с чужих доменов.
 """
 import base64
 import re
+import time
 from urllib.parse import urljoin
 
 from yt_dlp.extractor import gen_extractor_classes, import_extractors
@@ -114,6 +117,101 @@ class OdnoklassnikiIE(_OdnoklassnikiIE):
         return super()._parse_json(json_string, *args, **kwargs)
 
 
+class ComdiIE(InfoExtractor):
+    """COMDI: плеер — SPA, всё про эфир отдаёт /api/player/event/<ключ> (без входа). Ссылку на HLS
+    собираем, как плеер (app.js, сервер Flussonic):
+    - запись (archiveStatus file — обрезанная, done — целиком):
+      <vodProfile.viewUrl>update/<recordUpdatedAt>/<name>[_0].mp4/index.m3u8;
+    - идёт эфир: <сервер liveProfile.viewServer>/<name>/index.m3u8;
+    - эфир закончен, записи нет, но есть DVR: …/<name>/index-<начало>-<длительность>.m3u8."""
+    IE_NAME = 'COMDI'
+    _VALID_URL = (r'https?://(?P<host>(?!www\.)[\w-]+\.comdi\.com)/(?:widget/)?(?P<id>[a-z0-9]{8})'
+                  r'(?=[/?#]|$)(?:[^#]*?[?&]widgetKey=(?P<widget>\w+))?')
+    _EMBED_REGEX = [r'<iframe\b[^>]+\bsrc=(["\'])(?P<url>(?:https?:)?//(?:[\w-]+\.)*comdi\.com/widget/[a-z0-9]{8}/[^"\']*)\1']
+
+    @classmethod
+    def _extract_embed_urls(cls, url, webpage):
+        yield from super()._extract_embed_urls(url, webpage)
+        # <script src="https://broadcast.comdi.com/widget/static/js/embed-player.js" data-watchKey=…>
+        for tag in re.findall(r'<script\b[^>]*\bsrc=[^>]*/embed-player\.js[^>]*>', webpage):
+            attrs = {k.lower(): v for k, v in extract_attributes(tag).items()}
+            key = attrs.get('data-watchkey') or attrs.get('data-eventkey')
+            host = re.match(r'(?:https?:)?//([^/]+)', attrs.get('src') or '')
+            if key and host:
+                widget = attrs.get('data-widgetkey')
+                yield f'https://{host[1]}/widget/{key}/broadcast' + (f'?widgetKey={widget}' if widget else '')
+
+    def _stream_url(self, stream):
+        name, status = stream.get('name'), str(stream.get('archiveStatus')).lower()
+        if not name:
+            return None, False
+        if status in ('done', 'file'):
+            vod = stream.get('vodProfile') or {}
+            if vod.get('type') not in (None, 'flussonic') or not url_or_none(vod.get('viewUrl')):
+                return None, False
+            suffix = '_0' if status == 'file' else ''
+            return f'{vod["viewUrl"]}update/{stream.get("recordUpdatedAt")}/{name}{suffix}.mp4/index.m3u8', False
+        servers = sorted((stream.get('liveProfile') or {}).get('viewServer') or [], key=lambda s: s.get('order') or 0)
+        server = next((s['server'] for s in servers if (s.get('server') or {}).get('type') == 'flussonic'
+                       and url_or_none(s['server'].get('viewUrl'))), None)
+        if not server:
+            return None, False
+        sessions = [s for s in stream.get('broadcastSession') or [] if s.get('timeStart')]
+        live = bool(sessions) and not sessions[-1].get('timeStop')
+        if live:
+            return f'{server["viewUrl"]}{name}/index.m3u8', True
+        if stream.get('dvr') and sessions:
+            start = sessions[0]['timeStart']
+            return f'{server["viewUrl"]}{name}/index-{start}-{sessions[-1]["timeStop"] - start}.m3u8', False
+        return None, False
+
+    def _real_extract(self, url):
+        m = self._match_valid_url(url).groupdict()
+        key, api = m['id'], f'https://{m["host"]}/api/player/'
+        event = self._download_json(f'{api}event/{key}', key, 'Downloading event info')
+        title = event.get('name_ru') or event.get('name_en') or key
+        thumbnail = url_or_none((event.get('moduleTheme') or {}).get('poster')) or url_or_none(
+            (event.get('moduleSettings') or {}).get('posterImage'))
+        streams = sorted(event.get('stream') or [], key=lambda s: s.get('order') or 0)
+        if m.get('widget'):  # виджет на сайте показывает только свои залы
+            widget = self._download_json(f'{api}event/module/widget/player/{m["widget"]}', key,
+                                         'Downloading widget info', fatal=False) or {}
+            ids = {str(i) for i in widget.get('streamsIds') or []}
+            streams = [s for s in streams if str(s.get('id')) in ids] or streams
+
+        now, entries = int(time.time()), []
+        for stream in streams:
+            m3u8, live = self._stream_url(stream)
+            if not m3u8:
+                continue
+            stream_id = f'{key}-{stream.get("id")}'
+            formats = self._extract_m3u8_formats(m3u8, stream_id, 'mp4', m3u8_id='hls', live=live, fatal=False)
+            if not formats:
+                continue
+            hall = stream.get('description_ru') or stream.get('description_en')
+            entries.append({
+                'id': stream_id,
+                'title': f'{title} — {hall}' if hall and len(streams) > 1 else title,
+                'thumbnail': url_or_none(stream.get('posterUrl')) or thumbnail,
+                'timestamp': int_or_none(stream.get('timeStart')) or int_or_none(event.get('timeStart')),
+                'duration': None if live else int_or_none(stream.get('duration')),
+                'is_live': live,
+                'formats': formats,
+                'http_headers': {'Referer': f'https://{m["host"]}/'},
+            })
+        if not entries:
+            if event.get('private') or (event.get('moduleAuth') or {}).get('require'):
+                raise ExtractorError('Эфир COMDI открыт только после регистрации — записи без входа нет',
+                                     expected=True)
+            start = int_or_none(event.get('timeStart'))
+            if start and start > now:
+                raise ExtractorError('Эфир COMDI ещё не начался', expected=True)
+            raise ExtractorError('У эфира COMDI нет записи', expected=True)
+        if len(entries) == 1:
+            return {**entries[0], 'id': key, 'webpage_url': url}
+        return self.playlist_result(entries, key, title)
+
+
 # iframe с рекламой, счётчиками, комментариями — не плееры
 IFRAME_SKIP = re.compile(r'(?i)(?:\b|_)(?:ads?|adv|banners?|exoclick|juicyads|trafficjunky|tsyndicate|popunder|counter'
                          r'|metrika|analytics|googletagmanager|doubleclick|recaptcha|captcha|disqus|comments?|chat'
@@ -172,7 +270,7 @@ class GenericIE(_GenericIE):
         return [self.url_result(smuggle_url(frame, {'referer': page_url, 'udl_iframe': True}), 'Generic')]
 
 
-OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE}
+OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'ComdiIE': ComdiIE}
 
 
 def register():
