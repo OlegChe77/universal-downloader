@@ -4,6 +4,7 @@
 и ffmpeg (склейка видео со звуком, конвертация в MP3).
 """
 import base64
+import concurrent.futures
 import gc
 import importlib.util
 import io
@@ -19,6 +20,7 @@ import socket
 import subprocess
 import sys
 import sysconfig
+import tempfile
 import threading
 import time
 import urllib.error
@@ -41,7 +43,7 @@ import yt_dlp.networking.exceptions
 import yt_dlp.postprocessor.ffmpeg
 from yt_dlp.postprocessor.metadataparser import MetadataParserPP
 from yt_dlp.utils import download_range_func
-from flask import Flask, Response, jsonify, request, send_from_directory
+from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import sites
 import updater
@@ -71,6 +73,7 @@ PROTOCOL = 'udl-downloader'  # ссылка udl-downloader: запускает �
 
 PRESET_HEIGHTS = [2160, 1440, 1080, 720, 480, 360]
 SEARCH_LIMIT = 10
+ARTIST_CUT = r'^(.{40}).+$'  # исполнитель или канал в имени файла — не длиннее 40 букв
 TITLE_JUNK = (r'(?i)\s*[(\[][^)\]]*(official|lyric|audio|video|clip|клип|премьера|текст'
               r'|visuali[sz]er|\bhd\b|\b4k\b)[^)\]]*[)\]]')
 
@@ -531,7 +534,8 @@ def video_options(info):
         label = f'{side}p' + (f' {int(fps)}fps' if fps and fps > 30 else '')
         options.append({'id': f'v{h}', 'kind': 'video', 'label': label, 'size': size,
                         'note': ' · '.join(x for x in ('MP4', fmt_size(size)) if x)})
-    if not options and formats:
+    # только звук (SoundCloud и др.) — видео не предлагаем
+    if not options and formats and any(f.get('vcodec') != 'none' for f in formats):
         options.append({'id': 'vbest', 'kind': 'video', 'label': 'Видео', 'note': 'лучшее качество'})
     return options
 
@@ -583,17 +587,20 @@ def download_opts(option, playlist, folder, section=None):
         opts['format'] = 'ba[ext=m4a]/ba/b' if codec == 'm4a' else 'ba/b'
         opts['writethumbnail'] = True
         if playlist:
-            name = '%(playlist_title).80B/%(playlist_index)03d - %(artist,uploader&{} - |).60B%(track,title).100B.%(ext)s'
+            name = '%(playlist_title).80B/%(playlist_index)03d - %(artist,uploader&{} - |)s%(track,title).100B.%(ext)s'
         else:
             # без исполнителя и канала (ЯП файлы, простые сайты) — без «NA - » в начале
-            name = f'%(artist,uploader&{{}} - |).60B%(track,title).120B{suffix}.%(ext)s'
+            # длину исполнителя ограничивает MetadataParser ниже: .60B здесь отрезал бы и « - »
+            name = f'%(artist,uploader&{{}} - |)s%(track,title).120B{suffix}.%(ext)s'
         opts['outtmpl'] = str(folder / name)
         opts['postprocessors'] = [
             # «Исполнитель - Песня (Official Video)» → artist + track без мусора в скобках
             {'key': 'MetadataParser', 'when': 'pre_process', 'actions': [
-                (MetadataParserPP.Actions.INTERPRET, 'title', r'(?P<artist>.+?)\s+[-–—]\s+(?P<track>.+)'),
+                (MetadataParserPP.Actions.INTERPRET, 'title', r'(?P<artist>.+?)\s*[-–—]\s+(?P<track>.+)'),  # и «Цой- Песня»
                 (MetadataParserPP.Actions.REPLACE, 'track', TITLE_JUNK, ''),
                 (MetadataParserPP.Actions.REPLACE, 'title', TITLE_JUNK, ''),
+                (MetadataParserPP.Actions.REPLACE, 'artist', ARTIST_CUT, r'\1'),
+                (MetadataParserPP.Actions.REPLACE, 'uploader', ARTIST_CUT, r'\1'),
             ]},
             {'key': 'FFmpegExtractAudio', 'preferredcodec': codec, 'preferredquality': '0'},
             {'key': 'FFmpegMetadata', 'add_metadata': True},
@@ -1038,36 +1045,108 @@ def api_app_update_install():
 URL_RE = re.compile(r'^(https?://)?([\w-]+\.)+[a-z]{2,}(:\d+)?(/|$)', re.I)
 
 
-def search(query, exclude=()):
-    """Поиск по названию на YouTube: исполнитель, канал и длительность видны сразу.
+SEARCH_TIMEOUT = 25  # сайт, который молчит дольше, в эту выдачу не попадёт
 
-    exclude — id уже показанных видео. YouTube на каждый запрос слегка меняет
-    порядок выдачи, поэтому «следующие 10» — это первые 10 ещё не показанных."""
-    exclude = set(exclude)
-    target = f'ytsearch{len(exclude) + 2 * SEARCH_LIMIT}:{query}'
+
+def search_youtube(query, count):
+    target = f'ytsearch{count}:{query}'
 
     def work(proxy):
         opts = {**base_opts(), 'extract_flat': 'in_playlist', 'proxy': proxy}
         with yt_dlp.YoutubeDL(opts) as ydl:
             return ydl.extract_info(target, download=False)
 
-    info = via_proxy(target, work)
+    return [{
+        'id': f"youtube:{e['id']}",
+        'url': f"https://www.youtube.com/watch?v={e['id']}",
+        'title': e.get('title') or '',
+        'uploader': e.get('channel') or e.get('uploader') or '',
+        'duration': e.get('duration'),
+        'thumbnail': f"https://i.ytimg.com/vi/{e['id']}/mqdefault.jpg",
+    } for e in via_proxy(target, work).get('entries') or [] if e and e.get('id')]
+
+
+def search_soundcloud(query, count):
+    def work(proxy):
+        opts = {**base_opts(), 'extract_flat': 'in_playlist', 'proxy': proxy}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(f'scsearch{count}:{query}', download=False)
+
     results = []
-    for e in info.get('entries') or []:
-        if not e or not e.get('id') or e['id'] in exclude:
+    for e in via_proxy('https://soundcloud.com/', work).get('entries') or []:
+        # ровно 30 секунд — отрывок платного трека (SoundCloud Go+): целиком его не скачать
+        if not e or not e.get('webpage_url') or abs((e.get('duration') or 0) - 30) < 1:
             continue
-        if len(results) == SEARCH_LIMIT:
-            break
-        exclude.add(e['id'])
+        thumbs = {t.get('id'): t.get('url') for t in e.get('thumbnails') or []}
         results.append({
-            'id': e['id'],
-            'url': f"https://www.youtube.com/watch?v={e['id']}",
+            'id': f"soundcloud:{e['id']}",
+            'url': e['webpage_url'],
             'title': e.get('title') or '',
-            'uploader': e.get('channel') or e.get('uploader') or '',
+            'uploader': e.get('uploader') or '',
             'duration': e.get('duration'),
-            'thumbnail': f"https://i.ytimg.com/vi/{e['id']}/mqdefault.jpg",
+            'thumbnail': thumbs.get('t300x300') or thumbs.get('large') or '',
         })
     return results
+
+
+def search_rutube(query, count):
+    """Открытый поиск Rutube (тот же, что на сайте); вход не нужен."""
+    def work(proxy):
+        with yt_dlp.YoutubeDL({**base_opts(), 'proxy': proxy}) as ydl:
+            url = 'https://rutube.ru/api/search/video/?' + urllib.parse.urlencode({'query': query})
+            return json.loads(ydl.urlopen(url).read())
+
+    hidden = ('is_paid', 'is_locked', 'is_hidden', 'is_deleted', 'is_livestream', 'is_adult')
+    return [{
+        'id': f"rutube:{e['id']}",
+        'url': e['video_url'],
+        'title': e.get('title') or '',
+        'uploader': (e.get('author') or {}).get('name') or '',
+        'duration': e.get('duration'),
+        'thumbnail': f"{e['thumbnail_url']}?width=320" if e.get('thumbnail_url') else '',  # без width — до 1600 px
+    } for e in via_proxy('https://rutube.ru/', work).get('results') or []
+        if isinstance(e, dict) and e.get('id') and e.get('video_url') and not any(e.get(k) for k in hidden)][:count]
+
+
+SEARCH_SITES = {'youtube': ('YouTube', search_youtube), 'soundcloud': ('SoundCloud', search_soundcloud),
+                'rutube': ('Rutube', search_rutube)}
+
+
+def search(query, exclude=()):
+    """Поиск песни сразу на нескольких сайтах — один общий список, сайты по очереди: YouTube, SoundCloud, Rutube.
+    Сайт, который не открылся или долго молчит, просто не попадает в выдачу. Возвращает (песни, не ответившие сайты).
+
+    exclude — id уже показанных («youtube:…»). YouTube на каждый запрос слегка меняет
+    порядок выдачи, поэтому «следующие 10» — это первые 10 ещё не показанных."""
+    exclude = set(exclude)
+    pool = concurrent.futures.ThreadPoolExecutor(len(SEARCH_SITES))
+    jobs = {}
+    for key, (name, find) in SEARCH_SITES.items():
+        shown = sum(x.startswith(key + ':') for x in exclude)
+        jobs[key] = pool.submit(find, query, shown + 2 * SEARCH_LIMIT)
+    pool.shutdown(wait=False)  # не дождались медленного сайта — его поток закончит сам
+    done, _ = concurrent.futures.wait(jobs.values(), timeout=SEARCH_TIMEOUT)
+    lists, failed, errors = [], [], []
+    for key, job in jobs.items():
+        name = SEARCH_SITES[key][0]
+        if job not in done:
+            failed.append(name)
+            continue
+        try:
+            lists.append([dict(r, site=name) for r in job.result() if r['id'] not in exclude])
+        except Exception as e:  # noqa: BLE001
+            print(f'Поиск на {name} не удался:', e)
+            failed.append(name)
+            errors.append(e)
+    if not any(lists) and failed:  # «ничего не найдено» было бы неправдой: сайт просто не ответил
+        raise errors[0] if errors else TimeoutError('timed out')
+    results = []
+    for row in itertools.zip_longest(*lists):
+        for r in row:
+            if r and r['id'] not in exclude and len(results) < SEARCH_LIMIT:
+                exclude.add(r['id'])
+                results.append(r)
+    return results, failed
 
 
 @app.post('/api/info')
@@ -1079,13 +1158,13 @@ def api_info():
     if not URL_RE.match(url):
         exclude = [x for x in data.get('exclude') or [] if isinstance(x, str)][:500]
         try:
-            results = search(url, exclude)
+            results, failed = search(url, exclude)
         except Exception as e:  # noqa: BLE001
             return error_response(e)
         if not results and not exclude:
             return jsonify(error='Ничего не найдено. Попробуйте написать иначе.'), 404
         return jsonify(search=True, query=url, append=bool(exclude), results=results,
-                       more=len(results) == SEARCH_LIMIT)
+                       more=len(results) == SEARCH_LIMIT, failed=failed)
     def work(proxy):
         opts = {**base_opts(), 'extract_flat': 'in_playlist', 'proxy': proxy}
         with yt_dlp.YoutubeDL(opts) as ydl:
@@ -1136,6 +1215,11 @@ STREAM_CHUNK = 10 << 20  # у сайта просим куски по 10 МБ: �
 STREAM_MIME = {'m4a': 'audio/mp4', 'mp4': 'audio/mp4', 'aac': 'audio/aac', 'mp3': 'audio/mpeg',
                'webm': 'audio/webm', 'weba': 'audio/webm', 'ogg': 'audio/ogg', 'opus': 'audio/ogg',
                'flac': 'audio/flac', 'wav': 'audio/wav'}
+# звук только кусочками (HLS: SoundCloud, Rutube…) скачиваем целиком сюда; папка своя у каждого порта,
+# чтобы тестовый запуск не удалял файлы запущенной программы
+LISTEN_DIR = Path(tempfile.gettempdir()) / f'udl-listen-{PORT}'
+LISTEN_FORMAT = 'bestaudio[acodec^=mp4a]/bestaudio/worst[acodec^=mp4a]/worst[acodec!=none]'
+LISTEN_MAX = 40 * 60     # длиннее — скачивать для прослушивания слишком долго
 streams = {}             # ссылка на страницу → что нашёл yt-dlp
 streams_lock = threading.Lock()
 stream_locks = {}        # своя блокировка на каждую ссылку: два запроса подряд ждут один поиск
@@ -1166,8 +1250,7 @@ def resolve_stream(url):
         raise
     except Exception as e:  # noqa: BLE001
         if 'requested format' in str(e).lower():
-            raise StreamError('С этого сайта звук приходит кусочками — послушать не получится, '
-                              'но скачать можно.') from None
+            return listen_copy(url)
         raise StreamError(human_error(e)) from None
     if not src:
         raise StreamError('Не нашёл звук по этой ссылке.')
@@ -1184,6 +1267,62 @@ def resolve_stream(url):
     }
 
 
+def listen_copy(url):
+    """Звук приходит только кусочками (HLS) — через Range его не отдать. Скачиваем песню целиком
+    во временную папку (обычно несколько секунд) и отдаём файл: так работает и перемотка."""
+    LISTEN_DIR.mkdir(exist_ok=True)
+    folder = Path(tempfile.mkdtemp(dir=LISTEN_DIR))
+
+    def work(proxy):
+        opts = {**base_opts(), 'format': LISTEN_FORMAT, 'proxy': proxy, 'concurrent_fragment_downloads': 8,
+                'outtmpl': str(folder / 'src.%(ext)s')}
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info.get('_type') == 'playlist' or info.get('entries'):
+                raise StreamError('Послушать можно одну песню, а это плейлист.')
+            if info.get('is_live'):
+                raise StreamError('Прямой эфир здесь не послушать.')
+            if (info.get('duration') or 0) > LISTEN_MAX:
+                raise StreamError(f'Запись длиннее {LISTEN_MAX // 60} минут с этого сайта не послушать — её можно скачать.')
+            ydl.process_ie_result(info, download=True)
+            return info
+
+    try:
+        try:
+            info = via_proxy(url, work)
+        except StreamError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            raise StreamError(human_error(e)) from None
+        src = next((f for f in folder.glob('src.*') if not f.name.endswith('.part')), None)
+        if not src:
+            raise StreamError('Не нашёл звук по этой ссылке.')
+        out = folder / 'listen.m4a'
+        for audio in (['-c:a', 'copy'], ['-c:a', 'aac', '-b:a', '160k']):  # не всякий звук ложится в M4A как есть
+            done = subprocess.run([str(FFMPEG), '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-i', str(src),
+                                   '-vn', *audio, '-movflags', '+faststart', str(out)], capture_output=True)
+            if done.returncode == 0:
+                break
+        else:
+            raise StreamError('Не получилось подготовить звук для прослушивания — скачайте файл.')
+        src.unlink(missing_ok=True)
+    except BaseException:
+        shutil.rmtree(folder, ignore_errors=True)
+        raise
+    return {
+        'file': str(out), 'folder': str(folder), 'size': out.stat().st_size, 'mime': 'audio/mp4',
+        'meta': {
+            'title': info.get('title') or '', 'uploader': info.get('uploader') or info.get('channel') or '',
+            'duration': info.get('duration'), 'thumbnail': info.get('thumbnail'), 'ext': 'm4a',
+        },
+    }
+
+
+def forget_stream(stream):
+    if stream.get('folder'):
+        shutil.rmtree(stream['folder'], ignore_errors=True)  # файл ещё отдаётся — удалится при следующем запуске
+
+
 def find_stream(url, fresh=False):
     """Ссылка на поток из кэша или новый поиск через yt-dlp (без скачивания)."""
     with streams_lock:
@@ -1192,7 +1331,7 @@ def find_stream(url, fresh=False):
         now = time.time()
         with streams_lock:
             for key in [k for k, v in streams.items() if v['expires'] < now]:
-                del streams[key]
+                forget_stream(streams.pop(key))
             for key in [k for k, v in stream_locks.items() if k not in streams and k != url and not v.locked()]:
                 del stream_locks[key]  # блокировки старых ссылок, иначе словарь только растёт
             cached = streams.get(url)
@@ -1273,6 +1412,13 @@ def api_stream():
             stream = find_stream(url, fresh=attempt == 1)
         except StreamError as e:
             return jsonify(error=str(e)), 400
+        if stream.get('file'):  # скачанная копия: Range и 416 send_file делает сам
+            try:
+                resp = send_file(stream['file'], mimetype=stream['mime'], conditional=True, max_age=0)
+            except FileNotFoundError:
+                return jsonify(error='Файл для прослушивания пропал — включите песню ещё раз.'), 410
+            resp.headers['Cache-Control'] = 'no-store'
+            return resp
         if stream['size'] and start >= stream['size']:
             return Response(status=416, headers={'Content-Range': f"bytes */{stream['size']}"})
         try:
@@ -1891,6 +2037,7 @@ def main():
         fail(BUSY_TEXT.format(port=PORT))
         return
     prepare_ffmpeg()
+    shutil.rmtree(LISTEN_DIR, ignore_errors=True)  # песни для прослушивания с прошлого раза
     register_protocol()
     load_app_update()
     DOWNLOADS.mkdir(exist_ok=True)

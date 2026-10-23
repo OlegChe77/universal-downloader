@@ -289,6 +289,16 @@
   .hit-body { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
   .hit-title { font-weight: 600; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .hit-sub { font-size: 13px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  /* сайт, где нашлась песня: точка его цвета и название */
+  .site { font-weight: 600; color: var(--text); }
+  .site::before {
+    content: ""; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%;
+    vertical-align: 1px; background: var(--muted);
+  }
+  .site-youtube::before { background: #ff0033; }
+  .site-soundcloud::before { background: #ff5500; }
+  .site-rutube::before { background: #00a1e4; }
+  .search-failed { margin: -6px 0 12px; font-size: 13px; color: var(--muted); }
   .hit-state { font-size: 12.5px; font-weight: 600; color: var(--accent-text); }
   .hit-state:empty { display: none; }
   .hit.st-done .hit-state { color: var(--ok); }
@@ -702,15 +712,15 @@
       <button class="btn primary" id="music-go" type="submit"><svg class="icon"><use href="#i-search"/></svg>Искать</button>
     </form>
     <div class="hints">
-      <span>Ищем на YouTube и показываем по 10 вариантов</span>
+      <span>Ищем сразу на YouTube, SoundCloud и Rutube и показываем по 10 вариантов</span>
       <span><b>MP3</b>&nbsp;— сразу скачать песню с обложкой и тегами</span>
       <span><b>Ещё форматы</b>&nbsp;— видео, M4A или только кусок</span>
       <span><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
       <span><b>Галочки</b>&nbsp;— выбрать несколько песен и скачать одной кнопкой</span>
     </div>
-    <div class="music-note" id="music-note">Музыку здесь ищем и качаем <b>только с YouTube</b>. Песню с другого сайта
-      (SoundCloud, VK, Яндекс Музыка…) скачивайте на вкладке «По ссылке»: вставьте ссылку и выберите «Только звук»,
-      если сайт поддерживается. YouTube без VPN может не открываться — см. вкладку «VPN».</div>
+    <div class="music-note" id="music-note">Ищем на <b>YouTube, SoundCloud и Rutube</b> — в одном списке, сайт виден
+      в строке песни. Если какой-то сайт не открылся (YouTube без VPN), песни найдутся на остальных. Песню с другого сайта
+      (VK, Яндекс Музыка…) скачивайте на вкладке «По ссылке»: вставьте ссылку и выберите «Только звук».</div>
     <div class="examples" id="examples">
       Например:
       <button class="example" type="button">Кино — Группа крови</button>
@@ -719,6 +729,7 @@
     </div>
     <div class="error hidden" id="music-error"></div>
     <div class="search-head hidden" id="search-head"><b id="search-title"></b><span class="muted" id="search-count"></span></div>
+    <div class="search-failed hidden" id="search-failed"></div>
     <div class="pick-bar hidden" id="pick-bar">
       <label class="pick-all"><input type="checkbox" id="pick-all"><span id="pick-count">Выбрать все</span></label>
       <div class="pick-actions">
@@ -1185,17 +1196,18 @@ const skeletonCard = () => `<article class="hit skeleton" aria-hidden="true">
   </article>`;
 
 function hitCard(h, i) {
-  const sub = [h.uploader || 'YouTube', h.duration ? duration(h.duration) : ''].filter(Boolean).join(' · ');
+  const site = h.site || 'YouTube';
+  const sub = [h.uploader, h.duration ? duration(h.duration) : ''].filter(Boolean).join(' · ');
   return `<article class="hit" data-url="${esc(h.url)}">
     <label class="pick" title="Выбрать"><input type="checkbox" data-pick="${i}" aria-label="Выбрать: ${esc(h.title)}"></label>
     <div class="cover">
-      <img src="${esc(h.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">
+      ${h.thumbnail ? `<img src="${esc(h.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
       <button class="listen" type="button" data-hit="${i}" data-act="listen" data-listen="${esc(h.url)}" aria-label="Послушать" title="Послушать"></button>
       <div class="cover-bar hidden"><i></i></div>
     </div>
     <div class="hit-body">
       <div class="hit-title" title="${esc(h.title)}">${esc(h.title)}</div>
-      <div class="hit-sub" title="${esc(sub)}">${esc(sub)}</div>
+      <div class="hit-sub" title="${esc([site, sub].filter(Boolean).join(' · '))}"><span class="site site-${esc(site.toLowerCase())}">${esc(site)}</span>${sub ? ' · ' + esc(sub) : ''}</div>
       <div class="hit-state"></div>
     </div>
     <div class="hit-actions">
@@ -1265,6 +1277,7 @@ async function runSearch() {
   $('search-head').classList.remove('hidden');
   $('search-title').textContent = `Ищу «${q}»…`;
   $('search-count').textContent = '';
+  $('search-failed').classList.add('hidden');
   $('hits').innerHTML = skeletonCard().repeat(6);
   updatePickBar();
   try {
@@ -1290,6 +1303,11 @@ function renderSearch(data) {
   else $('hits').innerHTML = html;
   $('search-title').textContent = `Найдено по запросу «${data.query}»`;
   $('search-count').textContent = `${hits.length} ${plural(hits.length, 'вариант', 'варианта', 'вариантов')}`;
+  const failed = data.failed || [];
+  $('search-failed').textContent = !failed.length ? ''
+    : `Не ответил${failed.length > 1 ? 'и' : ''} ${failed.join(' и ')} — ${data.results.length ? 'показаны песни с других сайтов' : 'попробуйте ещё раз'}.`
+      + (failed.includes('YouTube') ? ' YouTube без VPN может не открываться — см. вкладку «VPN».' : '');
+  $('search-failed').classList.toggle('hidden', !failed.length);
   $('more-row').classList.toggle('hidden', !hits.length);
   $('more').classList.toggle('hidden', !data.more);
   $('more-end').classList.toggle('hidden', data.more);
