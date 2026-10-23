@@ -540,6 +540,71 @@ def video_options(info):
     return options
 
 
+# ---------- звуковые дорожки (дубляж YouTube, фильмы с несколькими языками) ----------
+LANG_ID = re.compile(r'[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8}){0,3}')
+LANG_NAMES = {
+    'ru': 'Русский', 'en': 'Английский', 'uk': 'Украинский', 'be': 'Белорусский', 'kk': 'Казахский',
+    'uz': 'Узбекский', 'ky': 'Киргизский', 'tg': 'Таджикский', 'tt': 'Татарский', 'hy': 'Армянский',
+    'ka': 'Грузинский', 'az': 'Азербайджанский', 'de': 'Немецкий', 'fr': 'Французский', 'es': 'Испанский',
+    'it': 'Итальянский', 'pt': 'Португальский', 'pl': 'Польский', 'cs': 'Чешский', 'sk': 'Словацкий',
+    'bg': 'Болгарский', 'sr': 'Сербский', 'hr': 'Хорватский', 'sl': 'Словенский', 'ro': 'Румынский',
+    'hu': 'Венгерский', 'el': 'Греческий', 'nl': 'Нидерландский', 'sv': 'Шведский', 'no': 'Норвежский',
+    'nb': 'Норвежский', 'da': 'Датский', 'fi': 'Финский', 'et': 'Эстонский', 'lv': 'Латышский',
+    'lt': 'Литовский', 'tr': 'Турецкий', 'ar': 'Арабский', 'he': 'Иврит', 'iw': 'Иврит', 'fa': 'Персидский',
+    'hi': 'Хинди', 'bn': 'Бенгальский', 'ta': 'Тамильский', 'te': 'Телугу', 'ml': 'Малаялам', 'mr': 'Маратхи',
+    'pa': 'Панджаби', 'gu': 'Гуджарати', 'kn': 'Каннада', 'ur': 'Урду', 'ja': 'Японский', 'ko': 'Корейский',
+    'zh': 'Китайский', 'vi': 'Вьетнамский', 'th': 'Тайский', 'id': 'Индонезийский', 'ms': 'Малайский',
+    'fil': 'Филиппинский', 'tl': 'Филиппинский',
+}
+REGION_NAMES = {'US': 'США', 'GB': 'Великобритания', 'AU': 'Австралия', 'CA': 'Канада', 'IN': 'Индия',
+                'BR': 'Бразилия', 'PT': 'Португалия', 'ES': 'Испания', 'MX': 'Мексика', '419': 'Латинская Америка',
+                'FR': 'Франция', 'Hans': 'упрощённый', 'Hant': 'традиционный', 'CN': 'Китай', 'TW': 'Тайвань'}
+
+
+def lang_label(code, note):
+    """«ru» → «Русский», «en-US» → «Английский (США)»; неизвестный — как подписал сайт («Swahili»)."""
+    base, *rest = code.split('-')
+    name = LANG_NAMES.get(base.lower())
+    if not name:
+        # YouTube: «Swahili original (default), medium» → «Swahili»
+        name = re.split(r',| original| \(default\)', note or '')[0].strip() or code
+        return name
+    regions = [REGION_NAMES.get(r, r) for r in rest]
+    return name + (f' ({", ".join(regions)})' if regions else '')
+
+
+def audio_tracks(info):
+    """Дорожки на разных языках: [{id, label, original, size}]. Первая — какую качаем по умолчанию:
+    русская, иначе оригинал. Одна дорожка (почти все видео) — пустой список, выбора в карточке нет."""
+    duration = info.get('duration')
+    tracks = {}
+    for f in info.get('formats') or []:
+        lang = f.get('language')
+        if f.get('vcodec') != 'none' or f.get('acodec') in (None, 'none') or not lang or not LANG_ID.fullmatch(lang):
+            continue
+        note = f.get('format_note') or ''
+        t = tracks.setdefault(lang, {'id': lang, 'note': note, 'original': False, 'size': 0})
+        # YouTube помечает оригинал language_preference=10 и словом «original» в format_note
+        if (f.get('language_preference') or 0) >= 10 or 'original' in note.lower():
+            t['original'] = True
+        t['size'] = max(t['size'], fsize(f, duration))
+    if len(tracks) < 2:
+        return []
+    out = [{'id': t['id'], 'label': lang_label(t['id'], t['note']) + (' — оригинал' if t['original'] else ''),
+            'original': t['original'], 'size': t['size']} for t in tracks.values()]
+    out.sort(key=lambda t: (not t['id'].lower().startswith('ru'), not t['original'], t['label']))
+    return out
+
+
+def audio_format(track, langs):
+    """Какой звук взять: выбранный язык, все дорожки (langs) или, если не выбирали, русский, если он есть."""
+    if track == 'all' and langs:
+        return '+'.join(f'ba[language={lang}]' for lang in langs)
+    if track:
+        return f'ba[language={track}]'
+    return 'ba[language^=ru]'
+
+
 AUDIO_OPTIONS = [
     {'id': 'a_mp3', 'kind': 'audio', 'label': 'MP3', 'note': 'лучшее качество'},
     {'id': 'a_m4a', 'kind': 'audio', 'label': 'M4A', 'note': 'без перекодирования'},
@@ -553,8 +618,9 @@ def clock(sec):
     return f'{h}:{m:02d}:{s:02d}' if h else f'{m}:{s:02d}'
 
 
-def download_opts(option, playlist, folder, section=None):
-    """section — (начало, конец) в секундах, если нужен только кусок видео."""
+def download_opts(option, playlist, folder, section=None, track='', langs=()):
+    """section — (начало, конец) в секундах, если нужен только кусок видео.
+    track — язык звуковой дорожки, 'all' — все дорожки из langs (только видео), пусто — русская, если есть."""
     opts = base_opts()
     opts['noplaylist'] = not playlist
     opts['windowsfilenames'] = True
@@ -575,16 +641,25 @@ def download_opts(option, playlist, folder, section=None):
 
     if option.startswith('v'):
         h = option[1:]
+        audio = audio_format(track, langs)
         if h.isdigit():
-            opts['format'] = f'bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b'
+            opts['format'] = f'bv*[height<={h}]+{audio}/bv*[height<={h}]+ba/b[height<={h}]/bv*+ba/b'
         else:
-            opts['format'] = 'bv*+ba/b'
+            opts['format'] = f'bv*+{audio}/bv*+ba/b'
         # при одинаковом разрешении — H.264 + AAC: открывается любым плеером
         opts['format_sort'] = ['res', 'vcodec:h264', 'acodec:aac', 'ext:mp4:m4a']
         opts['merge_output_format'] = 'mp4'
+        if track == 'all' and langs:
+            opts['allow_multiple_audio_streams'] = True
+            # «по умолчанию» — только первая (русская или оригинал), иначе плеер выбирает какую хочет
+            opts['postprocessor_args'] = {'merger+ffmpeg_o': ['-disposition:a', '0', '-disposition:a:0', 'default']}
+            # язык у каждой дорожки — плеер (VLC, «Кино и ТВ») покажет «Русский», «English»…
+            opts['postprocessors'] = [{'key': 'FFmpegMetadata', 'add_metadata': True}]
     else:
         codec = option.split('_', 1)[1]
-        opts['format'] = 'ba[ext=m4a]/ba/b' if codec == 'm4a' else 'ba/b'
+        audio = audio_format('' if track == 'all' else track, ())
+        opts['format'] = (f'{audio}[ext=m4a]/{audio}/ba[ext=m4a]/ba/b' if codec == 'm4a'
+                          else f'{audio}/ba/b')
         opts['writethumbnail'] = True
         if playlist:
             name = '%(playlist_title).80B/%(playlist_index)03d - %(artist,uploader&{} - |)s%(track,title).100B.%(ext)s'
@@ -799,7 +874,8 @@ def run_task(task):
 
     task_of_thread[threading.get_ident()] = task
     try:
-        opts = download_opts(task['option'], task['playlist'], Path(task['dir']), task['section'])
+        opts = download_opts(task['option'], task['playlist'], Path(task['dir']), task['section'],
+                             task['track'], task['langs'])
         opts['match_filter'] = got_info  # вызывается, когда сведения о видео уже получены
         opts['progress_hooks'] = [progress]
         opts['postprocessor_hooks'] = [pp_progress]
@@ -1200,6 +1276,7 @@ def api_info():
         duration=info.get('duration'),
         live=bool(info.get('is_live')),
         options=video_options(info) + AUDIO_OPTIONS,
+        tracks=audio_tracks(info),
     )
 
 
@@ -1470,6 +1547,10 @@ def check_download(data):
     option = text_arg(data, 'option')
     if not (re.fullmatch(r'v(\d{1,4}|best)', option) or option in ('a_mp3', 'a_m4a')):
         return None, 'Неизвестный вариант.'
+    track = text_arg(data, 'track')
+    langs = data.get('langs') if isinstance(data.get('langs'), list) else []
+    if track and track != 'all' and not LANG_ID.fullmatch(track) or len(langs) > 60 or             not all(isinstance(x, str) and LANG_ID.fullmatch(x) for x in langs):
+        return None, 'Неизвестная звуковая дорожка.'
     folder = Path(text_arg(data, 'dir')) if text_arg(data, 'dir') else download_dir()
     if not folder.is_absolute() or not folder.is_dir():
         return None, f'Папка не найдена: {folder}'
@@ -1509,6 +1590,7 @@ def new_task(data, folder, url, title, seq, index=0, section=None, from_list=Fal
         'count': data.get('count') if isinstance(data.get('count'), int) else 0,
         'dir': str(folder),
         'section': section, 'from_list': from_list,
+        'track': text_arg(data, 'track'), 'langs': data['langs'] if isinstance(data.get('langs'), list) else [],
         'status': 'running', 'stage': 'Подготовка', 'percent': 0,
         'speed': '', 'eta': '', 'item': '', 'error': '', 'error_detail': '',
         'files': [], 'tmp': set(), 'procs': [], 'cancel': False,

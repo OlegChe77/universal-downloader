@@ -250,6 +250,16 @@
   .cut-note { font-size: 13px; color: var(--muted); width: 100%; }
   .cut-note.bad { color: var(--err); }
   .cut-note.on { color: var(--accent-text); }
+  .track-row {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px 8px 14px;
+    font-weight: 600; font-size: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2);
+  }
+  .track-row .icon { width: 16px; height: 16px; color: var(--muted); }
+  .track-row select {
+    margin-left: auto; min-width: 0; max-width: 100%; padding: 6px 10px; font: inherit; font-weight: 400; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: 8px; outline: none; cursor: pointer;
+  }
+  .track-row select:focus { border-color: var(--accent); }
 
   /* список ссылок */
   .batch .links {
@@ -674,6 +684,10 @@
             <div class="cut-note" id="cut-note"></div>
           </div>
         </details>
+        <label class="track-row hidden" id="track-group">
+          <svg class="icon"><use href="#i-music"/></svg><span>Звуковая дорожка</span>
+          <select id="track" aria-label="Звуковая дорожка"></select>
+        </label>
         <div class="formats">
           <div class="group video-group" id="video-group">
             <h3><svg class="icon"><use href="#i-video"/></svg>Видео со звуком</h3>
@@ -969,6 +983,11 @@ function renderResult(r) {
   $('video').innerHTML = video.map(chip).join('');
   $('video-group').classList.toggle('hidden', !video.length);
   $('audio').innerHTML = r.options.filter(o => o.kind === 'audio').map(chip).join('');
+  // несколько языков (дубляж YouTube, фильмы): первая — русская, иначе оригинал
+  const tracks = r.tracks || [];
+  $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
+    + (tracks.length && video.length ? '<option value="all">Все дорожки сразу (только видео)</option>' : '');
+  $('track-group').classList.toggle('hidden', !tracks.length);
   $('result-listen').dataset.listen = r.url;
   $('result-listen').classList.toggle('hidden', !!(r.playlist || r.live));
   syncListen();
@@ -1019,11 +1038,25 @@ function renderCut() {
   $('cut-reset').classList.toggle('hidden', !$('cut-start').value && !$('cut-end').value);
   // размер видео — пропорционально длине куска
   const part = cut.end && current.duration ? (cut.end - cut.start) / current.duration : 1;
+  // «все дорожки» — к размеру прибавляются остальные языки
+  const tracks = current.tracks || [];
+  const extra = $('track').value === 'all' ? tracks.slice(1).reduce((a, t) => a + (t.size || 0), 0) : 0;
   $('video').querySelectorAll('.chip').forEach(btn => {
     const o = current.options.find(x => x.id === btn.dataset.id);
-    if (o && o.size) btn.querySelector('small').textContent = ['MP4', fmtSize(o.size * part)].join(' · ');
+    if (o && o.size) btn.querySelector('small').textContent = ['MP4', fmtSize((o.size + extra) * part)].join(' · ');
   });
 }
+
+// выбранная дорожка для этого варианта: «все сразу» бывает только у видео, MP3/M4A — первая (русская или оригинал)
+function trackFor(id) {
+  const tracks = current.tracks || [];
+  if (!tracks.length) return {};
+  const value = $('track').value === 'all' && !id.startsWith('v') ? tracks[0].id : $('track').value;
+  if (value === 'all') return {track: 'all', langs: tracks.map(t => t.id), name: 'все дорожки'};
+  const t = tracks.find(x => x.id === value) || tracks[0];
+  return {track: t.id, name: t.label.replace(' — оригинал', '')};
+}
+$('track').addEventListener('change', renderCut);
 
 ['cut-start', 'cut-end'].forEach(id => $(id).addEventListener('input', renderCut));
 $('cut-group').addEventListener('toggle', () => {
@@ -1045,10 +1078,11 @@ async function startDownload(btn) {
   const dir = await targetDir();
   if (!dir) return;
   const r = current;
+  const {name, ...track} = trackFor(btn.dataset.id);
   try {
     await api('/api/download', {
       url: r.url, title: r.title, playlist: r.playlist, count: r.count,
-      option: btn.dataset.id, label: btn.dataset.label, dir,
+      option: btn.dataset.id, label: btn.dataset.label + (name ? ` · ${name}` : ''), dir, ...track,
       ...(cut.end ? {start: cut.start, end: cut.end} : {}),
     });
     btn.classList.add('added');
