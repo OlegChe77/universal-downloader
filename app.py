@@ -35,6 +35,11 @@ BASE = Path(__file__).resolve().parent
 TRAY = '--tray' in sys.argv
 if TRAY:  # окна нет — всё, что программа пишет (и ошибки запуска), сохраняем в файл
     sys.stdout = sys.stderr = open(BASE / 'program.log', 'w', encoding='utf-8', buffering=1)
+# Заставка у часов — до тяжёлых импортов: без окна иначе несколько секунд не видно, запустилось ли что-то
+SPLASH = None
+if TRAY and __name__ == '__main__' and '--no-browser' not in sys.argv and os.name == 'nt':
+    import splash
+    SPLASH = splash.show('Запускается…', str(BASE / 'web' / 'icon.ico'))
 
 import imageio_ffmpeg
 import yt_dlp
@@ -2081,12 +2086,15 @@ def api_proxy_check():
 pages = set()                     # очереди сообщений для открытых страниц
 pages_lock = threading.Lock()
 page_answered = threading.Event()
+page_opening = threading.Event()  # браузеру уже велели открыть страницу (заставка ждёт её подключения)
 tray_icon = None
 
 
 @app.get('/api/events')
 def api_events():
     q = queue.Queue()
+    if SPLASH and page_opening.is_set():  # открытая нами вкладка подключилась — заставка больше не нужна
+        SPLASH.close()
     with pages_lock:
         pages.add(q)
 
@@ -2128,22 +2136,43 @@ def notify(text):
             pass
 
 
-def show_page():
+def show_page(quiet=False):
     """Открывает страницу программы, только если её нет ни в одной вкладке. Если есть — вкладка мигает
-    заголовком, а у часов всплывает подсказка. True — открыли новую вкладку."""
+    заголовком, а у часов всплывает подсказка (quiet — не всплывает: о том же пишет заставка).
+    True — открыли новую вкладку."""
     page_answered.clear()
     if tell_pages('ping') and page_answered.wait(2):
         tell_pages('here')
-        notify('Программа уже открыта — во вкладке браузера «Универсальный скачиватель».')
+        if SPLASH and SPLASH.alive:
+            SPLASH.close(ALREADY_OPEN_TEXT, 2.5)
+        elif not quiet:
+            notify('Программа уже открыта — во вкладке браузера «Универсальный скачиватель».')
         return False
+    if SPLASH and SPLASH.alive:
+        SPLASH.set_text('Открываю страницу в браузере…')
+        page_opening.set()
+        threading.Thread(target=close_splash_later, daemon=True).start()
     webbrowser.open(f'http://{HOST}:{PORT}')
     return True
 
 
+ALREADY_OPEN_TEXT = 'Уже открыта — во вкладке браузера'
+
+
+def close_splash_later():
+    """Браузер может запускаться долго, но вечно заставку не держим. Страница так и не подключилась —
+    говорим у часов, где программа."""
+    time.sleep(20)
+    if SPLASH.alive:
+        SPLASH.close()
+        notify(f'Программа запущена: значок — здесь, у часов, страница — http://{HOST}:{PORT}')
+
+
 @app.post('/api/show')
 def api_show():
-    """Программу запустили ещё раз (второй процесс) — показываем страницу."""
-    return jsonify(opened=show_page())
+    """Программу запустили ещё раз (второй процесс) — показываем страницу.
+    quiet — у второго процесса своя заставка, подсказка у часов не нужна."""
+    return jsonify(opened=show_page(quiet=bool(json_body().get('quiet'))))
 
 
 @app.post('/api/folder/pick')
@@ -2172,6 +2201,8 @@ def port_owner():
 def fail(message):
     """Без окна print никто не увидит — показываем окно с ошибкой."""
     print(message)
+    if SPLASH:
+        SPLASH.close()
     if TRAY and os.name == 'nt':
         import ctypes
         ctypes.windll.user32.MessageBoxW(None, message, 'Универсальный скачиватель', 0x10)
@@ -2279,11 +2310,19 @@ def main():
     owner = port_owner()
     if owner == 'ours':  # уже запущено — открываем страницу, только если её нет ни в одной вкладке
         if '--no-browser' not in sys.argv:
-            req = urllib.request.Request(f'{url}/api/show', b'{}', {'Content-Type': 'application/json'})
+            if SPLASH:
+                SPLASH.set_text('Уже запущена — открываю страницу…')
+            body = json.dumps({'quiet': bool(SPLASH)}).encode()
+            req = urllib.request.Request(f'{url}/api/show', body, {'Content-Type': 'application/json'})
             try:
-                urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=10).close()
-            except OSError:
+                with urllib.request.build_opener(urllib.request.ProxyHandler({})).open(req, timeout=10) as r:
+                    opened = json.loads(r.read()).get('opened')
+            except (OSError, ValueError):
+                opened = True
                 webbrowser.open(url)
+            if SPLASH:  # процесс сейчас завершится — ждём, пока надпись прочитают и заставка исчезнет
+                SPLASH.close(None if opened else ALREADY_OPEN_TEXT, 1.0 if opened else 2.5)
+                SPLASH.wait()
         return
     if owner == 'other':
         fail(BUSY_TEXT.format(port=PORT))
