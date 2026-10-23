@@ -102,9 +102,12 @@
   a.btn.donate:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 20px rgba(255, 90, 110, .45); }
   a.btn.donate:hover::after { transform: translateX(120%); }
   a.btn.donate:active { transform: none; }
-  a.btn.donate .icon { width: 19px; height: 19px; fill: currentColor; stroke: none; animation: beat 2.4s ease-in-out infinite; }
-  @keyframes beat { 0%, 70%, 100% { transform: scale(1); } 78% { transform: scale(1.2); } 86% { transform: scale(.95); } }
-  @media (prefers-reduced-motion: reduce) { a.btn.donate .icon { animation: none; } a.btn.donate::after { display: none; } }
+  a.btn.donate .hearts { display: inline-flex; align-items: center; gap: 2px; }
+  a.btn.donate .hearts svg { width: 15px; height: 15px; fill: currentColor; stroke: none; opacity: .85; animation: beat 2.4s ease-in-out infinite; }
+  a.btn.donate .hearts svg:nth-child(2) { width: 18px; height: 18px; animation-delay: .3s; }
+  a.btn.donate .hearts svg:nth-child(3) { animation-delay: .6s; }
+  @keyframes beat { 0%, 30%, 100% { transform: scale(1); opacity: .85; } 12% { transform: scale(1.15); opacity: 1; } 20% { transform: scale(.97); } }
+  @media (prefers-reduced-motion: reduce) { a.btn.donate .hearts svg { animation: none; } a.btn.donate::after { display: none; } }
   :root[data-theme="dark"] a.btn.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) a.btn.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
@@ -114,11 +117,7 @@
     background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
   }
 
-  /* загрузки и папка — внизу открытой вкладки («По ссылке» или «Музыка»), под найденным */
-  .dl { margin-top: 18px; }
-  .dl-head { display: flex; align-items: center; gap: 6px 12px; flex-wrap: wrap; margin-top: 14px; }
-  .dl-head h2 { font-size: 17px; margin: 0; }
-  .dl-summary { color: var(--muted); font-size: 13.5px; flex: 1; }
+  /* ход загрузки — в карточке видео, в строке песни и в карточке списка ссылок; общего списка нет */
   .tasks { margin-top: 8px; max-height: 330px; overflow-y: auto; }
   .tasks:empty { display: none; }
   .task { display: flex; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line); }
@@ -158,21 +157,20 @@
   .tasks.inline .bar { margin: 5px 0 4px; }
   .card-tasks { margin-top: 14px; padding: 2px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); }
   .result.music .card-tasks { display: none; }  /* в окне «Ещё форматы» — ход загрузки в строке песни */
-  #panel-music .folder-bar { padding-top: 0; border-top: 0; margin-top: 12px; }
   .err-more { margin-top: 4px; color: var(--muted); font-size: 12.5px; white-space: normal; }
   .err-more summary { cursor: pointer; width: fit-content; }
   .err-more code { display: block; margin-top: 4px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .err-help { display: inline-block; margin-top: 4px; font-size: 12.5px; color: inherit; white-space: normal; }
-  .folder-bar {
-    display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding-top: 14px;
-    border-top: 1px solid var(--line); font-size: 13.5px;
-  }
+  .folder-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 12px; font-size: 13.5px; }
   .folder-bar .icon { width: 16px; height: 16px; color: var(--muted); }
   .folder-bar b { font-weight: 600; overflow-wrap: anywhere; }
   .ask { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; margin-left: auto; }
   .ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
   .proxy { display: grid; gap: 12px; font-size: 14px; }
   .proxy p { margin: 0; }
+  .note-line { font-size: 13px; color: var(--muted); width: 100%; }
+  .note-line.bad { color: var(--err); }
+  .note-line.on { color: var(--accent-text); }
   .proxy-state b { overflow-wrap: anywhere; }
   .proxy-row { display: flex; flex-wrap: wrap; gap: 6px; }
   .proxy-row input {
@@ -206,8 +204,8 @@
 
   .field { display: flex; gap: 8px; }
   .field textarea, .field input {
-    flex: 1; min-width: 0; padding: 13px 15px; font: inherit; font-size: 16px; color: inherit; resize: none;
-    background: var(--card-2); border: 1px solid var(--line); border-radius: 12px; outline: none;
+    flex: 1; min-width: 0; padding: 12px 14px; font: inherit; font-size: 16px; color: inherit; resize: none;
+    background: var(--card-2); border: 2px solid var(--faint); border-radius: 12px; outline: none;
     overflow-y: auto; max-height: 180px; transition: border-color .15s, background .15s;
   }
   /* Safari рисует type=search системным полем и не даёт задать рамку, скругление и отступы */
@@ -261,25 +259,6 @@
   .chip:hover { border-color: var(--accent); background: var(--accent-soft); }
   .chip.added { border-color: var(--ok); background: var(--ok-soft); }
   .chip.added .icon { color: var(--ok); }
-  .cut-box { margin-top: 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); }
-  .cut-box summary {
-    display: flex; align-items: center; gap: 8px; padding: 10px 14px; cursor: pointer; list-style: none; font-weight: 600; font-size: 14px;
-  }
-  .cut-box summary::-webkit-details-marker { display: none; }
-  .cut-box summary .icon { width: 16px; height: 16px; color: var(--muted); }
-  .cut-box summary small { color: var(--muted); font-weight: 400; }
-  .cut-box summary::after { content: '▸'; margin-left: auto; color: var(--faint); transition: transform .15s; }
-  .cut-box[open] summary::after { transform: rotate(90deg); }
-  .cut { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; padding: 0 14px 12px; }
-  .cut input {
-    width: 96px; padding: 7px 10px; font: inherit; color: inherit; text-align: center;
-    background: var(--card); border: 1px solid var(--line); border-radius: 8px; outline: none;
-  }
-  .cut input:focus { border-color: var(--accent); }
-  .cut input.bad { border-color: var(--err); }
-  .cut-note { font-size: 13px; color: var(--muted); width: 100%; }
-  .cut-note.bad { color: var(--err); }
-  .cut-note.on { color: var(--accent-text); }
   .track-row {
     display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; padding: 8px 10px 8px 14px;
     font-weight: 600; font-size: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2);
@@ -386,7 +365,6 @@
   :root[data-theme="dark"] .toast { background: #2c313b; }
   @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .toast { background: #2c313b; } }
   .toast.show { opacity: 1; transform: translate(-50%, 0); pointer-events: auto; }
-  .toast .link { color: #9db4ff; white-space: nowrap; }
 
   /* прослушивание */
   .cover .listen {
@@ -401,6 +379,7 @@
   .listen-row { display: flex; flex-wrap: wrap; gap: 8px; }
   .meta .listen-row { margin-top: 12px; }
   .batch .listen-row { margin-top: 14px; }
+  #batch-tasks { max-height: 330px; overflow-y: auto; }
   .result.music [data-clear-link] { display: none; }  /* в окне «Ещё форматы» — песня из «Музыки», очищать нечего */
   .listen .spinner { width: 15px; height: 15px; }
   html.has-player { scroll-padding-bottom: 96px; }
@@ -523,7 +502,6 @@
     .panel { padding: 16px; }
     .field { flex-direction: column; }
     .field .btn { align-self: stretch; min-height: 46px; }
-    .cut-box summary small { display: none; }
     .ask { margin-left: 0; }
     .tasks { max-height: 250px; }
     .hit { grid-template-columns: auto 72px minmax(0, 1fr); gap: 4px 10px; padding: 8px 10px; }
@@ -563,7 +541,6 @@
   <symbol id="i-shield" viewBox="0 0 24 24"><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.4 7.5 9.5 4.3-1.1 7.5-4.9 7.5-9.5V6z"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
   <symbol id="i-subs" viewBox="0 0 24 24"><rect x="2.5" y="5" width="19" height="14" rx="2.5"/><path d="M6.5 11.5h4M13 11.5h4.5M6.5 15h7M15.5 15h2"/></symbol>
-  <symbol id="i-cut"viewBox="0 0 24 24"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.5 8 20 19.5M8.5 16 20 4.5"/></symbol>
   <symbol id="i-repeat" viewBox="0 0 24 24"><path d="M4 11.5V10a3.5 3.5 0 0 1 3.5-3.5H19m0 0-3-3m3 3-3 3M20 12.5V14a3.5 3.5 0 0 1-3.5 3.5H5m0 0 3 3m-3-3 3-3"/></symbol>
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
@@ -597,7 +574,7 @@
     <div class="top-side">
       <a class="btn donate" href="https://www.donationalerts.com/r/olegche" target="_blank" rel="noopener"
          title="Поддержать разработку программы (DonationAlerts)">
-        <svg class="icon"><use href="#i-heart"/></svg>Помощь проекту
+        <span class="hearts" aria-hidden="true"><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg></span>Помощь проекту
       </a>
       <div class="top-tools">
         <button class="btn ghost small" id="theme" type="button" title="Сменить тему оформления">
@@ -671,6 +648,16 @@
       <button class="btn primary" id="go" type="submit"><svg class="icon"><use href="#i-search"/></svg>Найти</button>
       <button class="btn ghost hidden" id="url-clear" type="button" title="Очистить поле и убрать найденное"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
     </form>
+    <div class="folder-bar" id="folder-bar">
+      <svg class="icon"><use href="#i-folder"/></svg>
+      <span class="muted">Сохранять в:</span>
+      <b id="folder-path">…</b>
+      <button class="link" id="change-folder" type="button">Выбрать папку</button>
+      <button class="link" id="open-folder" type="button">Открыть</button>
+      <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
+        <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
+      </label>
+    </div>
     <div class="hints">
       <span>Скопируйте адрес из браузера и вставьте сюда — варианты появятся сами</span>
       <span>Несколько ссылок — каждую с новой строки, скачаются по очереди</span>
@@ -695,15 +682,14 @@
           </div>
         </div>
         <div class="tasks inline card-tasks" id="card-tasks" aria-live="polite"></div>
-        <details class="cut-box" id="cut-group">
-          <summary><svg class="icon"><use href="#i-cut"/></svg>Скачать только кусок <small>— необязательно</small></summary>
-          <div class="cut">
-            <span class="muted">с</span><input id="cut-start" inputmode="numeric" placeholder="0:00" autocomplete="off" aria-label="Начало куска">
-            <span class="muted">до</span><input id="cut-end" inputmode="numeric" placeholder="конец" autocomplete="off" aria-label="Конец куска">
-            <button class="link hidden" id="cut-reset" type="button">сбросить</button>
-            <div class="cut-note" id="cut-note"></div>
-          </div>
-        </details>
+        <div class="track-row hidden" id="choice-group">
+          <svg class="icon"><use href="#i-video"/></svg><span>Что скачать</span>
+          <span class="selects">
+            <select id="ch-player" aria-label="Плеер"></select>
+            <select id="ch-season" aria-label="Сезон"></select>
+            <select id="ch-episode" aria-label="Серия"></select>
+          </span>
+        </div>
         <label class="track-row hidden" id="track-group">
           <svg class="icon"><use href="#i-music"/></svg><span>Звуковая дорожка</span>
           <select id="track" aria-label="Звуковая дорожка"></select>
@@ -752,29 +738,12 @@
         <h3><svg class="icon"><use href="#i-music"/></svg>Только звук</h3>
         <div class="chips" id="batch-audio"></div>
       </div>
+      <div class="tasks inline card-tasks" id="batch-tasks" aria-live="polite"></div>
       <div class="listen-row">
         <button class="btn ghost small" type="button" data-clear-link title="Очистить поле и убрать список"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
       </div>
     </section>
 
-    <section class="dl" id="downloads" aria-label="Загрузки">
-      <div class="folder-bar" id="folder-bar">
-        <svg class="icon"><use href="#i-folder"/></svg>
-        <span class="muted">Сохранять в:</span>
-        <b id="folder-path">…</b>
-        <button class="link" id="change-folder" type="button">Выбрать папку</button>
-        <button class="link" id="open-folder" type="button">Открыть</button>
-        <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
-          <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
-        </label>
-      </div>
-      <div class="dl-head hidden" id="dl-head">
-        <h2>Загрузки</h2>
-        <span class="dl-summary" id="dl-summary"></span>
-        <button class="btn ghost small hidden" id="clear-done" type="button" title="Убрать из списка всё, что уже скачано, отменено или не удалось">Убрать готовые</button>
-      </div>
-      <div class="tasks" id="tasks" aria-live="polite"></div>
-    </section>
   </section>
 
   <section class="card panel not-first" id="panel-music" role="tabpanel" aria-labelledby="tab-music" hidden>
@@ -785,7 +754,7 @@
     <div class="hints">
       <span>Ищем сразу на YouTube, SoundCloud и Rutube и показываем по 10 вариантов</span>
       <span><b>MP3</b>&nbsp;— сразу скачать песню с обложкой и тегами</span>
-      <span><b>Ещё форматы</b>&nbsp;— видео, M4A или только кусок</span>
+      <span><b>Ещё форматы</b>&nbsp;— видео или M4A</span>
       <span><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
       <span><b>Галочки</b>&nbsp;— выбрать несколько песен и скачать одной кнопкой</span>
     </div>
@@ -828,12 +797,12 @@
         <button class="btn primary small" id="proxy-save" type="button">Сохранить</button>
       </div>
       <label class="ask"><input type="checkbox" id="proxy-all"> все сайты через прокси</label>
-      <div class="cut-note" id="proxy-note"></div>
+      <div class="note-line" id="proxy-note"></div>
       <div class="doh">
         <label class="ask"><input type="checkbox" id="doh"> Защищённый DNS</label>
         <p class="muted">Искать адреса сайтов через DNS по HTTPS (Cloudflare, Google), если DNS провайдера их не находит —
           ошибка «Не удалось найти сайт в сети». Помогает вместе с zapret и похожими программами.
-          Кусок видео (с–до) ищет адреса сам, ему галочка не поможет. <a href="/help#doh">Подробнее</a></p>
+          <a href="/help#doh">Подробнее</a></p>
       </div>
     </div>
   </section>
@@ -881,7 +850,7 @@
   <audio id="p-audio" preload="auto"></audio>
 </section>
 
-<div class="toast" id="toast" role="status"><span id="toast-text"></span><button class="link hidden" id="toast-action" type="button">К загрузкам</button></div>
+<div class="toast" id="toast" role="status"><span id="toast-text"></span></div>
 
 <script>
 const $ = id => document.getElementById(id);
@@ -960,22 +929,13 @@ const hideError = box => $(box).classList.add('hidden');
 
 // ---------- всплывающее сообщение ----------
 let toastTimer = null;
-function toast(msg, {toDownloads = false, sticky = false} = {}) {
+function toast(msg, {sticky = false} = {}) {
   $('toast-text').textContent = msg;
-  // кнопка «К загрузкам» нужна, только если блок загрузок за краем экрана
-  const r = $('downloads').getBoundingClientRect();
-  const offscreen = r.bottom < 60 || r.top > innerHeight - 60;
-  $('toast-action').classList.toggle('hidden', !(toDownloads && offscreen));
-  $('toast-action').textContent = 'К загрузкам ' + (r.top > 0 ? '↓' : '↑');
   $('toast').classList.add('show');
   clearTimeout(toastTimer);
   if (!sticky) toastTimer = setTimeout(hideToast, 4500);
 }
 function hideToast() { $('toast').classList.remove('show'); }
-$('toast-action').addEventListener('click', () => {
-  $('downloads').scrollIntoView({behavior: 'smooth', block: 'nearest'});
-  hideToast();
-});
 
 // ---------- тема ----------
 const THEMES = [
@@ -1009,10 +969,8 @@ function setTab(name, focus = false) {
     $('panel-' + t).hidden = !on;
   });
   activeTab = name;
-  // папка: в «Музыке» — сразу под поиском, в «По ссылке» — под найденным; список загрузок — внизу вкладки
-  if (name === 'music') $('music-form').after($('folder-bar'));
-  else if (name === 'link') $('downloads').prepend($('folder-bar'));
-  if (name !== 'vpn') $('panel-' + name).append($('downloads'));
+  // папка — сразу под полем ссылки или поиска
+  if (name !== 'vpn') $(name + '-form').after($('folder-bar'));
   renderTasks();
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
@@ -1063,74 +1021,66 @@ function renderResult(r) {
   $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
     + (tracks.length && video.length ? '<option value="all">Все дорожки сразу (только видео)</option>' : '');
   $('track-group').classList.toggle('hidden', !tracks.length);
-  // субтитры — только к видео; всегда заранее выбраны русские (сделанные людьми, иначе автоматические или автоперевод)
+  // субтитры — только к видео; по умолчанию без них
   const subs = video.length ? r.subtitles || [] : [];
   $('subs').innerHTML = '<option value="">Без субтитров</option>'
     + subs.map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join('');
-  const isRu = s => s.id.toLowerCase().startsWith('ru');
-  const ru = [subs.findIndex(s => isRu(s) && !s.auto), subs.findIndex(isRu)].find(i => i >= 0) ?? -1;
-  $('subs').value = ru < 0 ? '' : String(ru);
+  $('subs').value = '';
   $('subs-mode').value = store.get('subsMode') === 'file' ? 'file' : 'embed';  // по умолчанию — вшить
   $('subs-group').classList.toggle('hidden', !subs.length);
   $('loop').value = 'loop';  // как на сайте
   $('loop-group').classList.toggle('hidden', !(r.loop && video.length));
-  // у COUB кусок не нужен: видео короче звука, кусок дальше петли вышел бы без картинки
-  $('cut-group').classList.toggle('hidden', !!(r.playlist || r.live || r.loop));
-  $('cut-group').open = false;
-  $('cut-start').value = $('cut-end').value = '';
-  $('cut-end').placeholder = r.duration ? duration(r.duration) : 'конец';
-  renderCut();
+  renderChoices(r.choices);
+  renderSizes();
+  renderSubs();
   $('result').classList.remove('hidden');
   renderTasks();  // ход загрузок этого видео — в карточке
 }
 
-// «1:20», «1.20», «80», «1:02:03» → секунды; пусто → null; ошибка → NaN
-function parseTime(s) {
-  s = s.trim().replace(/[.,]/g, ':');
-  if (!s) return null;
-  if (!/^\d+(:\d{1,2}){0,2}$/.test(s)) return NaN;
-  const parts = s.split(':').map(Number);
-  if (parts.slice(1).some(p => p > 59)) return NaN;
-  return parts.reduce((a, p) => a * 60 + p, 0);
+// сайты с плеерами фильмов и сериалов (kinogo): плеер, сезон и серия — во фрагменте ссылки (#player=2&season=1&episode=3),
+// выбор меняет ссылку в поле и разбирает её заново
+function renderChoices(ch) {
+  const players = ch && ch.players || [], seasons = ch && ch.seasons || [];
+  $('choice-group').classList.toggle('hidden', players.length < 2 && !seasons.length);
+  if (!ch) return;
+  $('ch-player').innerHTML = players.map((p, i) => `<option value="${i + 1}">Плеер ${esc(p)}</option>`).join('');
+  $('ch-player').value = ch.player || 1;
+  $('ch-player').classList.toggle('hidden', players.length < 2);
+  $('ch-season').innerHTML = '<option value="">Все сезоны</option>'
+    + seasons.map(s => `<option value="${s.season}">${s.season} сезон</option>`).join('');
+  $('ch-season').value = ch.season ?? '';
+  $('ch-season').classList.toggle('hidden', !seasons.length);
+  const episodes = (seasons.find(s => s.season === ch.season) || {}).episodes || [];
+  $('ch-episode').innerHTML = '<option value="">Все серии</option>'
+    + episodes.map(e => `<option value="${e}">${e} серия</option>`).join('');
+  $('ch-episode').value = ch.episode ?? '';
+  $('ch-episode').classList.toggle('hidden', !episodes.length);
 }
 
-// Что сейчас введено в «Только кусок»: {} — целиком, {error}, или {start, end}
-function cutState() {
-  if (!current || current.playlist || current.live || !$('cut-group').open) return {};
-  const start = parseTime($('cut-start').value), end = parseTime($('cut-end').value);
-  if (start === null && end === null) return {};
-  if (Number.isNaN(start) || Number.isNaN(end)) return {error: 'Время пишите так: 1:20 или 1:02:03.', bad: Number.isNaN(start) ? 'cut-start' : 'cut-end'};
-  const total = current.duration;
-  const from = start ?? 0, to = end ?? total;
-  if (!to) return {error: 'Укажите, где кусок заканчивается.', bad: 'cut-end'};
-  if (total && to > total + 1) return {error: `Видео длится только ${duration(total)}.`, bad: 'cut-end'};
-  if (total && from >= total) return {error: `Видео длится только ${duration(total)}.`, bad: 'cut-start'};
-  if (to <= from) return {error: 'Конец должен быть позже начала.', bad: 'cut-end'};
-  return {start: from, end: Math.min(to, total || to)};
+function applyChoice(e) {
+  const ch = current && current.choices;
+  if (!ch) return;
+  if (e.target.id === 'ch-season') $('ch-episode').value = '';
+  const season = $('ch-season').value;
+  const params = [
+    ['player', (ch.players || []).length > 1 ? $('ch-player').value : ''],
+    ['season', season], ['episode', season ? $('ch-episode').value : ''],
+  ].filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
+  $('url').value = ch.base + (params ? '#' + params : '');
+  growInput();
+  analyzeLink();
 }
+['ch-player', 'ch-season', 'ch-episode'].forEach(id => $(id).addEventListener('change', applyChoice));
 
-const CUT_HINT = 'Например, с 1:20 до 2:45 — скачается только этот фрагмент, видео или MP3. Пусто — целиком.';
-
-function renderCut() {
+function renderSizes() {
   if (!current) return;
-  const cut = cutState();
-  const note = $('cut-note');
-  ['cut-start', 'cut-end'].forEach(id => $(id).classList.toggle('bad', cut.bad === id));
-  note.className = 'cut-note' + (cut.error ? ' bad' : cut.end ? ' on' : '');
-  note.textContent = cut.error || (cut.end
-    ? `Скачается кусок ${duration(cut.start) || '0:00'}–${duration(cut.end)} (${duration(cut.end - cut.start)}). Теперь выберите формат ниже.`
-    : CUT_HINT);
-  $('cut-reset').classList.toggle('hidden', !$('cut-start').value && !$('cut-end').value);
-  // размер видео — пропорционально длине куска
-  const part = cut.end && current.duration ? (cut.end - cut.start) / current.duration : 1;
   // «все дорожки» — к размеру прибавляются остальные языки
   const tracks = current.tracks || [];
   const extra = $('track').value === 'all' ? tracks.slice(1).reduce((a, t) => a + (t.size || 0), 0) : 0;
   $('video').querySelectorAll('.chip').forEach(btn => {
     const o = current.options.find(x => x.id === btn.dataset.id);
-    if (o && o.size) btn.querySelector('small').textContent = ['MP4', fmtSize((o.size + extra) * part)].join(' · ');
+    if (o && o.size) btn.querySelector('small').textContent = ['MP4', fmtSize(o.size + extra)].join(' · ');
   });
-  renderSubs(cut);
 }
 
 const SUBS_HINT = {
@@ -1138,17 +1088,17 @@ const SUBS_HINT = {
   embed: 'Субтитры будут внутри MP4 — включаются в меню субтитров плеера. К MP3 и M4A субтитров нет.',
 };
 
-function renderSubs(cut = cutState()) {
+function renderSubs() {
   const on = $('subs').value !== '';
   $('subs-mode').classList.toggle('hidden', !on);
   $('subs-note').classList.toggle('hidden', !on);
-  $('subs-note').textContent = cut.end ? 'К куску субтитры не добавляются — только к видео целиком.' : SUBS_HINT[$('subs-mode').value];
+  $('subs-note').textContent = SUBS_HINT[$('subs-mode').value];
 }
 
-// выбранные субтитры для этого варианта: только видео целиком
+// выбранные субтитры для этого варианта: только видео
 function subsFor(id) {
   const s = $('subs').value === '' ? null : (current.subtitles || [])[$('subs').value];
-  if (!s || !id.startsWith('v') || cutState().end) return {};
+  if (!s || !id.startsWith('v')) return {};
   return {subs: {lang: s.id, auto: s.auto, embed: $('subs-mode').value === 'embed'},
     name: 'субтитры ' + s.label.replace(/ — .*/, '').toLowerCase() + ($('subs-mode').value === 'embed' ? ' (вшиты)' : '')};
 }
@@ -1167,25 +1117,10 @@ function trackFor(id) {
   const t = tracks.find(x => x.id === value) || tracks[0];
   return {track: t.id, name: t.label.replace(' — оригинал', '')};
 }
-$('track').addEventListener('change', renderCut);
-
-['cut-start', 'cut-end'].forEach(id => $(id).addEventListener('input', renderCut));
-$('cut-group').addEventListener('toggle', () => {
-  renderCut();
-  if ($('cut-group').open) $('cut-start').focus();
-});
-$('cut-reset').addEventListener('click', () => {
-  $('cut-start').value = $('cut-end').value = '';
-  renderCut();
-});
+$('track').addEventListener('change', renderSizes);
 
 async function startDownload(btn) {
   if (!current) return;
-  const cut = cutState();
-  if (cut.error) {
-    $(cut.bad).focus();
-    return;
-  }
   const dir = await targetDir();
   if (!dir) return;
   const r = current;
@@ -1200,11 +1135,10 @@ async function startDownload(btn) {
       option: btn.dataset.id, dir, ...track, ...subs, origin: fromMusic ? 'music' : 'link',
       label: [btn.dataset.label, name, subsName, {loop: 'по кругу', once: 'один раз'}[loop]].filter(Boolean).join(' · '),
       ...(loop ? {loop: loop === 'loop'} : {}),
-      ...(cut.end ? {start: cut.start, end: cut.end} : {}),
     });
     btn.classList.add('added');
     btn.querySelector('use').setAttribute('href', '#i-check');
-    toast(`Скачивание началось: ${btn.dataset.label}${cut.end ? ' (кусок)' : ''}${fromMusic ? ' — ход загрузки в строке песни' : ''}`);
+    toast(`Скачивание началось: ${btn.dataset.label}${fromMusic ? ' — ход загрузки в строке песни' : ''}`);
     if ($('dlg').open) $('dlg').close();
   } catch (e) {
     showError($('dlg').open ? 'dlg-error' : 'link-error', e);
@@ -1239,8 +1173,6 @@ function clearLink() {
   resetLink();
   if ($('dlg').open) $('dlg').close();  // окно вернёт карточку во вкладку и спрячет её
   current = null;
-  $('cut-group').open = false;
-  $('cut-start').value = $('cut-end').value = '';
   $('url').value = '';
   growInput();
   updateLinkClear();
@@ -1301,12 +1233,10 @@ $('batch').addEventListener('click', async e => {
   if (!dir) return;
   try {
     const r = await api('/api/batch', {urls: batch.urls, option: btn.dataset.id, label: btn.dataset.label, dir});
-    $('batch').classList.add('hidden');
-    $('url').value = '';
-    growInput();
-    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'файл', 'файла', 'файлов')} (${btn.dataset.label}) — скачаются по одному.`, {toDownloads: true});
-    batch = null;
-    updateLinkClear();
+    batch.ids = [...(batch.ids || []), ...r.ids];  // ход загрузок — прямо в карточке списка
+    btn.classList.add('added');
+    btn.querySelector('use').setAttribute('href', '#i-check');
+    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'файл', 'файла', 'файлов')} (${btn.dataset.label}) — скачаются по одному.`);
     poll();
   } catch (err) {
     showError('link-error', err);
@@ -1362,7 +1292,7 @@ function hitCard(h, i) {
     </div>
     <div class="hit-actions">
       <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="Скачать песню в MP3">${icon('download')}MP3</button>
-      <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео, M4A или только кусок">Ещё форматы</button>
+      <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео или M4A">Ещё форматы</button>
     </div>
     <div class="tasks inline hit-tasks"></div>
   </article>`;
@@ -1824,7 +1754,7 @@ function renderProxy() {
 
 function proxyNote(text, kind = '') {
   $('proxy-note').textContent = text;
-  $('proxy-note').className = 'cut-note' + (kind ? ' ' + kind : '');
+  $('proxy-note').className = 'note-line' + (kind ? ' ' + kind : '');
 }
 
 async function checkProxy(proxy) {
@@ -1955,9 +1885,8 @@ function fillTasks(el, items, list, inline) {
   el.querySelectorAll('.err-more').forEach(d => { d.open = openIds.has(d.dataset.id); });
 }
 
-// Загрузки показываются там, где их начали: видео — в его карточке «По ссылке», песня — в её строке «Музыки»;
-// остальное (список ссылок, прошлые видео и песни) — в «Загрузках» внизу своей вкладки
-let listIds = [];
+// Загрузки показываются там, где их начали: видео — в его карточке «По ссылке», песня — в её строке «Музыки»,
+// список ссылок — в его карточке; общего списка внизу нет
 function renderTasks(list = allTasks) {
   if (!list) return;
   allTasks = list;
@@ -1970,19 +1899,10 @@ function renderTasks(list = allTasks) {
   const card = r ? withCompress(list.filter(t => originOf(t) === 'link' && !t.from_list && t.url === r.url), list) : [];
   card.forEach(t => shown.add(t.id));
   fillTasks($('card-tasks'), card, list, true);
+  const ids = new Set(batch && batch.ids || []);
+  fillTasks($('batch-tasks'), withCompress(list.filter(t => ids.has(t.id)), list), list, false);
   updateHitStates(list, shown);
   syncPlayerMp3();
-
-  const rest = list.filter(t => originOf(t) === activeTab && !shown.has(t.id));
-  listIds = rest.map(t => t.id);
-  const count = s => rest.filter(t => t.status === s).length;
-  $('dl-summary').textContent = [
-    count('running') && `качается ${count('running')}`, count('queued') && `в очереди ${count('queued')}`,
-    count('done') && `готово ${count('done')}`, count('error') && `с ошибкой ${count('error')}`,
-  ].filter(Boolean).join(' · ');
-  $('clear-done').classList.toggle('hidden', !rest.some(t => !['running', 'queued'].includes(t.status)));
-  $('dl-head').classList.toggle('hidden', !rest.length);
-  fillTasks($('tasks'), rest, list, false);
 }
 
 async function poll() {
@@ -1996,10 +1916,6 @@ async function poll() {
   }
 }
 
-$('clear-done').addEventListener('click', async () => {
-  await api('/api/tasks/clear', {ids: listIds});  // только этот список: загрузки другой вкладки и карточек остаются
-  poll();
-});
 // кнопки загрузки — в списке, в карточке видео и в строках песен
 document.addEventListener('click', async e => {
   const btn = e.target.closest('.task button[data-act]');

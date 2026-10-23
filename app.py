@@ -1415,6 +1415,7 @@ def api_info():
             uploader=info.get('uploader') or info.get('channel'),
             thumbnail=thumb, duration=None,
             options=options + AUDIO_OPTIONS,
+            choices=info.get('udl_choices'),
         )
 
     return jsonify(
@@ -1429,6 +1430,7 @@ def api_info():
         tracks=audio_tracks(info),
         subtitles=subtitle_list(info),
         loop=coub_loop(info),
+        choices=info.get('udl_choices'),  # плеер / сезон / серия (sites.BalancerIE) — выбор на странице
     )
 
 

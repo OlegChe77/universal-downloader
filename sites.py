@@ -11,11 +11,15 @@
 - Встроенный плеер с другого сайта (iframe): общий разборщик заходит только в плееры известных
   сайтов. Если на странице больше ничего нет — идём в iframe сами (см. GenericIE). Так берутся
   KVS-плееры (kvsplayer.com, на многих сайтах «для взрослых») и другие плееры с чужих доменов.
+- DTF и vc.ru, d3.ru — «Unsupported URL» (см. OsnovaIE, D3IE).
+- Плееры фильмов и сериалов CCDN, ShizaHD, VeoVeo (kinogo и похожие сайты): см. BalancerIE и player_list.
 """
 import base64
+import json
 import re
 import time
-from urllib.parse import urljoin
+from collections import Counter
+from urllib.parse import parse_qs, urljoin, urlparse
 
 from yt_dlp.extractor import gen_extractor_classes, import_extractors
 from yt_dlp.extractor.common import InfoExtractor
@@ -23,8 +27,10 @@ from yt_dlp.extractor.generic import GenericIE as _GenericIE
 from yt_dlp.extractor.instagram import InstagramIE as _InstagramIE
 from yt_dlp.extractor.odnoklassniki import OdnoklassnikiIE as _OdnoklassnikiIE
 from yt_dlp.globals import extractors as _extractors
-from yt_dlp.utils import (ExtractorError, extract_attributes, int_or_none, smuggle_url, unescapeHTML,
-                          unsmuggle_url, url_or_none)
+from yt_dlp.networking import Request
+from yt_dlp.utils import (ExtractorError, clean_html, determine_ext, extract_attributes, float_or_none,
+                          int_or_none, js_to_json, smuggle_url, traverse_obj, unescapeHTML, unsmuggle_url,
+                          url_or_none)
 
 PLAYER_URL = 'https://api.yapfiles.ru/get_player/?v={}'
 # встроенные плееры других сайтов в теме ЯПлакалъ — их разберут свои разборщики yt-dlp
@@ -231,6 +237,423 @@ class ComdiIE(InfoExtractor):
         return self.playlist_result(entries, key, title)
 
 
+class OsnovaIE(InfoExtractor):
+    """DTF и vc.ru (платформа «Основа»): пост — в window.__INITIAL_STATE__, ключ entry@<id>. Видео поста — блок
+    media, картинка с isVideo: true (type gif); файл — leonardo.osnova.io/<uuid>/-/format/mp4/. Ролик с YouTube и
+    др. — external_service {name, id}."""
+    IE_NAME = 'DTF'
+    _VALID_URL = r'https?://(?:www\.)?(?:dtf|vc)\.ru/(?:[^?#]+/)?(?P<id>\d+)(?:-[^/?#]*)?/?(?:[?#]|$)'
+    _SERVICES = {'youtube': 'https://www.youtube.com/watch?v={}', 'vimeo': 'https://vimeo.com/{}',
+                 'coub': 'https://coub.com/view/{}', 'rutube': 'https://rutube.ru/video/{}/'}
+
+    def _media(self, obj, found):
+        if isinstance(obj, dict):
+            data = obj.get('data') if obj.get('type') in ('image', 'video') else None
+            if isinstance(data, dict) and data.get('uuid'):
+                found.setdefault(data['uuid'], data)
+            for value in obj.values():
+                self._media(value, found)
+        elif isinstance(obj, list):
+            for value in obj:
+                self._media(value, found)
+
+    def _real_extract(self, url):
+        post_id = self._match_id(url)
+        webpage = self._download_webpage(url, post_id)
+        state = self._search_json(r'window\.__INITIAL_STATE__\s*=', webpage, 'state', post_id)
+        entry = state.get(f'entry@{post_id}') or {}
+        title = entry.get('title') or clean_html(traverse_obj(entry, ('blocks', ..., 'data', 'text'), get_all=False)) \
+            or self._og_search_title(webpage, default=None) or post_id
+        common = {
+            'uploader': traverse_obj(entry, ('author', 'name'), ('subsite', 'name')),
+            'timestamp': int_or_none(entry.get('date')),
+            'extractor_key': 'vc.ru' if '//vc.ru' in url or '.vc.ru' in url else 'DTF',  # подпись сайта на странице
+        }
+        found, entries = {}, []
+        self._media(entry.get('blocks'), found)
+        for uuid, data in found.items():
+            service = data.get('external_service')
+            if isinstance(service, dict) and service:
+                link = url_or_none(service.get('url')) or (
+                    self._SERVICES[service['name']].format(service['id'])
+                    if service.get('name') in self._SERVICES and service.get('id') else None)
+                if link:
+                    entries.append(self.url_result(link))
+                continue
+            if not data.get('isVideo'):
+                continue  # картинка или GIF без видео
+            entries.append({
+                **common,
+                'id': uuid,
+                'title': title,
+                'formats': [{
+                    'url': f'https://leonardo.osnova.io/{uuid}/-/format/mp4/',
+                    'ext': 'mp4',
+                    'width': int_or_none(data.get('width')),
+                    'height': int_or_none(data.get('height')),
+                    'filesize': int_or_none(data.get('size')),
+                    'acodec': None if data.get('has_audio', True) else 'none',
+                }],
+                'duration': float_or_none(data.get('duration')),
+                'thumbnail': f'https://leonardo.osnova.io/{uuid}/-/format/jpg/',
+            })
+        if not entries:
+            raise ExtractorError('В этом посте нет видео', expected=True)
+        if len(entries) == 1:
+            return {**entries[0], 'id': post_id} if entries[0].get('_type') is None else entries[0]
+        return self.playlist_result(entries, post_id, title, **common)
+
+
+class D3IE(InfoExtractor):
+    """d3.ru и его сообщества (rukojop.d3.ru…): открытый API d3.ru/api/posts/<id>/. Видео поста — data.link /
+    data.media с type video (прямой mp4 на jpg.wtf или ссылка на YouTube и др.), ещё <video>/<iframe> в тексте."""
+    IE_NAME = 'd3.ru'
+    _VALID_URL = r'https?://(?:[\w-]+\.)?d3\.ru/(?:[^/?#]*-)?(?P<id>\d+)/?(?:[?#]|$)'
+    _DIRECT = re.compile(r'\.(?:mp4|webm|mov|m4v)(?:[?#]|$)', re.I)
+
+    def _real_extract(self, url):
+        post_id = self._match_id(url)
+        post = self._download_json(f'https://d3.ru/api/posts/{post_id}/', post_id)
+        data = post.get('data') or {}
+        title = post.get('title') or data.get('title') or clean_html(data.get('text')) or post_id
+        common = {
+            'uploader': traverse_obj(post, ('user', 'login')),
+            'timestamp': int_or_none(post.get('created')),
+            'extractor_key': 'd3.ru',
+        }
+        videos = [(m.get('url'), m) for m in (data.get('link'), data.get('media'))
+                  if isinstance(m, dict) and m.get('type') == 'video']
+        videos += [(unescapeHTML(src), {}) for src in re.findall(
+            r'<(?:video|source|iframe)\b[^>]*\bsrc=["\']([^"\']+)', data.get('text') or '')]
+        entries, seen = [], set()
+        for link, media in videos:
+            link = url_or_none(urljoin(url, link or ''))
+            if not link or link in seen:
+                continue
+            seen.add(link)
+            if not self._DIRECT.search(link):
+                entries.append(self.url_result(link))
+                continue
+            entries.append({
+                **common,
+                'id': f'{post_id}-{len(entries) + 1}',
+                'title': title,
+                'formats': [{
+                    'url': link,
+                    'ext': determine_ext(link, 'mp4'),
+                    'width': int_or_none(media.get('width')),
+                    'height': int_or_none(media.get('height')),
+                }],
+                'thumbnail': url_or_none(traverse_obj(media, ('thumbnails', 'original', 'url'))),
+            })
+        if not entries:
+            raise ExtractorError('В этом посте нет видео', expected=True)
+        if len(entries) == 1:
+            return {**entries[0], 'id': post_id} if entries[0].get('_type') is None else entries[0]
+        return self.playlist_result(entries, post_id, title, **common)
+
+
+def playerjs_decode(text):
+    """PlayerJS: «#2» + base64 со вставленным мусором «<разделитель><base64 от 6 букв>» (разделитель у сайта свой:
+    //_//, /shiza/…). Мусор бывает вставлен в мусор — вычищаем, пока что-то находится."""
+    if not text.startswith('#2'):
+        return text
+    text = text[2:]
+    # с перекрытием: в «/shiz/shiza/…» (мусор, вставленный в разделитель) иначе нашёлся бы только «/shiz/»
+    seps = Counter(re.findall(r'(?=(//_//|/[a-z]{2,12}/))', text))
+    if seps:
+        sep = max(seps, key=lambda s: (seps[s], len(s)))
+        while True:  # внешний кусок появляется, только когда убран вставленный в него
+            junk = {t for t in re.findall(f'(?={re.escape(sep)}([A-Za-z0-9+/]{{8}}))', text) if _junk_word(t)}
+            cleaned = text
+            for t in junk:
+                cleaned = cleaned.replace(sep + t, '')
+            if cleaned == text:
+                break
+            text = cleaned
+    return base64.b64decode(text + '=' * (-len(text) % 4)).decode()
+
+
+def _junk_word(token):
+    try:
+        word = base64.b64decode(token).decode('ascii')
+    except ValueError:
+        return False
+    return len(word) == 6 and word.isalnum()
+
+
+def playerjs_links(text):
+    """«[1080p]https://…,[720p]https://…» (адрес может быть с запасным через « or ») → [(подпись, адрес)]."""
+    return [(label, link.split(' or ')[0]) for label, link in
+            re.findall(r'(?:\[([^\]]*)\])?(https?://.+?)(?=,\[|,https?://|$)', text)]
+
+
+# язык звуковой дорожки HLS по её названию («01. Дубляж. ТВ-3 (RUS)»), если LANGUAGE в плейлисте нет
+TRACK_LANGS = (('ru', r'\(RUS\)|\brus\b|рус'), ('uk', r'\(UKR\)|\bukr\b|укр'), ('en', r'\(ENG\)|\beng\b|англ|оригинал'))
+
+
+def label_tracks(formats):
+    """Дорожкам без языка — язык по названию; первая по номеру — главная (её yt-dlp и возьмёт), из групп
+    audio1080/audio720 — та, что для лучшего видео."""
+    for f in formats:
+        if f.get('vcodec') != 'none':
+            continue
+        f['acodec'] = f.get('acodec') or 'mp4a'  # у этих CDN звук — AAC; без кодека программа не покажет выбор дорожки
+        if f.get('language'):
+            continue
+        name = f.get('format_note') or f.get('format_id') or ''
+        f['language'] = next((lang for lang, rx in TRACK_LANGS if re.search(rx, name, re.I)), None)
+        num = re.search(r'(?:^|-)(\d+)\.\s', name)
+        if num:
+            f['language_preference'] = 10 - min(int(num[1]), 10)
+        group = re.search(r'audio(\d+)', f.get('format_id') or '')
+        if group:
+            f['quality'] = int(group[1])
+
+
+class BalancerIE(InfoExtractor):
+    """Плееры фильмов и сериалов («балансеры»), которые стоят на kinogo и похожих сайтах. Каждый отдаёт сезоны и
+    серии со ссылками на HLS (или mp4), ссылки живут недолго — поэтому сериал это плейлист из записей «этот же плеер
+    + #season=N&episode=M», а поток серии ищется уже при её скачивании.
+    Выбор — во фрагменте адреса: #season=2 — весь сезон, #season=2&episode=5 — одна серия.
+    Без Referer сайта, на котором стоит плеер, они отдают заглушку или 404 — GenericIE передаёт его (smuggle_url).
+    В info кладём udl_choices (сезоны, что выбрано) — по ним страница программы рисует выбор сезона и серии.
+    Подкласс даёт _show(адрес, referer) → {id, title, thumbnail, movie: поток | seasons: {сезон: {серия: поток}}},
+    поток — {m3u8 | links: [(подпись, адрес)], duration, thumbnail, title}."""
+    _VALID_URL = False  # сам по себе не разборщик
+
+    def _show(self, url, referer):
+        raise NotImplementedError
+
+    def _default_referer(self, url):
+        return None
+
+    def _real_extract(self, url):
+        url, data = unsmuggle_url(url, {})
+        base, _, frag = url.partition('#')
+        pick = {k: int(v[-1]) for k, v in parse_qs(frag).items() if k in ('season', 'episode') and v[-1].isdigit()}
+        show = self._show(base, data.get('referer') or self._default_referer(base))
+        season, episode = pick.get('season'), pick.get('episode')
+        choices = {'base': base, 'season': season, 'episode': episode}
+        common = {'thumbnail': show.get('thumbnail'), 'udl_choices': choices, 'extractor_key': self.IE_NAME}
+        seasons = show.get('seasons')
+        if not seasons:
+            return {**common, **self._stream(show['movie'], str(show['id']), base), 'title': show['title']}
+        choices['seasons'] = [{'season': s, 'episodes': sorted(eps)} for s, eps in sorted(seasons.items())]
+        if season is not None and season not in seasons:
+            raise ExtractorError(f'В плеере {self.IE_NAME} нет {season} сезона', expected=True)
+        if season is not None and episode is not None:
+            ep = seasons[season].get(episode)
+            if not ep:
+                raise ExtractorError(f'В плеере {self.IE_NAME} нет {season} сезона, {episode} серии', expected=True)
+            return {
+                **common, **self._stream(ep, f'{show["id"]}-s{season}e{episode}', base),
+                'title': self._episode_title(show, season, episode, ep),
+                'thumbnail': ep.get('thumbnail') or show.get('thumbnail'),
+                'series': show['title'], 'season_number': season, 'episode_number': episode,
+            }
+        entries = [
+            self.url_result(self._with_data(f'{base}#season={s}&episode={e}', data), self.ie_key(),
+                            f'{show["id"]}-s{s}e{e}', self._episode_title(show, s, e, ep),
+                            duration=ep.get('duration'), thumbnail=ep.get('thumbnail'))
+            for s, eps in sorted(seasons.items()) if season in (None, s) for e, ep in sorted(eps.items())]
+        title = show['title'] + (f' — {season} сезон' if season is not None else '')
+        playlist_id = f'{show["id"]}' + (f'-s{season}' if season is not None else '')
+        return self.playlist_result(entries, playlist_id, title, **common)
+
+    @staticmethod
+    def _with_data(url, data):
+        return smuggle_url(url, data) if data else url
+
+    @staticmethod
+    def _episode_title(show, season, episode, ep):
+        name = ep.get('title')
+        return f'{show["title"]} — {season} сезон, {episode} серия' + (f'. {name}' if name else '')
+
+    def _m3u8(self, url, video_id, headers):
+        """HLS + язык субтитров по названию: LANGUAGE у них нет (NAME="ENG #01"), yt-dlp называл их «und»."""
+        res = self._download_webpage_handle(url, video_id, 'Downloading m3u8', headers=headers, fatal=False)
+        if not res:
+            return [], {}
+        doc, urlh = res
+        formats, subtitles = self._parse_m3u8_formats_and_subtitles(
+            doc, urlh.url, 'mp4', m3u8_id='hls', video_id=video_id, headers=headers, fatal=False)
+        names = re.findall(r'#EXT-X-MEDIA:(?=[^\n]*TYPE=SUBTITLES)(?![^\n]*LANGUAGE=)[^\n]*NAME="([^"]*)"', doc)
+        unknown = subtitles.pop('und', [])
+        if len(names) != len(unknown):
+            names = [''] * len(unknown)
+        for name, sub in zip(names, unknown):
+            lang = next((lang for lang, rx in TRACK_LANGS if re.search(rx, name, re.I)), 'und')
+            subtitles.setdefault(lang, []).append(sub)
+        return formats, subtitles
+
+    def _stream(self, stream, video_id, base):
+        headers = {'Referer': urljoin(base, '/')}  # CDN плееров смотрит, откуда запрос
+        formats, subtitles = [], {}
+        # alts — запасные источники (озвучки ShizaHD): берём первый, который отвечает
+        for alt in stream.get('alts') or [stream]:
+            links = [('', alt['m3u8'])] if alt.get('m3u8') else alt.get('links') or []
+            master = next((link for _, link in links if '.m3u8' in link), None)
+            if master:  # первый m3u8 («Auto») — общий, со всеми качествами и дорожками
+                formats, subtitles = self._m3u8(master, video_id, headers)
+            elif links and self._request_webpage(
+                    Request(links[0][1], headers={**headers, 'Range': 'bytes=0-0'}), video_id,
+                    'Checking video link', fatal=False):
+                for label, link in links:
+                    height = int_or_none(self._search_regex(r'(\d{3,4})p', label, 'height', default=None))
+                    # прямые mp4 (у ShizaHD — с CDN ok.ru): h264 + AAC, иначе программа не покажет качества
+                    formats.append({'url': link, 'format_id': f'{height}p' if height else label or None,
+                                    'height': height, 'ext': 'mp4', 'vcodec': 'avc1', 'acodec': 'mp4a'})
+            if formats:
+                break
+        if not formats:
+            raise ExtractorError(f'Плеер {self.IE_NAME} не отдал видео', expected=True)
+        label_tracks(formats)
+        return {'id': video_id, 'formats': formats, 'subtitles': subtitles, 'http_headers': headers,
+                'duration': int_or_none(stream.get('duration'))}
+
+
+def _number(text):
+    m = re.search(r'\d+', str(text or ''))
+    return int(m[0]) if m else None
+
+
+class CCDNIE(BalancerIE):
+    """CCDN (api.namy.ws, api.nextembed.ws…): всё в makePlayer({…}) на странице плеера — у фильма source.hls,
+    у сериала playlist.seasons[{season, episodes[{episode, hls, duration, poster}]}]."""
+    IE_NAME = 'CCDN'
+    _VALID_URL = r'https?://(?:[\w-]+\.)*[\w-]+\.ws/embed/(?:movie|serial|kp|imdb)/(?P<id>\d+)'
+
+    def _default_referer(self, url):
+        host = traverse_obj(parse_qs(urlparse(url).query), ('host', -1))
+        return f'https://{host}/' if host else None
+
+    def _show(self, url, referer):
+        video_id = self._match_id(url)
+        webpage = self._download_webpage(url, video_id, headers={'Referer': referer} if referer else {})
+        start = webpage.find('makePlayer({')
+        if start < 0:
+            raise ExtractorError('Плеер CCDN не открылся (видео удалено или закрыто для этого сайта)', expected=True)
+        player = webpage[start:]
+        poster = url_or_none(self._search_regex(r'\bposter:\s*"([^"]+)"', player, 'poster', default=None))
+        at = player.find('seasons:')
+        if at < 0:
+            m3u8 = self._search_regex(r'\bhls:\s*"([^"]+)"', player, 'hls')
+            title = self._search_regex(r'\btitle:\s*"([^"]+)"', player, 'title', default=None) \
+                or self._html_extract_title(webpage)
+            return {'id': video_id, 'title': title, 'thumbnail': poster, 'movie': {'m3u8': m3u8}}
+        raw = json.JSONDecoder().raw_decode(player[at + 8:].lstrip())[0]
+        seasons = {}
+        for season in raw:
+            if season.get('blocked') or _number(season.get('season')) is None:
+                continue
+            for ep in season.get('episodes') or []:
+                if _number(ep.get('episode')) is not None and url_or_none(ep.get('hls')):
+                    seasons.setdefault(_number(season['season']), {})[_number(ep['episode'])] = {
+                        'm3u8': ep['hls'], 'duration': ep.get('duration'), 'thumbnail': url_or_none(ep.get('poster'))}
+        # <title>Менталист (1 сезон) - 1 серия</title>
+        title = re.sub(r'\s*\(\d+\s*сезон\).*', '', self._html_extract_title(webpage) or '') or video_id
+        return {'id': video_id, 'title': title, 'thumbnail': poster, 'seasons': seasons}
+
+
+class ShizaHDIE(BalancerIE):
+    """ShizaHD: window.SHZ на странице плеера, список — SHZ.file (list.txt, PlayerJS): у сериала
+    [{title: Сезон 1, folder: [{title: 1 серия, folder: [озвучки {title, file}]}]}], у фильма — сразу озвучки.
+    file зашифрован (playerjs_decode); в нём «[Auto]…m3u8,[1080p]…» или прямые mp4 по качествам."""
+    IE_NAME = 'ShizaHD'
+    _VALID_URL = r'https?://(?:[\w-]+\.)*shizahd\.[a-z]+/iframe/(?P<id>[0-9a-f]+)'
+
+    @staticmethod
+    def _voice(voices):
+        """Озвучки по порядку плеера (первая обычно русская) — запасные друг для друга: у фильмов первая бывает
+        ссылкой на свой прокси src.mp4, который отвечает 502."""
+        alts = [{'links': playerjs_links(playerjs_decode(v['file']))}
+                for v in voices or [] if isinstance(v, dict) and v.get('file')]
+        return {'alts': alts} if alts else None
+
+    def _show(self, url, referer):
+        video_id = self._match_id(url)
+        webpage = self._download_webpage(url, video_id, headers={'Referer': referer} if referer else {})
+        shz = self._search_json(r'window\.SHZ\s*=', webpage, 'SHZ', video_id, transform_source=js_to_json)
+        listing = self._download_json(urljoin(url, shz['file']), video_id, 'Downloading playlist',
+                                      headers={'Referer': url})
+        show = {'id': video_id, 'title': shz.get('title') or video_id,
+                'thumbnail': url_or_none(urljoin(url, shz.get('poster') or ''))}
+        if not any(isinstance(x, dict) and x.get('folder') for x in listing or []):
+            show['movie'] = self._voice(listing)
+            if not show['movie']:
+                raise ExtractorError('Плеер ShizaHD не отдал видео', expected=True)
+            return show
+        show['seasons'] = {}
+        for season in listing:
+            for ep in season.get('folder') or []:
+                stream = self._voice(ep.get('folder'))
+                if stream and _number(season.get('title')) is not None and _number(ep.get('title')) is not None:
+                    show['seasons'].setdefault(_number(season['title']), {})[_number(ep['title'])] = stream
+        return show
+
+
+class VeoVeoIE(BalancerIE):
+    """VeoVeo (адрес плеера …/balancer-api/iframe?movie_id=…&token=…, домены меняются): SPA, данные — REST
+    <хост>/balancer-api/proxy/playlists/catalog-api с заголовком DLE-API-TOKEN (= token из адреса):
+    contents/<id> (название, постер, hasMultipleEpisodes) и episodes?content-id=<id> (серии с season.order, order,
+    m3u8MasterFilePath или episodeVariants[{filepath, duration}]; у фильма одна «серия»)."""
+    IE_NAME = 'VeoVeo'
+    _VALID_URL = r'https?://[\w.-]+/balancer-api/iframe\?(?:[^#]*&)?movie_id=(?P<id>\d+)'
+
+    def _show(self, url, referer):
+        video_id = self._match_id(url)
+        token = traverse_obj(parse_qs(urlparse(url).query), ('token', -1))
+        api = urljoin(url, '/balancer-api/proxy/playlists/catalog-api/')
+        headers = {'DLE-API-TOKEN': token or '', 'Referer': url}
+        content = self._download_json(f'{api}contents/{video_id}', video_id, headers=headers)
+        episodes = self._download_json(f'{api}episodes', video_id, 'Downloading episodes',
+                                       query={'content-id': video_id}, headers=headers)
+        streams = []
+        for ep in episodes or []:
+            variant = traverse_obj(ep, ('episodeVariants', lambda _, v: url_or_none(v['filepath'])), get_all=False) or {}
+            m3u8 = url_or_none(ep.get('m3u8MasterFilePath')) or variant.get('filepath')
+            if m3u8:
+                streams.append((ep, {'m3u8': m3u8, 'duration': variant.get('duration'), 'title': ep.get('title'),
+                                     'thumbnail': url_or_none(variant.get('previewImageFilepath'))}))
+        if not streams:
+            raise ExtractorError('Плеер VeoVeo не отдал видео', expected=True)
+        show = {'id': video_id, 'title': content.get('title') or content.get('originalTitle') or video_id,
+                'thumbnail': url_or_none(content.get('posterUrl'))}
+        if not content.get('hasMultipleEpisodes'):
+            show['movie'] = streams[0][1]
+            return show
+        show['seasons'] = {}
+        for ep, stream in streams:
+            s, e = int_or_none(traverse_obj(ep, ('season', 'order'))), int_or_none(ep.get('order'))
+            if s is not None and e is not None:
+                show['seasons'].setdefault(s, {})[e] = stream
+        return show
+
+
+BALANCERS = (CCDNIE, ShizaHDIE, VeoVeoIE)
+PLAYER_ATTRS = ('data-src', 'data-iframe', 'data-url', 'data-link', 'data-player', 'src')
+
+
+def player_list(page_url, webpage):
+    """Плееры-балансеры на странице: кнопки вида <li data-src="…">CCDN</li> (kinogo — iframe без src, адрес ставит
+    JS по щелчку) или iframe. → [{name, url, ie}] в порядке страницы, без повторов."""
+    found, seen = [], set()
+    for m in re.finditer(r'<(?P<tag>[a-z]+)\b(?P<attrs>[^>]*)>(?P<text>[^<]{0,60})', webpage, re.I):
+        if 'data-' not in m['attrs'] and m['tag'].lower() != 'iframe':
+            continue
+        attrs = extract_attributes(f'<x{m["attrs"]}>')
+        for key in PLAYER_ATTRS:
+            src = url_or_none(urljoin(page_url, attrs.get(key) or ''))
+            ie = src and next((ie for ie in BALANCERS if ie.suitable(src)), None)
+            if ie:
+                if src not in seen:
+                    seen.add(src)
+                    found.append({'name': clean_html(m['text']) or ie.IE_NAME, 'url': src, 'ie': ie.ie_key()})
+                break
+    return found
+
+
 # iframe с рекламой, счётчиками, комментариями — не плееры
 IFRAME_SKIP = re.compile(r'(?i)(?:\b|_)(?:ads?|adv|banners?|exoclick|juicyads|trafficjunky|tsyndicate|popunder|counter'
                          r'|metrika|analytics|googletagmanager|doubleclick|recaptcha|captcha|disqus|comments?|chat'
@@ -276,10 +699,14 @@ class GenericIE(_GenericIE):
         return info
 
     def _extract_embeds(self, url, webpage, *, urlh=None, info_dict={}):
+        page_url = urlh.url if urlh else unsmuggle_url(url)[0]
+        # плееры фильмов и сериалов — главное на странице, раньше трейлеров с YouTube и прочего
+        players = [] if getattr(self, '_udl_nested', False) else player_list(page_url, webpage)
+        if players:
+            return [self._extract_balancer(url, page_url, players)]
         embeds = list(super()._extract_embeds(url, webpage, urlh=urlh, info_dict=info_dict))
         if embeds or getattr(self, '_udl_nested', False):
             return embeds
-        page_url = urlh.url if urlh else unsmuggle_url(url)[0]
         frame = player_iframe(page_url, webpage)
         if not frame:
             return []
@@ -288,9 +715,34 @@ class GenericIE(_GenericIE):
             return [self.url_result(frame)]  # у сайта плеера есть свой разборщик
         return [self.url_result(smuggle_url(frame, {'referer': page_url, 'udl_iframe': True}), 'Generic')]
 
+    def _extract_balancer(self, url, page_url, players):
+        """Страница с несколькими плеерами (kinogo: CCDN, ShizaHD, VeoVeo…). Плеер — #player=N во фрагменте адреса
+        (с 1, по порядку на странице), туда же #season и #episode — их передаём плееру. Без выбора — первый, который
+        открылся. Разбираем плеер здесь же, а не url_result: так в info остаются udl_choices со списком плееров."""
+        base, _, frag = unsmuggle_url(url)[0].partition('#')
+        pick = parse_qs(frag)
+        chosen = int_or_none(traverse_obj(pick, ('player', -1)))
+        rest = '&'.join(f'{k}={pick[k][-1]}' for k in ('season', 'episode') if k in pick)
+        order = [chosen] if chosen and 1 <= chosen <= len(players) else range(1, len(players) + 1)
+        error = None
+        for n in order:
+            player = players[n - 1]
+            target = smuggle_url(player['url'] + (f'#{rest}' if rest else ''), {'referer': page_url})
+            try:
+                info = self._downloader.get_info_extractor(player['ie']).extract(target)
+            except ExtractorError as e:
+                error = e
+                self.report_warning(f'Плеер {player["name"]}: {e.orig_msg}')
+                continue
+            info.setdefault('udl_choices', {}).update(base=base, player=n, players=[p['name'] for p in players])
+            info['extractor_key'] = player['name']
+            return info
+        raise error
+
 
 OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'ComdiIE': ComdiIE,
-        'InstagramIE': InstagramIE}
+        'InstagramIE': InstagramIE, 'OsnovaIE': OsnovaIE, 'D3IE': D3IE,
+        **{ie.__name__: ie for ie in BALANCERS}}
 
 
 def register():
