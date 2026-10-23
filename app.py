@@ -1760,6 +1760,7 @@ def new_task(data, folder, url, title, seq, index=0, section=None, from_list=Fal
         'url': url, 'title': title, 'label': label,
         'option': option,
         'kind': 'video' if option.startswith('v') else 'audio',
+        'origin': 'music' if data.get('origin') == 'music' else 'link',  # вкладка, где начали: там и показываем
         'playlist': bool(data.get('playlist')) and not from_list,
         'count': data.get('count') if isinstance(data.get('count'), int) else 0,
         'dir': str(folder),
@@ -1974,7 +1975,7 @@ def api_compress(task_id):
         return jsonify(error='Сжать можно только скачанное видео, которое лежит на месте.'), 400
     task = new_task({'option': 'compress'}, Path(files[0]).parent, '', source['title'], next(request_seq))
     task.update(kind='compress', label='Сжатие видео', status='queued', stage='В очереди',
-                source=task_id, sources=files)
+                source=task_id, sources=files, origin=source.get('origin', 'link'))
     compress_queue.put(task)
     return jsonify(id=task['id'])
 
@@ -2018,9 +2019,11 @@ def api_remove(task_id):
 
 @app.post('/api/tasks/clear')
 def api_clear():
-    """Убирает из списка всё, что уже не качается и не ждёт очереди."""
+    """Убирает из списка всё, что уже не качается и не ждёт очереди (ids — только эти: список одной вкладки)."""
+    ids = json_body().get('ids')
     with tasks_lock:
-        for task_id in [k for k, t in tasks.items() if t['status'] not in ('running', 'queued')]:
+        for task_id in [k for k, t in tasks.items() if t['status'] not in ('running', 'queued')
+                        and (not isinstance(ids, list) or k in ids)]:
             tasks.pop(task_id)
     return jsonify(ok=True)
 

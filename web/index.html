@@ -151,6 +151,14 @@
   .task.running .task-details { white-space: normal; overflow-wrap: anywhere; }
   .task-actions { display: flex; gap: 6px; flex-shrink: 0; margin-left: auto; }
   .task .err { color: var(--err); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+  /* загрузки прямо в карточке видео и в строке песни — компактно, без значка */
+  .tasks.inline { margin-top: 0; max-height: none; overflow: visible; }
+  .tasks.inline .task { padding: 6px 0; }
+  .tasks.inline .task-icon { display: none; }
+  .tasks.inline .bar { margin: 5px 0 4px; }
+  .card-tasks { margin-top: 14px; padding: 2px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card-2); }
+  .result.music .card-tasks { display: none; }  /* в окне «Ещё форматы» — ход загрузки в строке песни */
+  #panel-music .folder-bar { padding-top: 0; border-top: 0; margin-top: 12px; }
   .err-more { margin-top: 4px; color: var(--muted); font-size: 12.5px; white-space: normal; }
   .err-more summary { cursor: pointer; width: fit-content; }
   .err-more code { display: block; margin-top: 4px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
@@ -334,10 +342,7 @@
   .site-soundcloud::before { background: #ff5500; }
   .site-rutube::before { background: #00a1e4; }
   .search-failed { margin: -6px 0 12px; font-size: 13px; color: var(--muted); }
-  .hit-state { font-size: 12.5px; font-weight: 600; color: var(--accent-text); }
-  .hit-state:empty { display: none; }
-  .hit.st-done .hit-state { color: var(--ok); }
-  .hit.st-error .hit-state { color: var(--err); }
+  .hit-tasks { grid-column: 3 / -1; }
   .hit-actions { display: flex; gap: 6px; }
   .more-row { display: flex; justify-content: center; align-items: center; gap: 10px; margin-top: 18px; }
   .more-row .btn { min-width: 220px; }
@@ -525,6 +530,7 @@
     .cover { width: 72px; grid-row: span 2; align-self: start; }
     .pick { grid-row: span 2; }
     .hit-actions { grid-column: 3; }
+    .hit-tasks { grid-column: 2 / -1; }
     .hit-actions .btn { font-size: 12.5px; padding: 5px 9px; }
     .pick-bar { padding: 8px 10px; }
     .pick-actions { margin-left: 0; width: 100%; }
@@ -688,6 +694,7 @@
             </div>
           </div>
         </div>
+        <div class="tasks inline card-tasks" id="card-tasks" aria-live="polite"></div>
         <details class="cut-box" id="cut-group">
           <summary><svg class="icon"><use href="#i-cut"/></svg>Скачать только кусок <small>— необязательно</small></summary>
           <div class="cut">
@@ -706,8 +713,8 @@
           <span class="selects">
             <select id="subs" aria-label="Язык субтитров"></select>
             <select id="subs-mode" aria-label="Как сохранить субтитры">
-              <option value="file">отдельным файлом .srt</option>
               <option value="embed">вшить в MP4</option>
+              <option value="file">отдельным файлом .srt</option>
             </select>
           </span>
           <div class="track-note hidden" id="subs-note"></div>
@@ -751,7 +758,7 @@
     </section>
 
     <section class="dl" id="downloads" aria-label="Загрузки">
-      <div class="folder-bar">
+      <div class="folder-bar" id="folder-bar">
         <svg class="icon"><use href="#i-folder"/></svg>
         <span class="muted">Сохранять в:</span>
         <b id="folder-path">…</b>
@@ -882,6 +889,8 @@ const icon = name => `<svg class="icon"><use href="#i-${name}"/></svg>`;
 let current = null;      // что сейчас показано в карточке вариантов
 let linkCurrent = null;  // что разобрано во вкладке «По ссылке»
 let pollTimer = null;
+let activeTab = 'link';  // открытая вкладка: её загрузки и показываем
+let allTasks = null;     // последний ответ /api/tasks
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
@@ -999,7 +1008,12 @@ function setTab(name, focus = false) {
     $('tab-' + t).tabIndex = on ? 0 : -1;
     $('panel-' + t).hidden = !on;
   });
-  if (name !== 'vpn') $('panel-' + name).append($('downloads'));  // загрузки и папка — под найденным
+  activeTab = name;
+  // папка: в «Музыке» — сразу под поиском, в «По ссылке» — под найденным; список загрузок — внизу вкладки
+  if (name === 'music') $('music-form').after($('folder-bar'));
+  else if (name === 'link') $('downloads').prepend($('folder-bar'));
+  if (name !== 'vpn') $('panel-' + name).append($('downloads'));
+  renderTasks();
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
   if (focus) $(TAB_FOCUS[name]).focus();
@@ -1056,7 +1070,7 @@ function renderResult(r) {
   const isRu = s => s.id.toLowerCase().startsWith('ru');
   const ru = [subs.findIndex(s => isRu(s) && !s.auto), subs.findIndex(isRu)].find(i => i >= 0) ?? -1;
   $('subs').value = ru < 0 ? '' : String(ru);
-  $('subs-mode').value = store.get('subsMode') === 'embed' ? 'embed' : 'file';
+  $('subs-mode').value = store.get('subsMode') === 'file' ? 'file' : 'embed';  // по умолчанию — вшить
   $('subs-group').classList.toggle('hidden', !subs.length);
   $('loop').value = 'loop';  // как на сайте
   $('loop-group').classList.toggle('hidden', !(r.loop && video.length));
@@ -1067,6 +1081,7 @@ function renderResult(r) {
   $('cut-end').placeholder = r.duration ? duration(r.duration) : 'конец';
   renderCut();
   $('result').classList.remove('hidden');
+  renderTasks();  // ход загрузок этого видео — в карточке
 }
 
 // «1:20», «1.20», «80», «1:02:03» → секунды; пусто → null; ошибка → NaN
@@ -1174,20 +1189,22 @@ async function startDownload(btn) {
   const dir = await targetDir();
   if (!dir) return;
   const r = current;
+  // из окна «Ещё форматы» — песня «Музыки»: ссылка ровно как у строки песни, чтобы ход загрузки был в ней
+  const fromMusic = $('result').classList.contains('music') && dialogHit;
   const {name, ...track} = trackFor(btn.dataset.id);
   const {name: subsName, ...subs} = subsFor(btn.dataset.id);
   const loop = r.loop && btn.dataset.id.startsWith('v') ? $('loop').value : '';
   try {
     await api('/api/download', {
-      url: r.url, title: r.title, playlist: r.playlist, count: r.count,
-      option: btn.dataset.id, dir, ...track, ...subs,
+      url: fromMusic ? dialogHit.url : r.url, title: r.title, playlist: r.playlist, count: r.count,
+      option: btn.dataset.id, dir, ...track, ...subs, origin: fromMusic ? 'music' : 'link',
       label: [btn.dataset.label, name, subsName, {loop: 'по кругу', once: 'один раз'}[loop]].filter(Boolean).join(' · '),
       ...(loop ? {loop: loop === 'loop'} : {}),
       ...(cut.end ? {start: cut.start, end: cut.end} : {}),
     });
     btn.classList.add('added');
     btn.querySelector('use').setAttribute('href', '#i-check');
-    toast(`Добавлено в загрузки: ${btn.dataset.label}${cut.end ? ' (кусок)' : ''}`, {toDownloads: true});
+    toast(`Скачивание началось: ${btn.dataset.label}${cut.end ? ' (кусок)' : ''}${fromMusic ? ' — ход загрузки в строке песни' : ''}`);
     if ($('dlg').open) $('dlg').close();
   } catch (e) {
     showError($('dlg').open ? 'dlg-error' : 'link-error', e);
@@ -1208,6 +1225,7 @@ function resetLink() {
   batch = null;
   if ($('result').parentElement === $('link-slot')) $('result').classList.add('hidden');
   linkCurrent = null;
+  renderTasks();
 }
 
 // «Очистить» видна, только когда есть что убирать, и не во время разбора
@@ -1341,12 +1359,12 @@ function hitCard(h, i) {
     <div class="hit-body">
       <div class="hit-title" title="${esc(h.title)}">${esc(h.title)}</div>
       <div class="hit-sub" title="${esc([site, sub].filter(Boolean).join(' · '))}"><span class="site site-${esc(site.toLowerCase())}">${esc(site)}</span>${sub ? ' · ' + esc(sub) : ''}</div>
-      <div class="hit-state"></div>
     </div>
     <div class="hit-actions">
       <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="Скачать песню в MP3">${icon('download')}MP3</button>
       <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео, M4A или только кусок">Ещё форматы</button>
     </div>
+    <div class="tasks inline hit-tasks"></div>
   </article>`;
 }
 
@@ -1379,9 +1397,9 @@ async function downloadPicked(btn) {
   const {option, label} = btn.dataset;
   btn.disabled = true;
   try {
-    const r = await api('/api/batch', {urls: list.map(h => h.url), titles: list.map(h => h.title), option, label, dir});
+    const r = await api('/api/batch', {urls: list.map(h => h.url), titles: list.map(h => h.title), option, label, dir, origin: 'music'});
     pickBoxes().forEach(b => { b.checked = false; });
-    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'песня', 'песни', 'песен')} (${label}) — скачаются по одной.`, {toDownloads: true});
+    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'песня', 'песни', 'песен')} (${label}) — скачаются по одной, ход загрузки — в строках песен.`);
   } catch (err) {
     showError('music-error', err);
   }
@@ -1444,7 +1462,7 @@ function renderSearch(data) {
   $('more-row').classList.toggle('hidden', !hits.length);
   $('more').classList.toggle('hidden', !data.more);
   $('more-end').classList.toggle('hidden', data.more);
-  updateHitStates();
+  renderTasks();
   updatePickBar();
   syncListen();
 }
@@ -1476,11 +1494,7 @@ $('more').addEventListener('click', async () => {
 
 $('hits').addEventListener('click', async e => {
   const btn = e.target.closest('button[data-act]');
-  if (!btn) return;
-  if (btn.dataset.act === 'show') {
-    api('/api/open', {id: btn.dataset.task});
-    return;
-  }
+  if (!btn || btn.closest('.task')) return;  // кнопки загрузки в строке — общий обработчик
   const h = hits[btn.dataset.hit];
   if (btn.dataset.act === 'listen') {
     listen(h, true);
@@ -1494,8 +1508,7 @@ $('hits').addEventListener('click', async e => {
   if (!dir) return;
   btn.disabled = true;
   try {
-    await api('/api/download', {url: h.url, title: h.title, option: 'a_mp3', label: 'MP3', dir});
-    toast(`«${h.title}» — MP3 добавлен в загрузки`, {toDownloads: true});
+    await api('/api/download', {url: h.url, title: h.title, option: 'a_mp3', label: 'MP3', dir, origin: 'music'});
   } catch (err) {
     btn.disabled = false;
     showError('music-error', err);
@@ -1503,33 +1516,32 @@ $('hits').addEventListener('click', async e => {
   poll();
 });
 
-// Состояние загрузки прямо на карточке песни: качается / готово / ошибка
-function updateHitStates() {
+// Загрузки песни — прямо в её строке: полоса на обложке и ход загрузки с «Отмена» / «Показать»
+function updateHitStates(list, shown) {
   document.querySelectorAll('.hit[data-url]').forEach(card => {
     const t = tasksByUrl.get(card.dataset.url);
     const st = t && t.status !== 'cancelled' ? t.status : '';
     card.className = 'hit' + (st ? ' st-' + st : '') + (card.dataset.url === player.url ? ' is-current' : '')
       + (card.querySelector('[data-pick]').checked ? ' picked' : '');
     const bar = card.querySelector('.cover-bar');
-    const state = card.querySelector('.hit-state');
     const mp3 = card.querySelector('[data-act="mp3"]');
     bar.classList.toggle('hidden', st !== 'running' && st !== 'done');
     bar.firstElementChild.style.width = (st === 'done' ? 100 : t?.percent || 0) + '%';
     const active = st === 'running' || st === 'queued';
     mp3.disabled = active;
-    if (st === 'running') state.textContent = `Качается ${t.label}${t.percent ? ' · ' + t.percent + '%' : '…'}`;
-    else if (st === 'queued') state.textContent = 'В очереди';
-    else if (st === 'done') state.innerHTML = `${esc('Скачано: ' + t.label)} · <button class="link" type="button" data-act="show" data-task="${esc(t.id)}">показать файл</button>`;
-    else if (st === 'error') state.textContent = 'Не получилось — подробности в «Загрузках»';
-    else state.textContent = '';
+    const mine = withCompress(list.filter(x => originOf(x) === 'music' && x.url === card.dataset.url), list);
+    mine.forEach(x => shown.add(x.id));
+    fillTasks(card.querySelector('.hit-tasks'), mine, list, true);
   });
 }
 
 // ---------- окно «Ещё форматы» ----------
 let dialogToken = 0;
+let dialogHit = null;  // песня, для которой открыто окно
 
 async function openDialog(h) {
   const token = ++dialogToken;
+  dialogHit = h;
   hideError('dlg-error');
   $('result').classList.add('hidden');
   $('dlg-slot').appendChild($('result'));
@@ -1725,8 +1737,8 @@ $('p-mp3').addEventListener('click', async () => {
   $('p-mp3').disabled = true;
   try {
     // url — ровно тот, что у карточки, чтобы её состояние «качается / скачано» тоже обновилось
-    await api('/api/download', {url: item.url, title: item.title, option: 'a_mp3', label: 'MP3', dir});
-    toast(`«${item.title}» — MP3 добавлен в загрузки`, {toDownloads: true});
+    await api('/api/download', {url: item.url, title: item.title, option: 'a_mp3', label: 'MP3', dir, origin: 'music'});
+    toast(`«${item.title}» — MP3 скачивается, ход загрузки — в строке песни`);
   } catch (e) {
     toast(e.message);
     $('p-mp3').disabled = false;
@@ -1890,60 +1902,87 @@ loadSettings();
 // ---------- загрузки ----------
 const STATUS = {running: 'Качается', queued: 'В очереди', done: 'Готово', error: 'Ошибка', cancelled: 'Отменено'};
 const VIDEO_EXT = /\.(mp4|mkv|webm|mov|m4v|avi|flv|ts)$/i;
-let tasksSig = '';
 
-function renderTasks(list) {
+const originOf = t => t.origin || 'link';
+// загрузки и их сжатия (у сжатия своя задача со ссылкой на исходную в source)
+function withCompress(items, list) {
+  const ids = new Set(items.map(t => t.id));
+  return list.filter(t => ids.has(t.id) || ids.has(t.source));
+}
+// «Сжать» — у готового видео, пока его не сжимают и не сжали (строку сжатия можно убрать — кнопка вернётся)
+const canCompress = (t, list) => t.status === 'done' && t.kind === 'video' && t.files.some(f => VIDEO_EXT.test(f))
+  && !list.some(c => c.source === t.id && !['error', 'cancelled'].includes(c.status));
+
+// inline — строка внутри карточки видео или песни: вместо названия — вариант (MP3, 1080p…)
+function taskHtml(t, list, inline) {
+  const active = t.status === 'running' || t.status === 'queued';
+  const details = t.status === 'running'
+    ? [t.stage, t.item, t.speed, t.eta && 'осталось ' + t.eta].filter(Boolean).join(' · ')
+    : t.status === 'done' || t.status === 'error' ? '' : t.stage;
+  const actions = active
+    ? `<button class="btn ghost small" type="button" data-act="cancel" data-id="${t.id}">Отмена</button>`
+    : `${canCompress(t, list) ? `<button class="btn ghost small" type="button" data-act="compress" data-id="${t.id}"
+         title="Сделать файл меньше (H.265). Видео с YouTube уменьшится на 20–50%, с телефона — в разы. Исходный файл останется.">Сжать</button>` : ''}
+       ${t.status === 'done' && (t.kind !== 'compress' || t.files.length) ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}Показать</button>` : ''}
+       <button class="btn ghost small" type="button" data-act="remove" data-id="${t.id}" title="Убрать из списка (файл останется)">Убрать</button>`;
+  // фрагмент ffmpeg качает без процентов — показываем бегущую полосу
+  const wait = t.status === 'running' && !t.percent;
+  const pill = t.status === 'running' && t.percent ? `${t.percent}%`
+    : t.kind === 'compress' && t.status === 'running' ? 'Сжимается' : STATUS[t.status] || t.status;
+  const width = t.status === 'error' || t.status === 'done' ? 100 : t.percent;
+  const title = inline ? t.label || t.title : t.title;
+  const info = inline ? (details === pill ? '' : details) : [t.label, details].filter(Boolean).join(' · ');
+  return `<div class="task ${t.status}">
+    <div class="task-icon">${icon(t.status === 'done' ? 'check' : t.status === 'error' ? 'alert' : t.kind === 'audio' ? 'music' : 'video')}</div>
+    <div class="task-main">
+      <div class="task-top"><div class="task-title" title="${esc(title)}">${esc(title)}</div><span class="pill ${t.status}">${esc(pill)}</span></div>
+      <div class="bar${wait ? ' wait' : ''}"><i style="width:${width}%"></i></div>
+      <div class="task-bottom"><span class="task-details">${esc(info)}</span><span class="task-actions">${actions}</span></div>
+      ${t.error ? `<div class="err">${esc(t.error)}${errorExtra(t.error_detail, true, t.id)}</div>` : ''}
+    </div>
+  </div>`;
+}
+
+// Список перерисовывается только если что-то поменялось — кнопки не «прыгают» под мышью,
+// а открытое «Подробнее» у ошибки не захлопывается
+const tasksSigs = new WeakMap();
+function fillTasks(el, items, list, inline) {
+  const sig = JSON.stringify(items.map(t => [t, canCompress(t, list)]));
+  if (tasksSigs.get(el) === sig) return;
+  tasksSigs.set(el, sig);
+  const openIds = new Set([...el.querySelectorAll('.err-more[open]')].map(d => d.dataset.id));
+  el.innerHTML = items.map(t => taskHtml(t, list, inline)).join('');
+  el.querySelectorAll('.err-more').forEach(d => { d.open = openIds.has(d.dataset.id); });
+}
+
+// Загрузки показываются там, где их начали: видео — в его карточке «По ссылке», песня — в её строке «Музыки»;
+// остальное (список ссылок, прошлые видео и песни) — в «Загрузках» внизу своей вкладки
+let listIds = [];
+function renderTasks(list = allTasks) {
+  if (!list) return;
+  allTasks = list;
   tasksByUrl = new Map();
-  list.forEach(t => { if (!tasksByUrl.has(t.url)) tasksByUrl.set(t.url, t); });  // список — новые сверху
-  updateHitStates();
+  list.forEach(t => {  // список — новые сверху
+    if (originOf(t) === 'music' && t.kind !== 'compress' && !tasksByUrl.has(t.url)) tasksByUrl.set(t.url, t);
+  });
+  const shown = new Set();
+  const r = $('result').parentElement === $('link-slot') && linkCurrent;
+  const card = r ? withCompress(list.filter(t => originOf(t) === 'link' && !t.from_list && t.url === r.url), list) : [];
+  card.forEach(t => shown.add(t.id));
+  fillTasks($('card-tasks'), card, list, true);
+  updateHitStates(list, shown);
   syncPlayerMp3();
-  const sig = JSON.stringify(list);
-  if (sig === tasksSig) return;  // не перерисовываем зря — кнопки не «прыгают» под мышью
-  tasksSig = sig;
 
-  const count = s => list.filter(t => t.status === s).length;
+  const rest = list.filter(t => originOf(t) === activeTab && !shown.has(t.id));
+  listIds = rest.map(t => t.id);
+  const count = s => rest.filter(t => t.status === s).length;
   $('dl-summary').textContent = [
     count('running') && `качается ${count('running')}`, count('queued') && `в очереди ${count('queued')}`,
     count('done') && `готово ${count('done')}`, count('error') && `с ошибкой ${count('error')}`,
   ].filter(Boolean).join(' · ');
-  $('clear-done').classList.toggle('hidden', !list.some(t => !['running', 'queued'].includes(t.status)));
-  $('dl-head').classList.toggle('hidden', !list.length);
-  if (!list.length) {
-    $('tasks').innerHTML = '';
-    return;
-  }
-  // список перерисовывается при каждом опросе — открытое «Подробнее» не должно захлопываться
-  const openIds = new Set([...$('tasks').querySelectorAll('.err-more[open]')].map(d => d.dataset.id));
-  $('tasks').innerHTML = list.map(t => {
-    const active = t.status === 'running' || t.status === 'queued';
-    const details = t.status === 'running'
-      ? [t.stage, t.item, t.speed, t.eta && 'осталось ' + t.eta].filter(Boolean).join(' · ')
-      : t.status === 'done' || t.status === 'error' ? '' : t.stage;
-    // «Сжать» — у готового видео, пока его не сжимают и не сжали (строку сжатия можно убрать — кнопка вернётся)
-    const canCompress = t.status === 'done' && t.kind === 'video' && t.files.some(f => VIDEO_EXT.test(f))
-      && !list.some(c => c.source === t.id && !['error', 'cancelled'].includes(c.status));
-    const actions = active
-      ? `<button class="btn ghost small" type="button" data-act="cancel" data-id="${t.id}">Отмена</button>`
-      : `${canCompress ? `<button class="btn ghost small" type="button" data-act="compress" data-id="${t.id}"
-           title="Сделать файл меньше (H.265). Видео с YouTube уменьшится на 20–50%, с телефона — в разы. Исходный файл останется.">Сжать</button>` : ''}
-         ${t.status === 'done' && (t.kind !== 'compress' || t.files.length) ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}Показать</button>` : ''}
-         <button class="btn ghost small" type="button" data-act="remove" data-id="${t.id}" title="Убрать из списка (файл останется)">Убрать</button>`;
-    // фрагмент ffmpeg качает без процентов — показываем бегущую полосу
-    const wait = t.status === 'running' && !t.percent;
-    const pill = t.status === 'running' && t.percent ? `${t.percent}%`
-      : t.kind === 'compress' && t.status === 'running' ? 'Сжимается' : STATUS[t.status] || t.status;
-    const width = t.status === 'error' || t.status === 'done' ? 100 : t.percent;
-    return `<div class="task ${t.status}">
-      <div class="task-icon">${icon(t.status === 'done' ? 'check' : t.status === 'error' ? 'alert' : t.kind === 'audio' ? 'music' : 'video')}</div>
-      <div class="task-main">
-        <div class="task-top"><div class="task-title" title="${esc(t.title)}">${esc(t.title)}</div><span class="pill ${t.status}">${esc(pill)}</span></div>
-        <div class="bar${wait ? ' wait' : ''}"><i style="width:${width}%"></i></div>
-        <div class="task-bottom"><span class="task-details">${esc([t.label, details].filter(Boolean).join(' · '))}</span><span class="task-actions">${actions}</span></div>
-        ${t.error ? `<div class="err">${esc(t.error)}${errorExtra(t.error_detail, true, t.id)}</div>` : ''}
-      </div>
-    </div>`;
-  }).join('');
-  $('tasks').querySelectorAll('.err-more').forEach(d => { d.open = openIds.has(d.dataset.id); });
+  $('clear-done').classList.toggle('hidden', !rest.some(t => !['running', 'queued'].includes(t.status)));
+  $('dl-head').classList.toggle('hidden', !rest.length);
+  fillTasks($('tasks'), rest, list, false);
 }
 
 async function poll() {
@@ -1958,11 +1997,12 @@ async function poll() {
 }
 
 $('clear-done').addEventListener('click', async () => {
-  await api('/api/tasks/clear', {});
+  await api('/api/tasks/clear', {ids: listIds});  // только этот список: загрузки другой вкладки и карточек остаются
   poll();
 });
-$('tasks').addEventListener('click', async e => {
-  const btn = e.target.closest('button[data-act]');
+// кнопки загрузки — в списке, в карточке видео и в строках песен
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('.task button[data-act]');
   if (!btn) return;
   const {act, id} = btn.dataset;
   if (act === 'open') await api('/api/open', {id});
