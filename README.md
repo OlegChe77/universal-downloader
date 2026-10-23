@@ -1,6 +1,6 @@
 # Универсальный скачиватель
 
-Программа для Windows, которая скачивает видео и музыку с YouTube, VK, Rutube, Одноклассников, Дзена, SoundCloud, TikTok и ещё 1000+ сайтов.
+Программа для Windows, которая скачивает видео и музыку с YouTube, VK, Rutube, Одноклассников, Дзена, SoundCloud, TikTok, Instagram и ещё 1000+ сайтов.
 Вставляете ссылку или название песни, выбираете качество и получаете файл MP4, MP3 или M4A на своём компьютере.
 
 Всё работает у вас на компьютере: без рекламы, без регистрации и без чужих серверов. Python ставить не нужно, программа установит всё нужное сама.
@@ -161,7 +161,7 @@
   Переменная окружения `DOWNLOADER_PORT` важнее настройки.
 - Ручные команды (PowerShell в папке программы):
   ```powershell
-  python\python.exe -m pip install -U "yt-dlp[default]"   # обновить yt-dlp
+  python\python.exe -m pip install -U "yt-dlp[default,curl-cffi]"   # обновить yt-dlp
   python\python.exe -m yt_dlp -F "ссылка"                 # что yt-dlp видит по ссылке
   ```
 

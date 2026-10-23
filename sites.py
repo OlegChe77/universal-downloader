@@ -7,6 +7,7 @@
 - Одноклассники (ok.ru): встроенный падает на новом формате плеера (см. OdnoklassnikiIE).
 - COMDI (comdi.com): эфиры и их записи, плеер встраивается на сайты скриптом embed-player.js
   с data-watchKey — без своего разборщика «Unsupported URL» (см. ComdiIE).
+- Instagram: карусель с фото падала целиком, а называлось всё «Video by …» (см. InstagramIE).
 - Встроенный плеер с другого сайта (iframe): общий разборщик заходит только в плееры известных
   сайтов. Если на странице больше ничего нет — идём в iframe сами (см. GenericIE). Так берутся
   KVS-плееры (kvsplayer.com, на многих сайтах «для взрослых») и другие плееры с чужих доменов.
@@ -19,6 +20,7 @@ from urllib.parse import urljoin
 from yt_dlp.extractor import gen_extractor_classes, import_extractors
 from yt_dlp.extractor.common import InfoExtractor
 from yt_dlp.extractor.generic import GenericIE as _GenericIE
+from yt_dlp.extractor.instagram import InstagramIE as _InstagramIE
 from yt_dlp.extractor.odnoklassniki import OdnoklassnikiIE as _OdnoklassnikiIE
 from yt_dlp.globals import extractors as _extractors
 from yt_dlp.utils import (ExtractorError, extract_attributes, int_or_none, smuggle_url, unescapeHTML,
@@ -115,6 +117,23 @@ class OdnoklassnikiIE(_OdnoklassnikiIE):
         if isinstance(json_string, (dict, list)):
             return json_string
         return super()._parse_json(json_string, *args, **kwargs)
+
+
+class InstagramIE(_InstagramIE):
+    """Instagram: в карусели фото — элементы без форматов, из-за них падает загрузка всего поста,
+    поэтому оставляем только видео (фото программа не качает). Название — начало подписи к посту."""
+
+    def _extract_product(self, product_info, video_id=None, get_comments=True):
+        info = super()._extract_product(product_info, video_id, get_comments)
+        # вместо «Video by nasa» / «Post by nasa» — начало подписи к посту (как у TikTok)
+        caption = (info.get('description') or '').strip().split('\n')[0].strip()
+        if caption:
+            info['title'] = caption if len(caption) <= 72 else caption[:71].rstrip() + '…'
+        if info.get('_type') == 'playlist':
+            info['entries'] = [e for e in info['entries'] if e.get('formats')]
+            if not info['entries']:
+                raise ExtractorError('There is no video in this post', expected=True)
+        return info
 
 
 class ComdiIE(InfoExtractor):
@@ -270,7 +289,8 @@ class GenericIE(_GenericIE):
         return [self.url_result(smuggle_url(frame, {'referer': page_url, 'udl_iframe': True}), 'Generic')]
 
 
-OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'ComdiIE': ComdiIE}
+OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'ComdiIE': ComdiIE,
+        'InstagramIE': InstagramIE}
 
 
 def register():

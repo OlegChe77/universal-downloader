@@ -1,4 +1,4 @@
-yt-dlp[default]
+yt-dlp[default,curl-cffi]
 flask
 imageio-ffmpeg
 deno

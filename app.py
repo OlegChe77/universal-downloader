@@ -375,7 +375,8 @@ ERROR_RULES = [
     (r"not a bot|confirm you.?re not",
      'YouTube просит подтвердить, что вы не робот. Так бывает с VPN и с адресами, откуда качают много.'
      + VPN_HINT + COOKIES_HINT),
-    (r'confirm your age|age[- ]restricted|inappropriate for some users|18\+|age verification',
+    (r'confirm your age|age[- ]restricted|inappropriate for some users|18\+|age verification|must be 18|'
+     r'not be comfortable for some audiences',
      'Видео с возрастным ограничением (18+): сайт отдаёт его только после входа в аккаунт.' + COOKIES_HINT),
     (r'members[- ]only|join this channel|\bpremium\b|requires? (a )?(payment|purchase|subscription)|\bpaid\b|\brental\b',
      'Видео платное или только для подписчиков — скачать можно, только если у вас есть доступ.' + COOKIES_HINT),
@@ -389,12 +390,22 @@ ERROR_RULES = [
     # «This content isn't available, try again later… rate-limited» — это не удалённое видео, а ограничение
     (r'rate.?limit|http error 429|too many requests',
      'Сайт временно ограничил загрузки: слишком много запросов. Подождите 10–30 минут.' + VPN_HINT),
+    # TikTok так отвечает (статус 10204) и на удалённый пост, и на закрытый для страны
+    (r'ip address is blocked',
+     'TikTok не отдаёт этот пост: его удалили или он закрыт для вашей страны. Проверьте ссылку в браузере; '
+     'если открывается только с VPN — включите прокси во вкладке «VPN».'),
+    # Instagram без входа показывает не всё: закрытые аккаунты, 18+, а иногда просто «много запросов»
+    (r'empty media response',
+     'Instagram не показал этот пост без входа в аккаунт: аккаунт закрытый, пост 18+ '
+     'или Instagram ограничил просмотр без входа.' + COOKIES_HINT),
     (r'video (is )?(unavailable|not available)|has been removed|no longer available|'
      r'been deleted|does not exist|was deleted',
      'Видео удалено или недоступно. Проверьте ссылку в браузере.'),
     (r'unsupported url',
      'Этот сайт не поддерживается или по ссылке нет видео. Проверьте, что ссылка ведёт на страницу '
      'с самим видео, а не на ленту или главную.'),
+    (r'no video in this post',
+     'В этом посте нет видео — только фото. Программа качает видео и звук.'),
     (r'is not a valid url|no such file or directory: .?(<url>|https?)',
      'Это не похоже на ссылку. Скопируйте адрес из строки браузера целиком.'),
     (r'sign in|log ?in|cookies|authenticat|registered users',
@@ -507,7 +518,9 @@ def video_options(info):
         if size and best.get('acodec') in (None, 'none') and best_audio:
             size += fsize(best_audio, duration)
         fps = best.get('fps')
-        label = f'{h}p' + (f' {int(fps)}fps' if fps and fps > 30 else '')
+        # вертикальное видео (TikTok, Reels, Shorts) 720×1280 — это «720p», а не «1280p»
+        side = min(h, best.get('width') or h)
+        label = f'{side}p' + (f' {int(fps)}fps' if fps and fps > 30 else '')
         options.append({'id': f'v{h}', 'kind': 'video', 'label': label, 'size': size,
                         'note': ' · '.join(x for x in ('MP4', fmt_size(size)) if x)})
     if not options and formats:
@@ -625,7 +638,8 @@ YOUTUBE_SITE = re.compile(r'(^|\.)(youtube\.com|youtu\.be|youtube-nocookie\.com)
 BLOCKED_ERROR = re.compile(r'timed? ?out|connection (reset|aborted|refused)|remote end closed|winerror 100(54|60|61)|'
                            r'unexpected_eof|eof occurred in violation|getaddrinfo|failed to resolve|'
                            r'unable to connect|network is unreachable|'
-                           r'http error 410|410: gone', re.I)  # 410 — сайт ушёл из страны (PornHub)
+                           r'http error 410|410: gone|'  # 410 — сайт ушёл из страны (PornHub)
+                           r'ip address is blocked', re.I)  # TikTok: пост закрыт для страны
 proxy_lock = threading.Lock()
 
 
@@ -875,7 +889,7 @@ def api_update():
     """Обновляет yt-dlp. Новая версия начнёт работать после перезапуска программы."""
     try:
         out = subprocess.run(
-            [sys.executable, '-m', 'pip', 'install', '-U', '--disable-pip-version-check', 'yt-dlp[default]'],
+            [sys.executable, '-m', 'pip', 'install', '-U', '--disable-pip-version-check', 'yt-dlp[default,curl-cffi]'],
             capture_output=True, text=True, timeout=300)
     except (OSError, subprocess.SubprocessError) as e:
         return jsonify(ok=False, error=str(e)), 500
@@ -1660,7 +1674,7 @@ def update_ytdlp_daily():
     if stamp.exists() and time.time() - stamp.stat().st_mtime < 24 * 3600:
         return
     out = subprocess.run(
-        [sys.executable, '-m', 'pip', 'install', '-q', '-U', '--disable-pip-version-check', 'yt-dlp[default]'],
+        [sys.executable, '-m', 'pip', 'install', '-q', '-U', '--disable-pip-version-check', 'yt-dlp[default,curl-cffi]'],
         capture_output=True, text=True)
     if out.returncode == 0:
         stamp.touch()

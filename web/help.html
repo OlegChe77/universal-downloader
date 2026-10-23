@@ -501,6 +501,12 @@
         <td>Сайт показывает видео только в некоторых странах. С зарубежным VPN так бывает у Rutube, VK, ok.ru; без VPN — у зарубежных сайтов.</td></tr>
       <tr><td><b>Видео удалено</b><br><small class="muted">Video unavailable, has been removed</small></td>
         <td>Проверьте ссылку в браузере. Если видео там играет — правый щелчок по самому видео → «Скачать в программе».</td></tr>
+      <tr><td><b>TikTok не отдаёт пост</b><br><small class="muted">Your IP address is blocked from accessing this post</small></td>
+        <td>Так TikTok отвечает и на удалённый пост, и на закрытый для вашей страны. Проверьте ссылку в браузере; если открывается только с VPN — включите прокси во вкладке «VPN».</td></tr>
+      <tr><td><b>Instagram не показал пост без входа</b><br><small class="muted">Instagram sent an empty media response</small></td>
+        <td>Аккаунт закрытый, пост 18+ или Instagram ограничил просмотр без входа. Поможет <code>cookies.txt</code> из браузера, где вы вошли в Instagram.</td></tr>
+      <tr><td><b>В посте нет видео</b><br><small class="muted">There is no video in this post</small></td>
+        <td>В посте Instagram только фото — программа качает видео и звук.</td></tr>
       <tr><td><b>Ошибка 404</b><br><small class="muted">HTTP Error 404: Not Found</small></td>
         <td>Ссылка на файл устарела или видео удалили. Откройте страницу в браузере и пришлите видео оттуда (правый щелчок → «Скачать в программе»).</td></tr>
       <tr><td><b>Ошибка 410 — страница удалена</b><br><small class="muted">HTTP Error 410: Gone</small></td>
@@ -574,7 +580,7 @@
     (в Проводнике: Shift + правый клик по пустому месту → «Открыть окно PowerShell здесь»).</p>
   <section class="card">
     <p>Обновить yt-dlp:</p>
-    <pre>python\python.exe -m pip install -U "yt-dlp[default]"</pre>
+    <pre>python\python.exe -m pip install -U "yt-dlp[default,curl-cffi]"</pre>
     <p>Посмотреть, что yt-dlp видит по ссылке, и полный текст ошибки:</p>
     <pre>python\python.exe -m yt_dlp -F "ссылка"</pre>
     <p>Узнать версию yt-dlp:</p>
