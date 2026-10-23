@@ -44,6 +44,7 @@ from yt_dlp.utils import download_range_func
 from flask import Flask, Response, jsonify, request, send_from_directory
 
 import sites
+import updater
 
 sites.register()  # свои разборщики: ЯП файлы, ЯПлакалъ
 
@@ -55,6 +56,13 @@ COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
 DEFAULT_PORT = 8765
+VERSION = '1.2'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
+UPDATE_API = (os.environ.get('DOWNLOADER_UPDATE_API')  # для проверки обновления без настоящего релиза
+              or 'https://api.github.com/repos/OlegChe77/universal-downloader/releases/latest')
+UPDATE_DIR = BASE / 'update'  # скачанная новая версия и старые файлы на время замены
+UPDATE_CACHE = Path(sys.prefix) / 'app-update.json'  # когда проверяли и что нашли
+UPDATE_EVERY = 3 * 24 * 3600
+DEV_COPY = (BASE / '.git').exists()  # папка разработки обновляется через git, а не архивом
 # proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
 DEFAULT_SETTINGS = {'download_dir': str(DOWNLOADS), 'ask_every_time': True, 'port': DEFAULT_PORT,
                     'proxy': '', 'proxy_all': False, 'proxy_sites': []}
@@ -874,6 +882,7 @@ def program_version(name):
 def api_status():
     ffmpeg = BIN / ('ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')
     return jsonify(
+        version=VERSION,
         ytdlp=yt_dlp.version.__version__,
         python=sys.version.split()[0],
         ffmpeg=ffmpeg.exists(),
@@ -900,6 +909,130 @@ def api_update():
         [sys.executable, '-c', 'import yt_dlp; print(yt_dlp.version.__version__)'],
         capture_output=True, text=True, timeout=60).stdout.strip()
     return jsonify(ok=True, before=yt_dlp.version.__version__, after=new)
+
+
+# Обновление самой программы (подробности — в updater.py).
+# state: idle → downloading → restarting (программа закрывается) или error
+app_update = {'state': 'idle', 'error': '', 'done': 0, 'total': 0, 'latest': None, 'result': None}
+
+
+def github_open(url):
+    """Запрос к GitHub сетью yt-dlp: если GitHub не открылся напрямую, via_proxy повторит через прокси."""
+    def work(proxy):
+        ydl = yt_dlp.YoutubeDL({'quiet': True, 'no_warnings': True, 'socket_timeout': 20, **({'proxy': proxy} if proxy else {})})
+        headers = {'User-Agent': f'universal-downloader/{VERSION}'}
+        if '//api.github.com/' in url:
+            headers['Accept'] = 'application/vnd.github+json'
+        return ydl.urlopen(yt_dlp.networking.Request(url, headers=headers))
+    return via_proxy(url, work)
+
+
+def read_update_cache():
+    try:
+        return json.loads(UPDATE_CACHE.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return {}
+
+
+def check_app_update(notify_new=False):
+    """Спрашивает GitHub о новой версии. Нашлась — помним и в файле: плашка видна и после перезапуска."""
+    info = updater.check(VERSION, github_open, UPDATE_API)
+    app_update['latest'] = info
+    cache = read_update_cache()
+    cache.update(checked=time.time(), latest=info)
+    if info and notify_new and cache.get('notified') != info['version']:
+        cache['notified'] = info['version']
+        notify(f'Вышла версия {info["version"]}. Обновить можно на странице программы — одной кнопкой.')
+    try:
+        UPDATE_CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding='utf-8')
+    except OSError:
+        pass
+    tell_pages('update')
+    if tray_icon is not None:
+        tray_icon.update_menu()  # пункт «Обновить до …»
+    return info
+
+
+def check_app_update_regularly():
+    """Раз в три дня. Программа может работать неделями, поэтому проверяем по кругу, а не только при запуске."""
+    while True:
+        if time.time() - read_update_cache().get('checked', 0) >= UPDATE_EVERY:
+            try:
+                check_app_update(notify_new=True)
+            except Exception as e:  # noqa: BLE001 — нет интернета: попробуем через 6 часов
+                print('Не удалось проверить обновление программы:', e)
+        time.sleep(6 * 3600)
+
+
+def load_app_update():
+    """При запуске: что нашли в прошлый раз и чем кончилось обновление (итог пишет updater.py)."""
+    latest = read_update_cache().get('latest')
+    if latest and (updater.parse_version(latest.get('version')) or ()) > updater.parse_version(VERSION):
+        app_update['latest'] = latest
+    result = UPDATE_DIR / 'result.json'
+    try:
+        app_update['result'] = json.loads(result.read_text(encoding='utf-8'))
+        result.unlink()
+    except (OSError, ValueError):
+        pass
+
+
+def install_app_update():
+    """Качает и проверяет новую версию, запускает updater.py и закрывает программу: файлы он заменит сам."""
+    info = app_update['latest']
+    try:
+        root = updater.download(info, github_open, UPDATE_DIR, lambda done, total: app_update.update(done=done, total=total))
+        script = UPDATE_DIR / 'updater.py'  # копия: свой файл updater.py тоже заменится
+        shutil.copy2(BASE / 'updater.py', script)
+        subprocess.Popen([sys.executable, str(script), '--base', str(BASE), '--work', str(UPDATE_DIR),
+                          '--new', str(root), '--version', info['version'], '--old-version', VERSION,
+                          '--pid', str(os.getpid()), '--port', str(PORT)],
+                         cwd=UPDATE_DIR, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except ValueError as e:
+        app_update.update(state='error', error=str(e))
+        return
+    except Exception as e:  # noqa: BLE001
+        app_update.update(state='error', error=f'не удалось скачать обновление: {e}')
+        return
+    app_update['state'] = 'restarting'
+    print(f'Обновление до {info["version"]}: программа перезапускается')
+    time.sleep(1.5)  # страница успевает узнать, что программа перезапускается
+    if tray_icon is not None:
+        tray_icon.stop()  # иначе значок останется у часов до наведения мыши
+    os._exit(0)
+
+
+def app_update_state():
+    return {**app_update, 'version': VERSION, 'dev': DEV_COPY}
+
+
+@app.get('/api/app-update')
+def api_app_update():
+    return jsonify(app_update_state())
+
+
+@app.post('/api/app-update/check')
+def api_app_update_check():
+    try:
+        check_app_update()
+    except Exception as e:  # noqa: BLE001
+        return jsonify(error=f'Не удалось связаться с GitHub: {e}'), 502
+    return jsonify(app_update_state())
+
+
+@app.post('/api/app-update')
+def api_app_update_install():
+    if DEV_COPY:
+        return jsonify(error='Это папка разработки (git) — обновляйте её через git pull.'), 409
+    if not app_update['latest']:
+        return jsonify(error='Новой версии нет.'), 400
+    if app_update['state'] in ('downloading', 'restarting'):
+        return jsonify(app_update_state())
+    if any(t['status'] in ('running', 'queued') for t in list(tasks.values())):
+        return jsonify(error='Сначала дождитесь конца загрузок или отмените их: при обновлении программа перезапускается.'), 409
+    app_update.update(state='downloading', error='', done=0, total=app_update['latest'].get('size') or 0)
+    threading.Thread(target=install_app_update, daemon=True).start()
+    return jsonify(app_update_state())
 
 
 URL_RE = re.compile(r'^(https?://)?([\w-]+\.)+[a-z]{2,}(:\d+)?(/|$)', re.I)
@@ -1726,11 +1859,21 @@ def run_tray():
     menu = pystray.Menu(
         pystray.MenuItem('Открыть', open_page, default=True),  # и по щелчку на значке
         pystray.MenuItem('Папка загрузок', open_downloads),
+        pystray.MenuItem(lambda item: f'Обновить до версии {app_update["latest"]["version"]}' if app_update['latest'] else '',
+                         open_page, visible=lambda item: bool(app_update['latest']) and not DEV_COPY),
         pystray.Menu.SEPARATOR,
         pystray.MenuItem('Выход', quit_app),
     )
+
+    def setup(icon):
+        icon.visible = True
+        result = app_update['result']
+        if result:
+            notify(f'Программа обновлена до версии {result["to"]}.' if result.get('ok')
+                   else f'Обновление не установилось: {result.get("error")}')
+
     tray_icon = pystray.Icon('downloader', Image.open(ICON), 'Универсальный скачиватель', menu)
-    tray_icon.run()
+    tray_icon.run(setup)
 
 
 def main():
@@ -1749,6 +1892,7 @@ def main():
         return
     prepare_ffmpeg()
     register_protocol()
+    load_app_update()
     DOWNLOADS.mkdir(exist_ok=True)
     if TRAY:
         logging.getLogger('werkzeug').setLevel(logging.ERROR)  # иначе каждый запрос страницы пишется в лог
@@ -1761,6 +1905,8 @@ def main():
         return
     if '--no-browser' not in sys.argv:
         threading.Thread(target=open_page_later, daemon=True).start()
+    if not DEV_COPY:
+        threading.Thread(target=check_app_update_regularly, daemon=True).start()
     if not TRAY:
         print(f'Универсальный скачиватель запущен: {url}')
         print('Не закрывайте это окно, пока скачиваете. Закрыть — Ctrl+C.')

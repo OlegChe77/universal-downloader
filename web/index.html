@@ -393,6 +393,28 @@
   .p-vol input { width: 90px; }
   .p-close { grid-area: close; }
 
+  /* новая версия программы */
+  .upd {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 12px 16px; margin-bottom: 14px;
+    border-color: var(--accent); background: var(--accent-soft);
+  }
+  .upd[hidden] { display: none; }
+  .upd > .icon { color: var(--accent-text); flex-shrink: 0; }
+  .upd.ok { border-color: var(--ok); background: var(--ok-soft); }
+  .upd.ok > .icon { color: var(--ok); }
+  .upd.fail { border-color: var(--err); background: var(--err-soft); }
+  .upd.fail > .icon { color: var(--err); }
+  .upd-text { flex: 1; min-width: 200px; }
+  .upd-text small { display: block; color: var(--muted); font-size: 13px; }
+  .upd-acts { display: flex; gap: 8px; }
+  .upd .bar { flex-basis: 100%; margin: 0; }
+  .upd-err { flex-basis: 100%; margin: 0; color: var(--err); font-size: 14px; }
+  .upd details { flex-basis: 100%; font-size: 14px; }
+  .upd summary { cursor: pointer; color: var(--accent-text); font-weight: 600; width: max-content; }
+  .upd-notes { max-height: 260px; overflow-y: auto; padding-right: 6px; }
+  .upd-notes p { margin: 8px 0 2px; }
+  .upd-notes ul { margin: 2px 0; padding-left: 20px; }
+
   /* скачивать прямо с сайта */
   .quick { margin-bottom: 14px; }
   .quick summary {
@@ -526,6 +548,8 @@
       </a>
     </div>
   </header>
+
+  <section class="card upd" id="app-update" aria-live="polite" hidden></section>
 
   <details class="card quick" id="quick">
     <summary>
@@ -1827,12 +1851,113 @@ function flashTitle() {
     if (n >= 16 || (n % 2 === 0 && document.visibilityState === 'visible' && document.hasFocus())) clearInterval(flashTimer);
   }, 700);
 }
+// ---- новая версия программы: плашка над «Скачивать прямо с сайта» ----
+let upd = null, updDown = false, updTimer = 0;
+const UPD_LATER_MS = 3 * 24 * 3600 * 1000;  // «Позже» — до следующей проверки, через три дня
+
+function notesHtml(md) {
+  // описание релиза в Markdown: показываем только «Что нового» — строки, списки, **жирное**, `код`, ссылки
+  const i = md.search(/^##\s*Что нового/m);
+  if (i >= 0) md = md.slice(i).replace(/^##[^\n]*\n/, '');
+  const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  let out = '', list = false;
+  for (const line of md.split(/\r?\n/)) {
+    const li = line.match(/^\s*[-*]\s+(.*)/);
+    if (li && !list) out += '<ul>';
+    if (!li && list) out += '</ul>';
+    list = !!li;
+    if (li) out += `<li>${inline(li[1])}</li>`;
+    else if (line.trim()) out += `<p>${inline(line.replace(/^#+\s*/, ''))}</p>`;
+  }
+  return out + (list ? '</ul>' : '');
+}
+
+function updResultKey(r) { return `${r.from}>${r.to}:${r.ok}`; }
+
+function renderUpdate() {
+  const box = $('app-update'), u = upd;
+  let cls = '', icon = 'i-download', html = '';
+  const later = String(store.get('updLater') || '').split('|');
+  if (!u) { /* ничего */ }
+  else if (u.state === 'restarting') {
+    html = `<span class="upd-text"><b>Программа перезапускается…</b><small>Страница обновится сама через несколько секунд.</small></span>
+      <div class="bar wait"><i></i></div>`;
+  } else if (u.state === 'downloading') {
+    const pct = u.total ? Math.min(100, Math.round(u.done / u.total * 100)) : 0;
+    html = `<span class="upd-text"><b>Скачиваю версию ${esc(u.latest.version)}…</b> ${pct}%</span>
+      <div class="bar"><i style="width:${pct}%"></i></div>`;
+  } else if (u.result && store.get('updResult') !== updResultKey(u.result)) {
+    const r = u.result;
+    cls = r.ok ? 'ok' : 'fail';
+    icon = r.ok ? 'i-check' : 'i-alert';
+    html = `<span class="upd-text"><b>${r.ok ? `Программа обновлена до версии ${esc(r.to)}` : 'Обновление не установилось'}</b>
+      ${r.ok ? '' : `<small>${esc(r.error)}</small>`}</span>
+      <div class="upd-acts"><button class="btn ghost small" type="button" data-upd="seen">Понятно</button></div>`;
+  } else if (u.latest && !u.dev && !(later[0] === u.latest.version && Date.now() < +later[1])) {
+    const v = u.latest, page = /^https:\/\/github\.com\//.test(v.page) ? v.page : '';
+    html = `<span class="upd-text"><b>Вышла версия ${esc(v.version)}</b> <span class="muted">— у вас ${esc(u.version)}</span>
+        <small>Программа перезапустится сама. Настройки, cookies.txt и скачанное останутся.</small></span>
+      <div class="upd-acts">
+        <button class="btn primary small" type="button" data-upd="install">Обновить</button>
+        <button class="btn ghost small" type="button" data-upd="later">Позже</button>
+      </div>
+      ${u.state === 'error' ? `<p class="upd-err">Не получилось: ${esc(u.error)}${page ? ` Можно скачать вручную <a href="${esc(page)}" target="_blank" rel="noopener">со страницы версии</a>.` : ''}</p>` : ''}
+      ${v.notes ? `<details><summary>Что нового</summary><div class="upd-notes">${notesHtml(v.notes)}</div></details>` : ''}`;
+  }
+  box.className = `card upd ${cls}`;
+  box.hidden = !html;
+  if (html) {
+    const open = box.querySelector('details')?.open;
+    box.innerHTML = `<svg class="icon"><use href="#${icon}"/></svg>` + html;
+    const details = box.querySelector('details');
+    if (open && details) details.open = true;
+  }
+}
+
+async function loadUpdate() {
+  try { upd = await api('/api/app-update'); } catch { return; }
+  renderUpdate();
+  watchUpdate();
+}
+
+function watchUpdate() {
+  // пока качается — опрашиваем; программа закрылась на перезапуск — ждём, когда ответит снова, и обновляем страницу
+  clearTimeout(updTimer);
+  if (!upd || !['downloading', 'restarting'].includes(upd.state)) return;
+  updTimer = setTimeout(async () => {
+    try {
+      const d = await api('/api/app-update');
+      if (upd.state === 'restarting' && (updDown || d.version !== upd.version)) { location.reload(); return; }
+      upd = d;
+    } catch {
+      upd.state = 'restarting';
+      updDown = true;
+    }
+    renderUpdate();
+    watchUpdate();
+  }, upd.state === 'restarting' ? 1500 : 700);
+}
+
+$('app-update').addEventListener('click', async e => {
+  const act = e.target.closest('button[data-upd]')?.dataset.upd;
+  if (act === 'later') store.set('updLater', `${upd.latest.version}|${Date.now() + UPD_LATER_MS}`);
+  else if (act === 'seen') store.set('updResult', updResultKey(upd.result));
+  else if (act === 'install') {
+    try { upd = await api('/api/app-update', {}); } catch (err) { upd = {...upd, state: 'error', error: err.message}; }
+  }
+  renderUpdate();
+  watchUpdate();
+});
+
 if (window.EventSource) {
   new EventSource('/api/events').addEventListener('message', e => {
     if (e.data === 'ping') api('/api/here', {}).catch(() => {});
     else if (e.data === 'here') flashTitle();
+    else if (e.data === 'update') loadUpdate();
   });
 }
+loadUpdate();
 
 renderTasks([]);
 poll();

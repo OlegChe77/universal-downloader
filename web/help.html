@@ -76,7 +76,10 @@
   .update-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
   #update-msg { font-size: 14px; }
   #update-msg.ok { color: var(--ok); }
-  #update-msg.err { color: var(--err); white-space: pre-wrap; }
+  #update-msg.err, #app-msg.err { color: var(--err); white-space: pre-wrap; }
+  #app-msg { font-size: 14px; }
+  #app-msg.ok { color: var(--ok); }
+  .app-row { margin-top: 10px; }
 
   /* схема */
   .flow { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; counter-reset: step; }
@@ -157,6 +160,10 @@
     <div class="update-row">
       <button id="update" type="button">Обновить yt-dlp</button>
       <span id="update-msg" class="muted">Первое, что стоит сделать, если перестало качать.</span>
+    </div>
+    <div class="update-row app-row">
+      <button id="app-check" type="button">Проверить новую версию программы</button>
+      <span id="app-msg" class="muted">Программа сама проверяет раз в три дня и предлагает обновиться на главной странице.</span>
     </div>
   </section>
 
@@ -346,7 +353,8 @@
   <h2>Что где лежит</h2>
   <section class="card">
     <table>
-      <tr><td>Ярлык на рабочем столе</td><td>Обычный запуск, без окна. Сам обновляет yt-dlp раз в сутки (заработает со следующего запуска).</td></tr>
+      <tr><td>Ярлык на рабочем столе</td><td>Обычный запуск, без окна. Сам обновляет yt-dlp раз в сутки (заработает со следующего запуска)
+          и раз в три дня проверяет новую версию программы: тогда на главной странице появится кнопка «Обновить».</td></tr>
       <tr><td><code>Запуск.bat</code></td><td>Запуск с окном: проверяет и обновляет все компоненты (Python тоже), заново создаёт ярлык, если его удалили,
         и запускает программу значком у часов.</td></tr>
       <tr><td><code>launch.vbs</code></td><td>То, что запускает ярлык: открывает программу без окна, а если чего-то не хватает — показывает установку.</td></tr>
@@ -602,6 +610,7 @@ async function loadStatus() {
     const s = await (await fetch('/api/status')).json();
     const js = s.deno || s.node;
     $('status').innerHTML = [
+      stat('ok', 'Программа', `версия ${s.version}`),
       stat('ok', 'yt-dlp', `версия ${s.ytdlp}`),
       stat(s.ffmpeg ? 'ok' : 'bad', 'ffmpeg', s.ffmpeg ? 'на месте' : 'не найден — удалите папку bin и перезапустите'),
       stat(js ? 'ok' : 'bad', 'JS-движок (для YouTube)', js ? (s.deno ? s.deno.split('(')[0].trim() : `Node.js ${s.node}`) : 'не найден — перезапустите Запуск.bat'),
@@ -634,6 +643,27 @@ $('update').addEventListener('click', async () => {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Обновить yt-dlp';
+  }
+});
+
+$('app-check').addEventListener('click', async () => {
+  const btn = $('app-check'), msg = $('app-msg');
+  btn.disabled = true;
+  msg.className = 'muted';
+  msg.textContent = 'Спрашиваю GitHub…';
+  try {
+    const res = await fetch('/api/app-update/check', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}'});
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Не получилось проверить');
+    msg.className = 'ok';
+    if (!d.latest) msg.textContent = `У вас последняя версия (${d.version}).`;
+    else if (d.dev) msg.textContent = `Вышла версия ${d.latest.version}. Это папка разработки — обновите её через git pull.`;
+    else msg.innerHTML = `Вышла версия ${esc(d.latest.version)}. <a href="/">Обновить на главной странице</a> — одной кнопкой.`;
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = `Ошибка: ${e.message}`;
+  } finally {
+    btn.disabled = false;
   }
 });
 

@@ -8,6 +8,7 @@ program.log
 .venv/
 python/
 python.new/
+update/
 bin/
 
 # Сборка и служебное

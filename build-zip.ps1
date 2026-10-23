@@ -14,7 +14,7 @@ $Out = Join-Path $Root "dist\$Name.zip"
 # Имена в корне папки программы, которые не берём
 $Skip = @(
     'settings.json', 'program.log', 'cookies.txt', 'Скачанное', 'tests', 'CLAUDE.md',  # личное и разработка
-    '.venv', 'python', 'python.new', 'bin', 'dist', '.claude', 'build-zip.ps1',          # ставится само / сборка
+    '.venv', 'python', 'python.new', 'bin', 'dist', '.claude', 'build-zip.ps1', 'update',        # ставится само / сборка
     '.git', '.gitignore', '.gitattributes', 'docs'                                                   # только для GitHub
 )
 
