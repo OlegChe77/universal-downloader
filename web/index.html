@@ -1709,6 +1709,7 @@ loadSettings();
 
 // ---------- загрузки ----------
 const STATUS = {running: 'Качается', queued: 'В очереди', done: 'Готово', error: 'Ошибка', cancelled: 'Отменено'};
+const VIDEO_EXT = /\.(mp4|mkv|webm|mov|m4v|avi|flv|ts)$/i;
 let tasksSig = '';
 
 function renderTasks(list) {
@@ -1738,13 +1739,19 @@ function renderTasks(list) {
     const details = t.status === 'running'
       ? [t.stage, t.item, t.speed, t.eta && 'осталось ' + t.eta].filter(Boolean).join(' · ')
       : t.status === 'done' || t.status === 'error' ? '' : t.stage;
+    // «Сжать» — у готового видео, пока его не сжимают и не сжали (строку сжатия можно убрать — кнопка вернётся)
+    const canCompress = t.status === 'done' && t.kind === 'video' && t.files.some(f => VIDEO_EXT.test(f))
+      && !list.some(c => c.source === t.id && !['error', 'cancelled'].includes(c.status));
     const actions = active
       ? `<button class="btn ghost small" type="button" data-act="cancel" data-id="${t.id}">Отмена</button>`
-      : `${t.status === 'done' ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}Показать</button>` : ''}
+      : `${canCompress ? `<button class="btn ghost small" type="button" data-act="compress" data-id="${t.id}"
+           title="Сделать файл меньше (H.265). Видео с YouTube уменьшится на 20–50%, с телефона — в разы. Исходный файл останется.">Сжать</button>` : ''}
+         ${t.status === 'done' && (t.kind !== 'compress' || t.files.length) ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}Показать</button>` : ''}
          <button class="btn ghost small" type="button" data-act="remove" data-id="${t.id}" title="Убрать из списка (файл останется)">Убрать</button>`;
     // фрагмент ffmpeg качает без процентов — показываем бегущую полосу
     const wait = t.status === 'running' && !t.percent;
-    const pill = t.status === 'running' && t.percent ? `${t.percent}%` : STATUS[t.status] || t.status;
+    const pill = t.status === 'running' && t.percent ? `${t.percent}%`
+      : t.kind === 'compress' && t.status === 'running' ? 'Сжимается' : STATUS[t.status] || t.status;
     const width = t.status === 'error' || t.status === 'done' ? 100 : t.percent;
     return `<div class="task ${t.status}">
       <div class="task-icon">${icon(t.status === 'done' ? 'check' : t.status === 'error' ? 'alert' : t.kind === 'audio' ? 'music' : 'video')}</div>
@@ -1779,7 +1786,10 @@ $('tasks').addEventListener('click', async e => {
   if (!btn) return;
   const {act, id} = btn.dataset;
   if (act === 'open') await api('/api/open', {id});
-  else await api(`/api/tasks/${id}/${act}`, {});
+  else if (act === 'compress') {
+    btn.disabled = true;
+    try { await api(`/api/tasks/${id}/compress`, {}); } catch (err) { alert(err.message); }
+  } else await api(`/api/tasks/${id}/${act}`, {});
   poll();
 });
 $('open-folder').addEventListener('click', () => api('/api/open', {}));

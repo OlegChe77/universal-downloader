@@ -1285,6 +1285,149 @@ def queue_worker():
 threading.Thread(target=queue_worker, daemon=True).start()
 
 
+# ---------- «Сжать» скачанное видео: H.265 на встроенном ffmpeg, звук без изменений ----------
+VIDEO_EXTS = {'.mp4', '.mkv', '.webm', '.mov', '.m4v', '.avi', '.flv', '.ts'}
+COMPRESS_VIDEO = ['-c:v', 'libx265', '-preset', 'fast', '-crf', '26', '-tag:v', 'hvc1']  # hvc1 — иначе iPhone/QuickTime не играют
+compress_queue = queue.Queue()  # сжатие грузит процессор целиком, поэтому по одному
+FFMPEG = BIN / ('ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')
+
+
+def video_duration(path):
+    """Длительность в секундах из «Duration:» в выводе ffmpeg (ffprobe в imageio-ffmpeg нет)."""
+    out = subprocess.run([str(FFMPEG), '-hide_banner', '-nostdin', '-i', path],
+                         capture_output=True, text=True, encoding='utf-8', errors='replace')
+    m = re.search(r'Duration: (\d+):(\d+):(\d+(?:\.\d+)?)', out.stderr)
+    return int(m[1]) * 3600 + int(m[2]) * 60 + float(m[3]) if m else 0
+
+
+def free_name(path):
+    """«Имя (сжато).mp4», а если такой уже есть — «Имя (сжато 2).mp4»."""
+    target = path.with_name(f'{path.stem} (сжато).mp4')
+    n = 2
+    while target.exists():
+        target = path.with_name(f'{path.stem} (сжато {n}).mp4')
+        n += 1
+    return target
+
+
+def size_mb(num):
+    return f'{num / 1024 / 1024:.0f} МБ' if num >= 10 * 1024 * 1024 else f'{num / 1024 / 1024:.1f} МБ'
+
+
+def compress_file(task, src):
+    """Сжимает один файл. Возвращает путь к сжатому или None, если меньше не вышло."""
+    duration = video_duration(src)
+    target = free_name(Path(src))
+    part = target.with_name(target.name + '.part')
+    task['tmp'].add(str(part))
+    priority = subprocess.BELOW_NORMAL_PRIORITY_CLASS if os.name == 'nt' else 0  # компьютер не «тормозит»
+    for audio in (['-c:a', 'copy'], ['-c:a', 'aac', '-b:a', '192k']):  # не всякий звук влезает в MP4 как есть
+        cmd = [str(FFMPEG), '-hide_banner', '-nostdin', '-y', '-i', src, '-map', '0:v:0', '-map', '0:a?',
+               *COMPRESS_VIDEO, *audio, '-movflags', '+faststart', '-f', 'mp4',
+               '-progress', 'pipe:1', '-nostats', '-loglevel', 'error', str(part)]
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+                                encoding='utf-8', errors='replace', creationflags=priority)
+        task['procs'].append(proc)
+        if task['cancel']:
+            proc.kill()
+        errors = []
+        reader = threading.Thread(target=lambda p=proc: errors.extend(p.stderr), daemon=True)
+        reader.start()
+        speed = 0
+        for line in proc.stdout:
+            key, _, value = line.strip().partition('=')
+            if key == 'speed' and value.endswith('x'):
+                try:
+                    speed = float(value[:-1])
+                except ValueError:
+                    pass
+            elif key == 'out_time_us' and value.isdigit() and duration:
+                done = int(value) / 1e6
+                task['percent'] = min(99.9, round(done / duration * 100, 1))
+                task['eta'] = clock((duration - done) / speed) if speed > 0 else ''
+        proc.wait()
+        reader.join(5)
+        task['procs'].remove(proc)
+        if task['cancel']:
+            raise Cancelled()
+        if proc.returncode == 0:
+            break
+    else:
+        raise RuntimeError('ffmpeg не смог сжать видео: ' + ''.join(errors).strip()[-500:])
+    before, after = os.path.getsize(src), part.stat().st_size
+    if after > before * 0.95:  # уже хорошо сжато — второй файл почти того же размера не нужен
+        part.unlink()
+        return None, before, after
+    part.rename(target)
+    return str(target), before, after
+
+
+def run_compress(task):
+    total_before = total_after = 0
+    kept = 0
+    try:
+        for i, src in enumerate(task['sources'], 1):
+            if len(task['sources']) > 1:
+                task['item'] = f'{i} из {len(task["sources"])}'
+            task['percent'] = 0
+            path, before, after = compress_file(task, src)
+            if path:
+                task['files'].append(path)
+                total_before, total_after = total_before + before, total_after + after
+            else:
+                kept += 1
+        task['status'], task['stage'], task['percent'] = 'done', 'Готово', 100
+        if task['files']:
+            saved = round((1 - total_after / total_before) * 100)
+            task['label'] = f'Сжато: {size_mb(total_before)} → {size_mb(total_after)} (меньше на {saved}%)'
+            if kept:
+                task['label'] += f' · {kept} уже были сжаты хорошо'
+        else:
+            task['label'] = 'Видео уже сжато хорошо — меньше не получилось, оставил как было'
+    except Cancelled:
+        task['status'], task['stage'] = 'cancelled', 'Отменено'
+    except Exception as e:  # noqa: BLE001
+        if task['cancel']:
+            task['status'], task['stage'] = 'cancelled', 'Отменено'
+        else:
+            task['status'], task['stage'] = 'error', 'Ошибка'
+            task['error'], task['error_detail'] = 'Не удалось сжать видео.', str(e)
+    task['item'] = task['eta'] = ''
+    for name in task['tmp']:  # недоделанный .part после отмены или ошибки
+        if name.endswith('.part'):
+            try:
+                os.remove(name)
+            except OSError:
+                pass
+
+
+def compress_worker():
+    while True:
+        task = compress_queue.get()
+        with tasks_lock:
+            if task['status'] != 'queued':
+                continue
+            task['status'], task['stage'] = 'running', 'Сжимаю'
+        run_compress(task)
+
+
+threading.Thread(target=compress_worker, daemon=True).start()
+
+
+@app.post('/api/tasks/<task_id>/compress')
+def api_compress(task_id):
+    source = tasks.get(task_id)
+    files = [f for f in (source or {}).get('files', [])
+             if Path(f).suffix.lower() in VIDEO_EXTS and os.path.exists(f)]
+    if not source or source['status'] != 'done' or not files:
+        return jsonify(error='Сжать можно только скачанное видео, которое лежит на месте.'), 400
+    task = new_task({'option': 'compress'}, Path(files[0]).parent, '', source['title'], next(request_seq))
+    task.update(kind='compress', label='Сжатие видео', status='queued', stage='В очереди',
+                source=task_id, sources=files)
+    compress_queue.put(task)
+    return jsonify(id=task['id'])
+
+
 @app.get('/api/tasks')
 def api_tasks():
     with tasks_lock:
