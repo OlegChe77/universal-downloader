@@ -138,7 +138,7 @@ DOWNLOADS = BASE / 'Скачанное'
 COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
-VERSION = '1.2.1'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
+VERSION = '1.3'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
 UPDATE_API = (os.environ.get('DOWNLOADER_UPDATE_API')  # для проверки обновления без настоящего релиза
               or 'https://api.github.com/repos/OlegChe77/universal-downloader/releases/latest')
 UPDATE_DIR = BASE / 'update'  # скачанная новая версия и старые файлы на время замены
