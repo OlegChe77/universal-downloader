@@ -41,6 +41,8 @@
   a { color: var(--accent); }
   .back { display: inline-block; text-decoration: none; }
   .head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .head-left { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .lang-link { font-size: inherit; }
   /* «Помощь проекту» — как на главной */
   a.donate {
     position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px;
@@ -153,7 +155,8 @@
 <body>
 <main>
   <div class="head-row">
-    <a class="back" href="/">← К скачиванию</a>
+    <span class="head-left"><a class="back" href="/">← К скачиванию</a>
+      <button class="link lang-link" id="lang" type="button" lang="en" title="Switch to English">English</button></span>
     <a class="donate" href="https://dalink.to/olegche" target="_blank" rel="noopener"
        title="Поддержать разработку программы (DonationAlerts)">
       <span class="hearts" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg></span>Помощь проекту
@@ -190,7 +193,7 @@
         ссылки или поиска. Ход скачивания с кнопками «Отмена» и «Показать» виден там, где начали: у видео — в его карточке
         под названием, у песни — в её строке в списке найденного, у списка ссылок — в карточке списка.
         Отдельного списка загрузок нет: скачанное лежит в папке («Открыть» рядом с папкой).
-        Кнопка темы в углу переключает: как в Windows → светлая → тёмная.</td></tr>
+        Кнопка темы в углу переключает: как в Windows → светлая → тёмная, кнопка «English» — язык (русский ↔ английский).</td></tr>
       <tr><td><b>По ссылке</b></td><td>Вставьте адрес видео, плейлиста или страницы — варианты появятся сами.
         Выберите качество видео (MP4) или «Только звук» (MP3/M4A). Если вместо ссылки написать название песни,
         программа сама перейдёт в «Музыку».</td></tr>
@@ -633,6 +636,11 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
 
+$('lang').addEventListener('click', async () => {
+  await fetch('/api/settings', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{"lang":"en"}'});
+  location.reload();
+});
+
 $('update').addEventListener('click', async () => {
   const btn = $('update'), msg = $('update-msg');
   btn.disabled = true;
@@ -678,6 +686,7 @@ $('app-check').addEventListener('click', async () => {
 });
 
 </script>
+<script src="/i18n.js"></script>
 <script src="/quick.js"></script>
 </body>
 </html>

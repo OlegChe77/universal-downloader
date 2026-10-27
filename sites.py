@@ -32,6 +32,8 @@ from yt_dlp.utils import (ExtractorError, clean_html, determine_ext, extract_att
                           int_or_none, js_to_json, smuggle_url, traverse_obj, unescapeHTML, unsmuggle_url,
                           url_or_none)
 
+from i18n import tr
+
 PLAYER_URL = 'https://api.yapfiles.ru/get_player/?v={}'
 # встроенные плееры других сайтов в теме ЯПлакалъ — их разберут свои разборщики yt-dlp
 EMBED_HOSTS = re.compile(r'(?:youtube(?:-nocookie)?\.com|youtu\.be|vk(?:video)?\.(?:com|ru)|rutube\.ru'
@@ -62,7 +64,7 @@ class YapFilesIE(InfoExtractor):
         title = player.get('title') or video_id
         thumbnail = url_or_none(player.get('poster'))
         if title == 'Ролик удален' or 'deleted.jpg' in (thumbnail or ''):
-            raise ExtractorError('Видео удалено с ЯП файлов', expected=True)
+            raise ExtractorError(tr('Видео удалено с ЯП файлов', 'The video was deleted from YapFiles'), expected=True)
 
         width, height = (int_or_none(x) for x in (str(player.get('res') or 'x').split('x') + [None])[:2])
         formats = []
@@ -75,7 +77,7 @@ class YapFilesIE(InfoExtractor):
                     'width': width if key == 'file' else None,
                 })
         if not formats:
-            raise ExtractorError('ЯП файлы не отдали ссылку на видео', expected=True)
+            raise ExtractorError(tr('ЯП файлы не отдали ссылку на видео', 'YapFiles did not give a video link'), expected=True)
         return {
             'id': video_id,
             'title': title,
@@ -108,7 +110,7 @@ class YaplakalIE(InfoExtractor):
         urls = self._videos(posts[1]) if len(posts) > 1 else []
         urls = urls or self._videos(page)
         if not urls:
-            raise ExtractorError('В этой теме ЯПлакалъ нет видео', expected=True)
+            raise ExtractorError(tr('В этой теме ЯПлакалъ нет видео', 'There is no video in this Yaplakal topic'), expected=True)
         if len(urls) == 1:
             return self.url_result(urls[0], url_transparent=True, title=title, webpage_url=url,
                                    thumbnail=self._og_search_thumbnail(page, default=None))
@@ -226,12 +228,13 @@ class ComdiIE(InfoExtractor):
             })
         if not entries:
             if event.get('private') or (event.get('moduleAuth') or {}).get('require'):
-                raise ExtractorError('Эфир COMDI открыт только после регистрации — записи без входа нет',
+                raise ExtractorError(tr('Эфир COMDI открыт только после регистрации — записи без входа нет',
+                                     'This COMDI stream is open only after registration — no recording without signing in'),
                                      expected=True)
             start = int_or_none(event.get('timeStart'))
             if start and start > now:
-                raise ExtractorError('Эфир COMDI ещё не начался', expected=True)
-            raise ExtractorError('У эфира COMDI нет записи', expected=True)
+                raise ExtractorError(tr('Эфир COMDI ещё не начался', 'The COMDI stream has not started yet'), expected=True)
+            raise ExtractorError(tr('У эфира COMDI нет записи', 'This COMDI stream has no recording'), expected=True)
         if len(entries) == 1:
             return {**entries[0], 'id': key, 'webpage_url': url}
         return self.playlist_result(entries, key, title)
@@ -298,7 +301,7 @@ class OsnovaIE(InfoExtractor):
                 'thumbnail': f'https://leonardo.osnova.io/{uuid}/-/format/jpg/',
             })
         if not entries:
-            raise ExtractorError('В этом посте нет видео', expected=True)
+            raise ExtractorError(tr('В этом посте нет видео', 'There is no video in this post'), expected=True)
         if len(entries) == 1:
             return {**entries[0], 'id': post_id} if entries[0].get('_type') is None else entries[0]
         return self.playlist_result(entries, post_id, title, **common)
@@ -347,7 +350,7 @@ class D3IE(InfoExtractor):
                 'thumbnail': url_or_none(traverse_obj(media, ('thumbnails', 'original', 'url'))),
             })
         if not entries:
-            raise ExtractorError('В этом посте нет видео', expected=True)
+            raise ExtractorError(tr('В этом посте нет видео', 'There is no video in this post'), expected=True)
         if len(entries) == 1:
             return {**entries[0], 'id': post_id} if entries[0].get('_type') is None else entries[0]
         return self.playlist_result(entries, post_id, title, **common)
@@ -441,11 +444,12 @@ class BalancerIE(InfoExtractor):
             return {**common, **self._stream(show['movie'], str(show['id']), base), 'title': show['title']}
         choices['seasons'] = [{'season': s, 'episodes': sorted(eps)} for s, eps in sorted(seasons.items())]
         if season is not None and season not in seasons:
-            raise ExtractorError(f'В плеере {self.IE_NAME} нет {season} сезона', expected=True)
+            raise ExtractorError(tr('В плеере {} нет {} сезона', 'Player {} has no season {}').format(self.IE_NAME, season), expected=True)
         if season is not None and episode is not None:
             ep = seasons[season].get(episode)
             if not ep:
-                raise ExtractorError(f'В плеере {self.IE_NAME} нет {season} сезона, {episode} серии', expected=True)
+                raise ExtractorError(tr('В плеере {} нет {} сезона, {} серии', 'Player {} has no season {}, episode {}')
+                                     .format(self.IE_NAME, season, episode), expected=True)
             return {
                 **common, **self._stream(ep, f'{show["id"]}-s{season}e{episode}', base),
                 'title': self._episode_title(show, season, episode, ep),
@@ -457,7 +461,7 @@ class BalancerIE(InfoExtractor):
                             f'{show["id"]}-s{s}e{e}', self._episode_title(show, s, e, ep),
                             duration=ep.get('duration'), thumbnail=ep.get('thumbnail'))
             for s, eps in sorted(seasons.items()) if season in (None, s) for e, ep in sorted(eps.items())]
-        title = show['title'] + (f' — {season} сезон' if season is not None else '')
+        title = show['title'] + (tr(' — {} сезон', ' — season {}').format(season) if season is not None else '')
         playlist_id = f'{show["id"]}' + (f'-s{season}' if season is not None else '')
         return self.playlist_result(entries, playlist_id, title, **common)
 
@@ -468,7 +472,8 @@ class BalancerIE(InfoExtractor):
     @staticmethod
     def _episode_title(show, season, episode, ep):
         name = ep.get('title')
-        return f'{show["title"]} — {season} сезон, {episode} серия' + (f'. {name}' if name else '')
+        return (show['title'] + tr(' — {} сезон, {} серия', ' — season {}, episode {}').format(season, episode)
+                + (f'. {name}' if name else ''))
 
     def _m3u8(self, url, video_id, headers):
         """HLS + язык субтитров по названию: LANGUAGE у них нет (NAME="ENG #01"), yt-dlp называл их «und»."""
@@ -507,7 +512,7 @@ class BalancerIE(InfoExtractor):
             if formats:
                 break
         if not formats:
-            raise ExtractorError(f'Плеер {self.IE_NAME} не отдал видео', expected=True)
+            raise ExtractorError(tr('Плеер {} не отдал видео', 'Player {} did not give the video').format(self.IE_NAME), expected=True)
         label_tracks(formats)
         return {'id': video_id, 'formats': formats, 'subtitles': subtitles, 'http_headers': headers,
                 'duration': int_or_none(stream.get('duration'))}
@@ -533,7 +538,8 @@ class CCDNIE(BalancerIE):
         webpage = self._download_webpage(url, video_id, headers={'Referer': referer} if referer else {})
         start = webpage.find('makePlayer({')
         if start < 0:
-            raise ExtractorError('Плеер CCDN не открылся (видео удалено или закрыто для этого сайта)', expected=True)
+            raise ExtractorError(tr('Плеер CCDN не открылся (видео удалено или закрыто для этого сайта)',
+                                    'The CCDN player did not open (the video was deleted or is closed for this site)'), expected=True)
         player = webpage[start:]
         poster = url_or_none(self._search_regex(r'\bposter:\s*"([^"]+)"', player, 'poster', default=None))
         at = player.find('seasons:')
@@ -582,7 +588,7 @@ class ShizaHDIE(BalancerIE):
         if not any(isinstance(x, dict) and x.get('folder') for x in listing or []):
             show['movie'] = self._voice(listing)
             if not show['movie']:
-                raise ExtractorError('Плеер ShizaHD не отдал видео', expected=True)
+                raise ExtractorError(tr('Плеер ShizaHD не отдал видео', 'The ShizaHD player did not give the video'), expected=True)
             return show
         show['seasons'] = {}
         for season in listing:
@@ -617,7 +623,7 @@ class VeoVeoIE(BalancerIE):
                 streams.append((ep, {'m3u8': m3u8, 'duration': variant.get('duration'), 'title': ep.get('title'),
                                      'thumbnail': url_or_none(variant.get('previewImageFilepath'))}))
         if not streams:
-            raise ExtractorError('Плеер VeoVeo не отдал видео', expected=True)
+            raise ExtractorError(tr('Плеер VeoVeo не отдал видео', 'The VeoVeo player did not give the video'), expected=True)
         show = {'id': video_id, 'title': content.get('title') or content.get('originalTitle') or video_id,
                 'thumbnail': url_or_none(content.get('posterUrl'))}
         if not content.get('hasMultipleEpisodes'):

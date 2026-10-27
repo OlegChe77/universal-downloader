@@ -28,8 +28,13 @@ MAX_SIZE = 50 << 20
 # Личное и то, что ставится само, — даже если оказалось в архиве, не трогаем
 KEEP = {'settings.json', 'cookies.txt', 'program.log', 'Скачанное', 'python', 'python.new', 'bin',
         '.venv', '.git', 'update', 'dist', 'tests', 'CLAUDE.md'}
-NEED = ('app.py', 'launch.vbs', 'start.ps1', 'requirements.txt', 'updater.py', 'web/index.html')
+NEED = ('app.py', 'i18n.py', 'launch.vbs', 'start.ps1', 'requirements.txt', 'updater.py', 'web/index.html', 'web/i18n.js')
 VERSION_RE = re.compile(r"^VERSION = '([\d.]+)'", re.M)
+LANG = 'ru'  # язык сообщений: app.py ставит свой (i18n.CURRENT), отдельный процесс получает --lang
+
+
+def tr(ru, en):
+    return en if LANG == 'en' else ru
 
 
 def parse_version(text):
@@ -64,9 +69,10 @@ def download(info, open_url, work, progress=lambda done, total: None):
     """Качает архив версии info в папку work, проверяет его и распаковывает. Возвращает папку новой версии.
     Ошибки — ValueError с понятным текстом."""
     if not re.fullmatch(r'[0-9a-f]{64}', info.get('sha256') or ''):
-        raise ValueError('у архива на GitHub нет контрольной суммы — скачайте новую версию вручную')
+        raise ValueError(tr('у архива на GitHub нет контрольной суммы — скачайте новую версию вручную',
+                          'the archive on GitHub has no checksum — download the new version manually'))
     if info.get('size', 0) > MAX_SIZE:
-        raise ValueError('архив обновления подозрительно большой')
+        raise ValueError(tr('архив обновления подозрительно большой', 'the update archive is suspiciously large'))
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     zpath = work / ASSET
@@ -76,33 +82,34 @@ def download(info, open_url, work, progress=lambda done, total: None):
         while chunk := r.read(64 << 10):
             done += len(chunk)
             if done > MAX_SIZE:
-                raise ValueError('архив обновления подозрительно большой')
+                raise ValueError(tr('архив обновления подозрительно большой', 'the update archive is suspiciously large'))
             h.update(chunk)
             f.write(chunk)
             progress(done, info.get('size') or done)
     if h.hexdigest() != info['sha256']:
-        raise ValueError('архив скачался с ошибкой (не совпала контрольная сумма) — попробуйте ещё раз')
+        raise ValueError(tr('архив скачался с ошибкой (не совпала контрольная сумма) — попробуйте ещё раз',
+                          'the archive was downloaded with errors (checksum mismatch) — try again'))
     new = work / 'new'
     try:
         with zipfile.ZipFile(zpath) as z:
             z.extractall(new)  # zipfile сам отбрасывает «..» и абсолютные пути
     except zipfile.BadZipFile:
-        raise ValueError('архив обновления повреждён') from None
+        raise ValueError(tr('архив обновления повреждён', 'the update archive is damaged')) from None
     roots = [p.parent for p in new.glob('*/app.py')] + [p.parent for p in new.glob('app.py')]
     if len(roots) != 1:
-        raise ValueError('в архиве обновления не нашлась программа')
+        raise ValueError(tr('в архиве обновления не нашлась программа', 'the program was not found in the update archive'))
     root = roots[0]
     missing = [n for n in NEED if not (root / n).is_file()]
     if missing:
-        raise ValueError('в архиве обновления нет файлов: ' + ', '.join(missing))
+        raise ValueError(tr('в архиве обновления нет файлов: ', 'files missing in the update archive: ') + ', '.join(missing))
     m = VERSION_RE.search((root / 'app.py').read_text(encoding='utf-8'))
     if not m or parse_version(m.group(1)) != parse_version(info['version']):
-        raise ValueError('номер версии в архиве не совпадает с релизом')
+        raise ValueError(tr('номер версии в архиве не совпадает с релизом', 'the version in the archive does not match the release'))
     for py in root.glob('*.py'):  # битый код не ставим: старая версия хотя бы работает
         try:
             compile(py.read_text(encoding='utf-8'), str(py), 'exec')
         except (SyntaxError, ValueError, UnicodeDecodeError) as e:
-            raise ValueError(f'в архиве обновления испорчен {py.name}: {e}') from None
+            raise ValueError(tr('в архиве обновления испорчен ', 'damaged file in the update archive: ') + f'{py.name}: {e}') from None
     return root
 
 
@@ -195,7 +202,7 @@ def apply(args):
 
     log(work, f'обновление {args.old_version} → {args.version}')
     if not wait_exit(args.pid, 60):
-        finish(False, 'программа не закрылась — обновление отложено')
+        finish(False, tr('программа не закрылась — обновление отложено', 'the program did not close — update postponed'))
         return
     reqs_before = (base / 'requirements.txt').read_bytes() if (base / 'requirements.txt').exists() else b''
     shutil.rmtree(old, ignore_errors=True)
@@ -208,7 +215,8 @@ def apply(args):
             rollback(base, new, old, done)
         except OSError as e2:
             log(work, f'откат не удался: {e2}')
-        finish(False, f'файл занят другой программой ({e.filename or e}) — работает прежняя версия')
+        finish(False, tr('файл занят другой программой ({}) — работает прежняя версия',
+                          'a file is in use by another program ({}) — the previous version is running').format(e.filename or e))
         launch(base)
         return
     finish(True)
@@ -232,7 +240,8 @@ def apply(args):
     except OSError as e:
         log(work, f'откат не удался: {e}')
         return
-    finish(False, f'версия {args.version} не запустилась — вернули прежнюю')
+    finish(False, tr('версия {} не запустилась — вернули прежнюю', 'version {} did not start — restored the previous one')
+           .format(args.version))
     clean(work)
     launch(base)
 
@@ -243,8 +252,11 @@ if __name__ == '__main__':
         p.add_argument('--' + name, required=True)
     p.add_argument('--pid', type=int, required=True)
     p.add_argument('--port', type=int, required=True)
+    p.add_argument('--lang', default='ru')
     try:
-        apply(p.parse_args())
+        args = p.parse_args()
+        LANG = args.lang
+        apply(args)
     except Exception as e:  # noqa: BLE001
         def arg(name):
             return Path(sys.argv[sys.argv.index(name) + 1]) if name in sys.argv else Path('.')

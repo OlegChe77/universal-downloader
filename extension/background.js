@@ -8,8 +8,11 @@ const BASE = `http://127.0.0.1:${self.UDL_PORT}/`;
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({id: 'udl-page', title: 'Скачать в программе', contexts: ['page', 'frame', 'video', 'audio', 'image', 'selection']});
-    chrome.contextMenus.create({id: 'udl-link', title: 'Скачать в программе (эту ссылку)', contexts: ['link']});
+    const en = self.UDL_LANG === 'en';  // язык программы, когда она отдала архив (config.js)
+    chrome.contextMenus.create({id: 'udl-page', title: en ? 'Send to Downloader' : 'Скачать в программе',
+      contexts: ['page', 'frame', 'video', 'audio', 'image', 'selection']});
+    chrome.contextMenus.create({id: 'udl-link', title: en ? 'Send to Downloader (this link)' : 'Скачать в программе (эту ссылку)',
+      contexts: ['link']});
   });
 });
 

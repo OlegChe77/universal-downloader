@@ -1,4 +1,4 @@
-// Букмарклет «Скачать в программе» — общий для главной и help.html.
+// Букмарклет «Скачать в программе» — общий для главной и help.html. Нужен i18n.js (L) раньше него.
 // a[data-bookmarklet] получает код, [data-drag-hint] — картинку-подсказку, [data-copy-bookmarklet] копирует код.
 (() => {
   const BASE = location.origin + '/';
@@ -11,7 +11,7 @@
   // '#' в адресе закладки обрезал бы код — кодируем
   const href = 'javascript:' + encodeURI(code).replace(/#/g, '%23');
 
-  const hint = `<svg viewBox="0 0 320 150" role="img" aria-label="Перетащите кнопку мышкой на панель закладок под адресной строкой" style="display:block;width:100%;max-width:380px;height:auto;font-family:inherit">
+  const hint = `<svg viewBox="0 0 320 150" role="img" aria-label="${L('Перетащите кнопку мышкой на панель закладок под адресной строкой', 'Drag the button with the mouse to the bookmarks bar under the address bar')}" style="display:block;width:100%;max-width:380px;height:auto;font-family:inherit">
   <defs><marker id="dh-arrow" viewBox="0 0 10 10" refX="7" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 10 5 0 10z" style="fill:var(--accent)"/></marker></defs>
   <rect x="1" y="1" width="318" height="148" rx="10" style="fill:var(--card);stroke:var(--line)"/>
   <path d="M1 27V11a10 10 0 0 1 10-10h298a10 10 0 0 1 10 10v16z" style="fill:var(--bg)"/>
@@ -21,15 +21,15 @@
   <path d="M1 47h318" style="stroke:var(--line)"/>
   <rect x="10" y="32" width="38" height="10" rx="5" style="fill:var(--line)"/><rect x="54" y="32" width="30" height="10" rx="5" style="fill:var(--line)"/>
   <rect x="92" y="29.5" width="112" height="15" rx="7.5" stroke-dasharray="3 2" style="fill:var(--accent-soft);stroke:var(--accent)"/>
-  <text x="148" y="40" font-size="8" text-anchor="middle" font-weight="600" style="fill:var(--accent)">⬇ Скачать в программе</text>
-  <text x="212" y="40" font-size="8" style="fill:var(--muted)">← панель закладок</text>
+  <text x="148" y="40" font-size="8" text-anchor="middle" font-weight="600" style="fill:var(--accent)">⬇ ${L('Скачать в программе', 'Send to Downloader')}</text>
+  <text x="212" y="40" font-size="8" style="fill:var(--muted)">← ${L('панель закладок', 'bookmarks bar')}</text>
   <rect x="14" y="58" width="128" height="76" rx="6" style="fill:var(--bg)"/>
   <path d="M71 84v24l20-12z" style="fill:var(--line)"/>
   <rect x="170" y="102" width="134" height="26" rx="8" style="fill:var(--accent)"/>
-  <text x="237" y="119" font-size="9.5" text-anchor="middle" font-weight="600" fill="#fff">⬇ Скачать в программе</text>
+  <text x="237" y="119" font-size="9.5" text-anchor="middle" font-weight="600" fill="#fff">⬇ ${L('Скачать в программе', 'Send to Downloader')}</text>
   <path d="M214 98C218 70 182 70 168 52" fill="none" stroke-width="1.8" stroke-dasharray="4 3" marker-end="url(#dh-arrow)" style="stroke:var(--accent)"/>
   <path d="M250 112v15l3.6-3.4 2.6 5.6 2.4-1.1-2.6-5.5 5-.4z" stroke-width="1" stroke-linejoin="round" style="fill:#fff;stroke:#15171c"/>
-  <text x="18" y="146" font-size="7.5" style="fill:var(--muted)">зажмите кнопку мышкой и тяните вверх</text>
+  <text x="18" y="146" font-size="7.5" style="fill:var(--muted)">${L('зажмите кнопку мышкой и тяните вверх', 'hold the button with the mouse and drag it up')}</text>
 </svg>`;
 
   const flash = (el, text) => {
@@ -43,10 +43,11 @@
 
   document.querySelectorAll('a[data-bookmarklet]').forEach(a => {
     a.href = href;
-    a.title = 'Перетащите эту кнопку на панель закладок';
+    a.title = L('Перетащите эту кнопку на панель закладок', 'Drag this button to the bookmarks bar');
     a.addEventListener('click', e => {
       e.preventDefault();
-      flash(a, 'Нажимать здесь не нужно — перетащите кнопку мышкой на панель закладок (картинка ниже).');
+      flash(a, L('Нажимать здесь не нужно — перетащите кнопку мышкой на панель закладок (картинка ниже).',
+        'No need to click it here — drag the button with the mouse to the bookmarks bar (see the picture below).'));
     });
   });
   document.querySelectorAll('[data-drag-hint]').forEach((el, i) => {
@@ -55,9 +56,10 @@
   document.querySelectorAll('[data-copy-bookmarklet]').forEach(b => b.addEventListener('click', async () => {
     try {
       await navigator.clipboard.writeText(href);
-      flash(b, 'Код скопирован. Создайте закладку (Ctrl+D), откройте «Изменить» и вставьте код в поле адреса.');
+      flash(b, L('Код скопирован. Создайте закладку (Ctrl+D), откройте «Изменить» и вставьте код в поле адреса.',
+        'Code copied. Create a bookmark (Ctrl+D), open “Edit” and paste the code into the address field.'));
     } catch {
-      prompt('Скопируйте код закладки:', href);
+      prompt(L('Скопируйте код закладки:', 'Copy the bookmark code:'), href);
     }
   }));
   window.udlBookmarklet = href;

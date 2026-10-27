@@ -36,21 +36,28 @@ TRAY = '--tray' in sys.argv
 DEFAULT_PORT = 8765
 
 
+def early_settings():
+    """settings.json как есть — до тяжёлых импортов (load_settings ниже)."""
+    try:
+        saved = json.loads((BASE / 'settings.json').read_text(encoding='utf-8'))
+        return saved if isinstance(saved, dict) else {}
+    except (OSError, ValueError):
+        return {}
+
+
 def settings_port():
     """Порт страницы: DOWNLOADER_PORT (для тестов) или «port» из settings.json. Нужен до тяжёлых импортов."""
     try:
-        port = os.environ.get('DOWNLOADER_PORT')
-        if not port:
-            try:
-                port = json.loads((BASE / 'settings.json').read_text(encoding='utf-8')).get('port')
-            except (OSError, ValueError):
-                port = None
-        port = int(port or DEFAULT_PORT)
-    except (TypeError, ValueError, AttributeError):
+        port = int(os.environ.get('DOWNLOADER_PORT') or early_settings().get('port') or DEFAULT_PORT)
+    except (TypeError, ValueError):
         return DEFAULT_PORT
     return port if 1024 <= port <= 65535 else DEFAULT_PORT
 
 
+import i18n
+from i18n import tr
+
+i18n.set_lang(early_settings().get('lang'))
 PORT = settings_port()
 ERROR_ALREADY_EXISTS = 183
 MUTEX = None  # мьютекс Windows «копия на этом порту работает или запускается» — держим, пока живы
@@ -101,7 +108,9 @@ if __name__ == '__main__':
     # Заставка у часов — до тяжёлых импортов: без окна иначе несколько секунд не видно, запустилось ли что-то
     if TRAY and os.name == 'nt':
         import splash
-        SPLASH = splash.show('Запускается…' if FIRST else 'Уже запускается — подождите…',
+        splash.TITLE = tr(splash.TITLE, 'Universal Downloader')
+        SPLASH = splash.show(tr('Запускается…', 'Starting…') if FIRST
+                             else tr('Уже запускается — подождите…', 'Already starting — please wait…'),
                              str(BASE / 'web' / 'icon.ico'))
     if not FIRST:
         FIRST = wait_first_copy()
@@ -139,7 +148,12 @@ DEV_COPY = (BASE / '.git').exists()  # папка разработки обно�
 # proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
 # doh — защищённый DNS: адреса, которые не нашёл системный DNS, искать через DNS по HTTPS
 DEFAULT_SETTINGS = {'download_dir': str(DOWNLOADS), 'ask_every_time': True, 'port': DEFAULT_PORT,
-                    'proxy': '', 'proxy_all': False, 'proxy_sites': [], 'doh': False}
+                    'proxy': '', 'proxy_all': False, 'proxy_sites': [], 'doh': False,
+                    'lang': ''}  # язык: ru, en или пусто — как в Windows (i18n.py)
+
+
+def APP_NAME():
+    return tr('Универсальный скачиватель', 'Universal Downloader')
 HOST = '127.0.0.1'
 PROTOCOL = 'udl-downloader'  # ссылка udl-downloader: запускает программу (так её включает расширение браузера)
 
@@ -224,9 +238,9 @@ def only_own_page():
         return None
     origin = request.headers.get('Origin')
     if (origin and origin not in LOCAL_ORIGINS) or request.headers.get('Sec-Fetch-Site') in ('cross-site', 'same-site'):
-        return jsonify(error='Запрос с чужой страницы.'), 403
+        return jsonify(error=tr('Запрос с чужой страницы.', 'Request from another page.')), 403
     if request.method == 'POST' and not request.is_json:
-        return jsonify(error='Нужен JSON.'), 415
+        return jsonify(error=tr('Нужен JSON.', 'JSON required.')), 415
     return None
 
 
@@ -264,7 +278,7 @@ from tkinter import filedialog
 root = tkinter.Tk()
 root.withdraw()
 root.attributes('-topmost', True)
-path = filedialog.askdirectory(parent=root, initialdir=sys.argv[1], title='Куда сохранить файлы?', mustexist=True)
+path = filedialog.askdirectory(parent=root, initialdir=sys.argv[1], title=sys.argv[2], mustexist=True)
 print(path or '')
 '''
 
@@ -295,16 +309,17 @@ if ($fg -and $fg -ne $me) { [void][Udl.Win]::AttachThreadInput($me, $fg, $true) 
 $owner.Activate()
 if ($fg -and $fg -ne $me) { [void][Udl.Win]::AttachThreadInput($me, $fg, $false) }
 $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
-$dialog.Description = 'Куда сохранить файлы?'
+$dialog.Description = $env:UDL_PICK_TITLE
 $dialog.SelectedPath = $env:UDL_PICK_INITIAL
 if ($dialog.ShowDialog($owner) -eq 'OK') { $dialog.SelectedPath }
 '''
 
 
 def pick_folder(initial):
-    env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'UDL_PICK_INITIAL': str(initial)}
+    env = {**os.environ, 'PYTHONIOENCODING': 'utf-8', 'UDL_PICK_INITIAL': str(initial),
+           'UDL_PICK_TITLE': tr('Куда сохранить файлы?', 'Where to save files?')}
     if importlib.util.find_spec('tkinter'):
-        cmd = [sys.executable, '-c', PICK_FOLDER_SCRIPT, str(initial)]
+        cmd = [sys.executable, '-c', PICK_FOLDER_SCRIPT, str(initial), env['UDL_PICK_TITLE']]
     else:
         script = base64.b64encode(PICK_FOLDER_PS.encode('utf-16-le')).decode()
         cmd = ['powershell.exe', '-NoProfile', '-STA', '-EncodedCommand', script]
@@ -429,12 +444,29 @@ def base_opts():
     return opts
 
 
-VPN_HINT = ' Если включён VPN — выключите его или смените сервер.'
-COOKIES_HINT = ' Нужен cookies.txt из браузера, где вы вошли на сайт: положите его в папку программы (как — на странице «Помощь»).'
-UPDATE_HINT = ' Обновите yt-dlp на странице «Помощь».'
-BLOCK_HINT = (' Если сайт заблокирован (YouTube, Instagram, Pornhub…), нужен VPN для всего компьютера или его прокси: '
-              'VPN-расширение в браузере на программу не действует. Как быть — «Помощь» → «Если включён VPN».')
-DOH_HINT = ' Интернет есть, а провайдер прячет адрес сайта — включите «Защищённый DNS» на вкладке «VPN».'
+class Text:
+    """Текст на двух языках: str() — на текущем, «+» склеивает оба языка."""
+    def __init__(self, ru, en):
+        self.ru, self.en = ru, en
+
+    def __add__(self, other):
+        return Text(self.ru + other.ru, self.en + other.en)
+
+    def __str__(self):
+        return tr(self.ru, self.en)
+
+
+VPN_HINT = Text(' Если включён VPN — выключите его или смените сервер.',
+                ' If a VPN is on, turn it off or switch to another server.')
+COOKIES_HINT = Text(' Нужен cookies.txt из браузера, где вы вошли на сайт: положите его в папку программы (как — на странице «Помощь»).',
+                    ' You need cookies.txt from a browser where you are signed in to the site: put it in the program folder (see the Help page).')
+UPDATE_HINT = Text(' Обновите yt-dlp на странице «Помощь».', ' Update yt-dlp on the Help page.')
+BLOCK_HINT = Text(' Если сайт заблокирован (YouTube, Instagram, Pornhub…), нужен VPN для всего компьютера или его прокси: '
+                  'VPN-расширение в браузере на программу не действует. Как быть — «Помощь» → «Если включён VPN».',
+                  ' If the site is blocked in your country, you need a VPN for the whole computer or its proxy: '
+                  'a VPN browser extension does not affect the program. See Help → “If you use a VPN”.')
+DOH_HINT = Text(' Интернет есть, а провайдер прячет адрес сайта — включите «Защищённый DNS» на вкладке «VPN».',
+                ' If the internet works but your provider hides the site address, turn on “Secure DNS” on the Proxy tab.')
 
 # (регулярное выражение по тексту ошибки, объяснение). Порядок важен: сначала узкие случаи.
 # yt-dlp дописывает к разным ошибкам «Use --cookies…», поэтому «вход в аккаунт» стоит после
@@ -442,94 +474,135 @@ DOH_HINT = ' Интернет есть, а провайдер прячет ад�
 ERROR_RULES = [
     # yt-dlp сам заблокировал некоторые сайты (Suno и др.) из-за юридических рисков
     (r'\[liability\]|will not be supported',
-     'Этот сайт yt-dlp не поддерживает намеренно (по юридическим причинам) — обновление не поможет. '
-     'Скачайте файл на самом сайте, если он это позволяет.'),
+     Text('Этот сайт yt-dlp не поддерживает намеренно (по юридическим причинам) — обновление не поможет. '
+          'Скачайте файл на самом сайте, если он это позволяет.',
+          'yt-dlp deliberately does not support this site (for legal reasons) — updating will not help. '
+          'Download the file on the site itself if it allows that.')),
     (r'\bdrm\b',
-     'Видео защищено DRM (как в Netflix, Кинопоиске, Okko, Spotify) — скачать его нельзя.'),
+     Text('Видео защищено DRM (как в Netflix, Кинопоиске, Okko, Spotify) — скачать его нельзя.',
+          'The video is DRM-protected (like Netflix, Disney+, Spotify) — it cannot be downloaded.')),
     (r"not a bot|confirm you.?re not",
-     'YouTube просит подтвердить, что вы не робот. Так бывает с VPN и с адресами, откуда качают много.'
+     Text('YouTube просит подтвердить, что вы не робот. Так бывает с VPN и с адресами, откуда качают много.',
+          'YouTube asks to confirm you are not a bot. This happens with VPNs and with addresses that download a lot.')
      + VPN_HINT + COOKIES_HINT),
     (r'confirm your age|age[- ]restricted|inappropriate for some users|18\+|age verification|must be 18|'
      r'not be comfortable for some audiences',
-     'Видео с возрастным ограничением (18+): сайт отдаёт его только после входа в аккаунт.' + COOKIES_HINT),
+     Text('Видео с возрастным ограничением (18+): сайт отдаёт его только после входа в аккаунт.',
+          'Age-restricted video (18+): the site only gives it to signed-in users.') + COOKIES_HINT),
     (r'members[- ]only|join this channel|\bpremium\b|requires? (a )?(payment|purchase|subscription)|\bpaid\b|\brental\b',
-     'Видео платное или только для подписчиков — скачать можно, только если у вас есть доступ.' + COOKIES_HINT),
+     Text('Видео платное или только для подписчиков — скачать можно, только если у вас есть доступ.',
+          'The video is paid or members-only — you can download it only if you have access.') + COOKIES_HINT),
     (r'premieres? in|live event will begin|is upcoming',
-     'Трансляция или премьера ещё не началась. Попробуйте, когда видео появится.'),
+     Text('Трансляция или премьера ещё не началась. Попробуйте, когда видео появится.',
+          'The stream or premiere has not started yet. Try again when the video is out.')),
     (r'geo.?restrict|not available (in|from) your (country|location)|in your country|blocked it in your',
-     'Видео недоступно в вашей стране — сайт ограничил показ по месту.'
-     ' С зарубежным VPN так бывает у русских сайтов (Rutube, VK, ok.ru), без VPN — у зарубежных.'),
+     Text('Видео недоступно в вашей стране — сайт ограничил показ по месту.'
+          ' С зарубежным VPN так бывает у русских сайтов (Rutube, VK, ok.ru), без VPN — у зарубежных.',
+          'The video is not available in your country — the site restricts it by location.'
+          ' A proxy in another country may help (the Proxy tab).')),
     (r'\bprivate\b',
-     'Видео закрыто автором (приватное) — скачать можно, только если у вашего аккаунта есть доступ.' + COOKIES_HINT),
+     Text('Видео закрыто автором (приватное) — скачать можно, только если у вашего аккаунта есть доступ.',
+          'The video is private — you can download it only if your account has access.') + COOKIES_HINT),
     # «This content isn't available, try again later… rate-limited» — это не удалённое видео, а ограничение
     (r'rate.?limit|http error 429|too many requests',
-     'Сайт временно ограничил загрузки: слишком много запросов. Подождите 10–30 минут.' + VPN_HINT),
+     Text('Сайт временно ограничил загрузки: слишком много запросов. Подождите 10–30 минут.',
+          'The site has temporarily limited downloads: too many requests. Wait 10–30 minutes.') + VPN_HINT),
     # TikTok так отвечает (статус 10204) и на удалённый пост, и на закрытый для страны
     (r'ip address is blocked',
-     'TikTok не отдаёт этот пост: его удалили или он закрыт для вашей страны. Проверьте ссылку в браузере; '
-     'если открывается только с VPN — включите прокси во вкладке «VPN».'),
+     Text('TikTok не отдаёт этот пост: его удалили или он закрыт для вашей страны. Проверьте ссылку в браузере; '
+          'если открывается только с VPN — включите прокси во вкладке «VPN».',
+          'TikTok does not give this post: it was deleted or is closed for your country. Check the link in a browser; '
+          'if it opens only with a VPN, set up the proxy on the Proxy tab.')),
     # Instagram без входа показывает не всё: закрытые аккаунты, 18+, а иногда просто «много запросов»
     (r'empty media response',
-     'Instagram не показал этот пост без входа в аккаунт: аккаунт закрытый, пост 18+ '
-     'или Instagram ограничил просмотр без входа.' + COOKIES_HINT),
+     Text('Instagram не показал этот пост без входа в аккаунт: аккаунт закрытый, пост 18+ '
+          'или Instagram ограничил просмотр без входа.',
+          'Instagram did not show this post without signing in: the account is private, the post is 18+ '
+          'or Instagram limited viewing without an account.') + COOKIES_HINT),
     (r'video (is )?(unavailable|not available)|has been removed|no longer available|'
      r'been deleted|does not exist|was deleted',
-     'Видео удалено или недоступно. Проверьте ссылку в браузере.'),
+     Text('Видео удалено или недоступно. Проверьте ссылку в браузере.',
+          'The video was deleted or is unavailable. Check the link in a browser.')),
     (r'unsupported url',
-     'Этот сайт не поддерживается или по ссылке нет видео. Проверьте, что ссылка ведёт на страницу '
-     'с самим видео, а не на ленту или главную.'),
+     Text('Этот сайт не поддерживается или по ссылке нет видео. Проверьте, что ссылка ведёт на страницу '
+          'с самим видео, а не на ленту или главную.',
+          'This site is not supported or there is no video at the link. Make sure the link leads to the page '
+          'of the video itself, not to a feed or the home page.')),
     (r'no video in this post',
-     'В этом посте нет видео — только фото. Программа качает видео и звук.'),
+     Text('В этом посте нет видео — только фото. Программа качает видео и звук.',
+          'This post has no video — only photos. The program downloads video and audio.')),
     (r'is not a valid url|no such file or directory: .?(<url>|https?)',
-     'Это не похоже на ссылку. Скопируйте адрес из строки браузера целиком.'),
+     Text('Это не похоже на ссылку. Скопируйте адрес из строки браузера целиком.',
+          'This does not look like a link. Copy the whole address from the browser address bar.')),
     (r'sign in|log ?in|cookies|authenticat|registered users',
-     'Сайт требует вход в аккаунт.' + COOKIES_HINT),
+     Text('Сайт требует вход в аккаунт.', 'The site requires signing in.') + COOKIES_HINT),
     # разборщик сайта в yt-dlp не понял новую страницу (так было у ok.ru — исправлено в sites.py)
     (r'the json object must be|unable to extract|failed to parse|unexpected (response|data)|'
      r'please report this issue',
-     'Сайт изменил страницу, и yt-dlp не смог её разобрать.' + UPDATE_HINT
-     + ' Не поможет — подождите исправления, обычно его выпускают за несколько дней.'),
+     Text('Сайт изменил страницу, и yt-dlp не смог её разобрать.',
+          'The site has changed its page and yt-dlp could not read it.') + UPDATE_HINT
+     + Text(' Не поможет — подождите исправления, обычно его выпускают за несколько дней.',
+            ' If that does not help, wait for a fix — it usually comes out within a few days.')),
     (r'requested format is not available|no video formats found',
-     'Такого качества у видео больше нет. Разберите ссылку заново и выберите другой вариант.'),
+     Text('Такого качества у видео больше нет. Разберите ссылку заново и выберите другой вариант.',
+          'This quality is no longer available. Check the link again and choose another option.')),
     # 3419392776 — так ffmpeg сообщает HTTP 404 (AVERROR_HTTP_NOT_FOUND)
     (r'http error 404|404: not found|code 3419392776',
-     'Видео удалено или ссылка устарела (ошибка 404). Откройте его в браузере; если играет, '
-     'нажмите правой кнопкой на самом видео → «Скачать в программе».'),
+     Text('Видео удалено или ссылка устарела (ошибка 404). Откройте его в браузере; если играет, '
+          'нажмите правой кнопкой на самом видео → «Скачать в программе».',
+          'The video was deleted or the link is outdated (error 404). Open it in a browser; if it plays, '
+          'right-click the video itself → “Send to Downloader”.')),
     # 410 — страницу убрали насовсем, но так же отвечают сайты, ушедшие из страны (PornHub и др.)
     (r'http error 410|410: gone',
-     'Страница удалена или сайт закрыт для вашей страны: проверьте ссылку в браузере; '
-     'если открывается только с VPN — включите прокси во вкладке «VPN».'),
+     Text('Страница удалена или сайт закрыт для вашей страны: проверьте ссылку в браузере; '
+          'если открывается только с VPN — включите прокси во вкладке «VPN».',
+          'The page was deleted or the site is closed for your country: check the link in a browser; '
+          'if it opens only with a VPN, set up the proxy on the Proxy tab.')),
     # 3436169992 — так ffmpeg сообщает HTTP 403 (AVERROR_HTTP_FORBIDDEN), бывает при загрузке куска
     (r'http error 403|forbidden|code 3436169992',
-     'Сайт отказал в доступе (ошибка 403). Попробуйте ещё раз через минуту. Ссылки на видео привязаны '
-     'к адресу — VPN нельзя включать или переключать во время загрузки. '
-     'Повторяется — обновите yt-dlp на странице «Помощь».'),
+     Text('Сайт отказал в доступе (ошибка 403). Попробуйте ещё раз через минуту. Ссылки на видео привязаны '
+          'к адресу — VPN нельзя включать или переключать во время загрузки. '
+          'Повторяется — обновите yt-dlp на странице «Помощь».',
+          'The site denied access (error 403). Try again in a minute. Video links are tied to your IP '
+          'address — do not turn a VPN on or switch it during a download. '
+          'If it keeps happening, update yt-dlp on the Help page.')),
     (r'http error 5\d\d|service unavailable|bad gateway|internal server error',
-     'У сайта сбой на его стороне. Попробуйте позже.'),
+     Text('У сайта сбой на его стороне. Попробуйте позже.', 'The site has a problem on its side. Try again later.')),
     # так провайдер обрывает соединение с заблокированным сайтом
     (r'unexpected_eof|eof occurred in violation',
-     'Сайт не открывается: соединение оборвали — похоже, он заблокирован.' + BLOCK_HINT),
+     Text('Сайт не открывается: соединение оборвали — похоже, он заблокирован.',
+          'The site does not open: the connection was cut — it looks blocked.') + BLOCK_HINT),
     (r'certificate|\bssl\b|\btls\b',
-     'Не удалось установить защищённое соединение с сайтом. Проверьте дату и время на компьютере; '
-     'так бывает, когда антивирус проверяет HTTPS или VPN подменяет соединение.'),
+     Text('Не удалось установить защищённое соединение с сайтом. Проверьте дату и время на компьютере; '
+          'так бывает, когда антивирус проверяет HTTPS или VPN подменяет соединение.',
+          'Could not make a secure connection to the site. Check the date and time on the computer; '
+          'this also happens when an antivirus inspects HTTPS or a VPN intercepts the connection.')),
     (r'getaddrinfo|name or service not known|failed to resolve|nodename nor servname|no address associated',
-     'Не удалось найти сайт в сети. Проверьте интернет.' + DOH_HINT + BLOCK_HINT),
+     Text('Не удалось найти сайт в сети. Проверьте интернет.', 'Could not find the site. Check your internet connection.')
+     + DOH_HINT + BLOCK_HINT),
     (r'timed out|timeout|connection (reset|refused|aborted)|remote end closed|network is unreachable|'
      r'unable to connect|max retries|winerror 100(5\d|6\d)|incompleteread|connection broken|got only',
-     'Сайт не отвечает или связь прервалась. Проверьте интернет и попробуйте ещё раз.' + BLOCK_HINT),
+     Text('Сайт не отвечает или связь прервалась. Проверьте интернет и попробуйте ещё раз.',
+          'The site does not respond or the connection dropped. Check your internet and try again.') + BLOCK_HINT),
     (r'no space left|errno 28|winerror 112|not enough space',
-     'На диске не хватает места. Освободите место или выберите другую папку для загрузок.'),
+     Text('На диске не хватает места. Освободите место или выберите другую папку для загрузок.',
+          'Not enough disk space. Free up space or choose another download folder.')),
     (r'being used by another process|winerror 32',
-     'Файл занят другой программой (плеером или антивирусом). Закройте его и попробуйте снова.'),
+     Text('Файл занят другой программой (плеером или антивирусом). Закройте его и попробуйте снова.',
+          'The file is in use by another program (a player or antivirus). Close it and try again.')),
     (r'file name too long|errno 36|winerror 206|filename.*too long',
-     'Слишком длинный путь к файлу. Выберите папку для загрузок поближе к корню диска, например D:\\Загрузки.'),
+     Text('Слишком длинный путь к файлу. Выберите папку для загрузок поближе к корню диска, например D:\\Загрузки.',
+          'The file path is too long. Choose a download folder closer to the drive root, for example D:\\Downloads.')),
     (r'permission denied|errno 13|winerror 5\b|access is denied',
-     'Нет доступа к папке загрузок. Выберите другую папку или проверьте, не блокирует ли её антивирус.'),
+     Text('Нет доступа к папке загрузок. Выберите другую папку или проверьте, не блокирует ли её антивирус.',
+          'No access to the download folder. Choose another folder or check that an antivirus is not blocking it.')),
     (r'downloaded file is empty|did not get any data|empty file',
-     'Сайт отдал пустой файл. Попробуйте ещё раз.' + VPN_HINT),
+     Text('Сайт отдал пустой файл. Попробуйте ещё раз.', 'The site returned an empty file. Try again.') + VPN_HINT),
     (r'ffmpeg|postprocessing|conversion failed|merg',
-     'Не удалось склеить или перевести файл (ffmpeg). Проверьте строку «ffmpeg» на странице «Помощь» '
-     'или выберите другой вариант.'),
+     Text('Не удалось склеить или перевести файл (ffmpeg). Проверьте строку «ffmpeg» на странице «Помощь» '
+          'или выберите другой вариант.',
+          'Could not merge or convert the file (ffmpeg). Check the “ffmpeg” line on the Help page '
+          'or choose another option.')),
 ]
 ERROR_RULES = [(re.compile(rx, re.I), text) for rx, text in ERROR_RULES]
 ERROR_PREFIX = re.compile(r'^(\[[^\]]+\] [^\s:]+: )+')
@@ -543,8 +616,9 @@ def human_error(err):
     bare = URL_IN_TEXT.sub('<url>', ERROR_PREFIX.sub('', msg))
     for rx, text in ERROR_RULES:
         if rx.search(bare):
+            text, doh = str(text), str(DOH_HINT)
             # защищённый DNS уже включён — не советуем его включить
-            return text.replace(DOH_HINT, '') if DOH_HINT in text and load_settings()['doh'] else text
+            return text.replace(doh, '') if doh in text and load_settings()['doh'] else text
     return msg
 
 
@@ -562,11 +636,12 @@ def error_response(err, status=400):
 def fmt_size(num):
     if not num:
         return ''
-    for unit in ('Б', 'КБ', 'МБ', 'ГБ'):
+    units = tr(('Б', 'КБ', 'МБ', 'ГБ', 'ТБ'), ('B', 'KB', 'MB', 'GB', 'TB'))
+    for unit in units[:4]:
         if num < 1024:
-            return f'~{num:.1f} {unit}' if unit == 'ГБ' else f'~{num:.0f} {unit}'
+            return f'~{num:.1f} {unit}' if unit == units[3] else f'~{num:.0f} {unit}'
         num /= 1024
-    return f'~{num:.1f} ТБ'
+    return f'~{num:.1f} {units[4]}'
 
 
 def fsize(f, duration=None):
@@ -600,7 +675,7 @@ def video_options(info):
                         'note': ' · '.join(x for x in ('MP4', fmt_size(size)) if x)})
     # только звук (SoundCloud и др.) — видео не предлагаем
     if not options and formats and any(f.get('vcodec') != 'none' for f in formats):
-        options.append({'id': 'vbest', 'kind': 'video', 'label': 'Видео', 'note': 'лучшее качество'})
+        options.append({'id': 'vbest', 'kind': 'video', 'label': tr('Видео', 'Video'), 'note': tr('лучшее качество', 'best quality')})
     return options
 
 
@@ -623,17 +698,32 @@ LANG_NAMES = {
 REGION_NAMES = {'US': 'США', 'GB': 'Великобритания', 'AU': 'Австралия', 'CA': 'Канада', 'IN': 'Индия',
                 'BR': 'Бразилия', 'PT': 'Португалия', 'ES': 'Испания', 'MX': 'Мексика', '419': 'Латинская Америка',
                 'FR': 'Франция', 'Hans': 'упрощённый', 'Hant': 'традиционный', 'CN': 'Китай', 'TW': 'Тайвань'}
+LANG_NAMES_EN = {
+    'ru': 'Russian', 'en': 'English', 'uk': 'Ukrainian', 'be': 'Belarusian', 'kk': 'Kazakh',
+    'uz': 'Uzbek', 'ky': 'Kyrgyz', 'tg': 'Tajik', 'tt': 'Tatar', 'hy': 'Armenian',
+    'ka': 'Georgian', 'az': 'Azerbaijani', 'de': 'German', 'fr': 'French', 'es': 'Spanish',
+    'it': 'Italian', 'pt': 'Portuguese', 'pl': 'Polish', 'cs': 'Czech', 'sk': 'Slovak',
+    'bg': 'Bulgarian', 'sr': 'Serbian', 'hr': 'Croatian', 'sl': 'Slovenian', 'ro': 'Romanian',
+    'hu': 'Hungarian', 'el': 'Greek', 'nl': 'Dutch', 'sv': 'Swedish', 'no': 'Norwegian',
+    'nb': 'Norwegian', 'da': 'Danish', 'fi': 'Finnish', 'et': 'Estonian', 'lv': 'Latvian',
+    'lt': 'Lithuanian', 'tr': 'Turkish', 'ar': 'Arabic', 'he': 'Hebrew', 'iw': 'Hebrew', 'fa': 'Persian',
+    'hi': 'Hindi', 'bn': 'Bengali', 'ta': 'Tamil', 'te': 'Telugu', 'ml': 'Malayalam', 'mr': 'Marathi',
+    'pa': 'Punjabi', 'gu': 'Gujarati', 'kn': 'Kannada', 'ur': 'Urdu', 'ja': 'Japanese', 'ko': 'Korean',
+    'zh': 'Chinese', 'vi': 'Vietnamese', 'th': 'Thai', 'id': 'Indonesian', 'ms': 'Malay',
+    'fil': 'Filipino', 'tl': 'Filipino',
+}
+REGION_NAMES_EN = {'US': 'US', 'GB': 'UK', '419': 'Latin America', 'Hans': 'Simplified', 'Hant': 'Traditional'}
 
 
 def lang_label(code, note):
     """«ru» → «Русский», «en-US» → «Английский (США)»; неизвестный — как подписал сайт («Swahili»)."""
     base, *rest = code.split('-')
-    name = LANG_NAMES.get(base.lower())
+    name = tr(LANG_NAMES, LANG_NAMES_EN).get(base.lower())
     if not name:
         # YouTube: «Swahili original (default), medium» → «Swahili»
         name = re.split(r',| original| \(default\)', note or '')[0].strip() or code
         return name
-    regions = [REGION_NAMES.get(r, r) for r in rest]
+    regions = [tr(REGION_NAMES, REGION_NAMES_EN).get(r, r) for r in rest]
     return name + (f' ({", ".join(regions)})' if regions else '')
 
 
@@ -654,19 +744,23 @@ def audio_tracks(info):
         t['size'] = max(t['size'], fsize(f, duration))
     if len(tracks) < 2:
         return []
-    out = [{'id': t['id'], 'label': lang_label(t['id'], t['note']) + (' — оригинал' if t['original'] else ''),
+    out = [{'id': t['id'], 'label': lang_label(t['id'], t['note']) + (tr(' — оригинал', ' — original') if t['original'] else ''),
             'original': t['original'], 'size': t['size']} for t in tracks.values()]
-    out.sort(key=lambda t: (not t['id'].lower().startswith('ru'), not t['original'], t['label']))
+    if i18n.CURRENT == 'en':  # английский интерфейс — сначала оригинал, потом английская
+        out.sort(key=lambda t: (not t['original'], not t['id'].lower().startswith('en'), t['label']))
+    else:
+        out.sort(key=lambda t: (not t['id'].lower().startswith('ru'), not t['original'], t['label']))
     return out
 
 
 def audio_format(track, langs):
-    """Какой звук взять: выбранный язык, все дорожки (langs) или, если не выбирали, русский, если он есть."""
+    """Какой звук взять: выбранный язык, все дорожки (langs) или, если не выбирали, русский, если он есть
+    (в английском интерфейсе — дорожку по умолчанию, обычно оригинал)."""
     if track == 'all' and langs:
         return '+'.join(f'ba[language={lang}]' for lang in langs)
     if track:
         return f'ba[language={track}]'
-    return 'ba[language^=ru]'
+    return tr('ba[language^=ru]', 'ba')
 
 
 # ---------- субтитры ----------
@@ -692,9 +786,9 @@ def subtitle_list(info):
     for k in picks:
         lang = k.removesuffix('-orig')
         if lang not in subs:  # свои субтитры на этом языке лучше распознанных
-            out.append({'id': k, 'label': f'{lang_label(lang, name(auto[k]))} — автоматические', 'auto': True})
+            out.append({'id': k, 'label': lang_label(lang, name(auto[k])) + tr(' — автоматические', ' — auto-generated'), 'auto': True})
     if orig and 'ru' in auto and not any(s['id'].lower().startswith('ru') for s in out):
-        out.append({'id': 'ru', 'label': f'{lang_label("ru", "")} — автоперевод', 'auto': True})
+        out.append({'id': 'ru', 'label': lang_label('ru', '') + tr(' — автоперевод', ' — auto-translated'), 'auto': True})
     main = (info.get('language') or '').split('-')[0].lower()
     out.sort(key=lambda s: (not s['id'].lower().startswith('ru'),
                             not (main and s['id'].lower().startswith(main)), s['auto'], s['label']))
@@ -721,10 +815,11 @@ def without_subtitles(opts):
     return out
 
 
-AUDIO_OPTIONS = [
-    {'id': 'a_mp3', 'kind': 'audio', 'label': 'MP3', 'note': 'лучшее качество'},
-    {'id': 'a_m4a', 'kind': 'audio', 'label': 'M4A', 'note': 'без перекодирования'},
-]
+def audio_options():
+    return [
+        {'id': 'a_mp3', 'kind': 'audio', 'label': 'MP3', 'note': tr('лучшее качество', 'best quality')},
+        {'id': 'a_m4a', 'kind': 'audio', 'label': 'M4A', 'note': tr('без перекодирования', 'no re-encoding')},
+    ]
 
 
 def clock(sec):
@@ -749,7 +844,7 @@ def download_opts(option, playlist, folder, section=None, track='', langs=(), su
         # точный разрез: кусок перекодируется, зато начинается ровно с 1:20. Без этого видео режется
         # по ключевым кадрам, а звук по своим блокам — MP3 выходил на 10 секунд длиннее
         opts['force_keyframes_at_cuts'] = True
-        suffix = f' (фрагмент {clock(start)}-{clock(end)})'.replace(':', '.')
+        suffix = tr(' (фрагмент {}-{})', ' (clip {}-{})').format(clock(start), clock(end)).replace(':', '.')
     if playlist:
         name = '%(playlist_title).80B/%(playlist_index)03d - %(title).120B.%(ext)s'
     else:
@@ -828,7 +923,7 @@ class SafeNamesPP(yt_dlp.postprocessor.PostProcessor):
                 info[key] = value.strip() + '_'
         path = Path(self._downloader.prepare_filename(info)).resolve()
         if not path.is_relative_to(self.folder):
-            raise yt_dlp.utils.DownloadError(f'Имя файла выходит за папку загрузок: {path}')
+            raise yt_dlp.utils.DownloadError(tr('Имя файла выходит за папку загрузок: ', 'The file name points outside the download folder: ') + str(path))
         return [], info
 
 
@@ -1036,7 +1131,7 @@ def run_task(task):
         if d.get('filename'):
             task['tmp'].add(d['filename'])
         if info.get('playlist_index') and task.get('count'):
-            task['item'] = f"{info['playlist_index']} из {task['count']}"
+            task['item'] = tr('{} из {}', '{} of {}').format(info['playlist_index'], task['count'])
         if d['status'] == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate')
             done = d.get('downloaded_bytes') or 0
@@ -1045,7 +1140,8 @@ def run_task(task):
             elif d.get('fragment_count'):
                 task['percent'] = round((d.get('fragment_index') or 0) / d['fragment_count'] * 100, 1)
             is_audio = info.get('vcodec') == 'none'
-            task['stage'] = 'Скачиваю звук' if is_audio and task['kind'] == 'video' else 'Скачиваю'
+            task['stage'] = (tr('Скачиваю звук', 'Downloading audio') if is_audio and task['kind'] == 'video'
+                             else tr('Скачиваю', 'Downloading'))
             task['speed'] = d.get('_speed_str', '').strip()
             task['eta'] = d.get('_eta_str', '').strip()
         elif d['status'] == 'finished':
@@ -1055,14 +1151,14 @@ def run_task(task):
         if task['cancel']:
             raise Cancelled()
         if d['status'] == 'started' and d.get('postprocessor') != 'SafeNames':  # проверка имён — не обработка
-            task['stage'] = 'Обработка'
+            task['stage'] = tr('Обработка', 'Processing')
             task['speed'] = task['eta'] = ''
 
     def got_info(info, incomplete=False):
         if task['from_list'] and info.get('title') and not incomplete:
             task['title'] = info['title']  # в списке ссылок название узнаём только при загрузке
         if task['section']:
-            task['stage'] = 'Скачиваю фрагмент'  # ffmpeg не сообщает проценты — полоса просто бежит
+            task['stage'] = tr('Скачиваю фрагмент', 'Downloading clip')  # ffmpeg не сообщает проценты — полоса просто бежит
         return None
 
     task_of_thread[threading.get_ident()] = task
@@ -1090,21 +1186,21 @@ def run_task(task):
                 if not o.get('subtitleslangs') or 'Unable to download video subtitles' not in str(e):
                     raise
                 run(without_subtitles(o))
-                task['label'] += ' · без субтитров (сайт их не отдал)'
+                task['label'] += tr(' · без субтитров (сайт их не отдал)', ' · no subtitles (the site did not give them)')
 
         via_proxy(task['url'], work)
         task['status'] = 'done'
-        task['stage'] = 'Готово'
+        task['stage'] = tr('Готово', 'Done')
         task['percent'] = 100
     except Cancelled:
         task['status'] = 'cancelled'
-        task['stage'] = 'Отменено'
+        task['stage'] = tr('Отменено', 'Cancelled')
     except Exception as e:  # noqa: BLE001 — показываем пользователю любую ошибку
         if task['cancel']:
-            task['status'], task['stage'] = 'cancelled', 'Отменено'
+            task['status'], task['stage'] = 'cancelled', tr('Отменено', 'Cancelled')
         else:
             task['status'] = 'error'
-            task['stage'] = 'Ошибка'
+            task['stage'] = tr('Ошибка', 'Error')
             task['error'] = human_error(e)
             task['error_detail'] = error_detail(e, task['error'])
     task['speed'] = task['eta'] = ''
@@ -1115,14 +1211,32 @@ def run_task(task):
         remove_partial(task)
 
 
+def page(name):
+    """Страница на языке программы: help.html или help.en.html; в index.html — <html lang> (тексты — web/i18n.js)."""
+    if i18n.CURRENT == 'en' and (WEB / name.replace('.html', '.en.html')).exists():
+        name = name.replace('.html', '.en.html')
+    html = (WEB / name).read_text(encoding='utf-8')
+    if i18n.CURRENT == 'en':
+        html = html.replace('<html lang="ru">', '<html lang="en">', 1).replace(
+            '<title>Универсальный скачиватель</title>', '<title>Universal Downloader</title>', 1)
+    resp = Response(html, mimetype='text/html')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+
 @app.get('/')
 def index():
-    return send_from_directory(WEB, 'index.html')
+    return page('index.html')
 
 
 @app.get('/help')
 def help_page():
-    return send_from_directory(WEB, 'help.html')
+    return page('help.html')
+
+
+@app.get('/i18n.js')
+def i18n_js():
+    return send_from_directory(WEB, 'i18n.js')
 
 
 @app.get('/favicon.ico')
@@ -1140,6 +1254,34 @@ def browsers_svg():
     return send_from_directory(WEB, 'browsers.svg')
 
 
+# английские тексты расширения: архив собирается на языке программы (меню — в background.js по UDL_LANG)
+EXTENSION_EN = {
+    'manifest.json': [
+        ('"name": "Универсальный скачиватель"', '"name": "Universal Downloader"'),
+        ('"short_name": "Скачиватель"', '"short_name": "Downloader"'),
+        ('"description": "Кнопка и пункт меню «Скачать в программе»: открывает «Универсальный скачиватель» с текущей ссылкой."',
+         '"description": "A button and the “Send to Downloader” menu item: opens Universal Downloader with the current link."'),
+        ('"default_title": "Скачать в программе"', '"default_title": "Send to Downloader"'),
+    ],
+    'launch.html': [
+        ('<html lang="ru">', '<html lang="en">'),
+        ('<title>Запускаю скачиватель…</title>', '<title>Starting the downloader…</title>'),
+        ('alt="">Универсальный скачиватель</h1>', 'alt="">Universal Downloader</h1>'),
+        ('Программа не была запущена — запускаю. Как только она заработает, эта вкладка сама откроет её. На медленном '
+         'компьютере это бывает до минуты — у часов видна надпись «Запускается…», нажимать ещё раз не нужно.',
+         'The program was not running — starting it. As soon as it works, this tab opens it by itself. On a slow '
+         'computer this takes up to a minute — “Starting…” is shown by the clock, no need to click again.'),
+        ('Браузер спросит, открыть ли приложение, — нажмите <b>«Открыть»</b>. Галочка «Всегда разрешать» уберёт этот вопрос.',
+         'The browser asks whether to open the app — click <b>“Open”</b>. The “Always allow” checkbox removes this question.'),
+        ('>Запустить ещё раз</button>', '>Start again</button>'),
+        ('Не запускается? Запустите программу ярлыком <b>«Универсальный скачиватель»</b> на рабочем столе — эта вкладка\n'
+         '      перейдёт в неё сама. Если программа старой версии, после такого запуска кнопка в браузере будет включать её сама.',
+         'Does not start? Start the program with the <b>“Универсальный скачиватель”</b> (Universal Downloader) desktop shortcut — '
+         'this tab\n      switches to it by itself.'),
+    ],
+}
+
+
 @app.get('/extension.zip')
 def extension_zip():
     """Расширение для Chrome/Edge/Яндекса/Firefox. Файлы — в корне архива: «Извлечь всё» даёт папку
@@ -1149,7 +1291,15 @@ def extension_zip():
         for f in sorted(EXTENSION.rglob('*')):
             if f.is_file():
                 name = f.relative_to(EXTENSION).as_posix()
-                data = f'self.UDL_PORT = {PORT};\n'.encode() if name == 'config.js' else f.read_bytes()
+                if name == 'config.js':
+                    data = f"self.UDL_PORT = {PORT};\nself.UDL_LANG = '{i18n.CURRENT}';\n".encode()
+                elif name in EXTENSION_EN and i18n.CURRENT == 'en':
+                    text = f.read_text(encoding='utf-8')
+                    for ru, en in EXTENSION_EN[name]:
+                        text = text.replace(ru, en)
+                    data = text.encode()
+                else:
+                    data = f.read_bytes()
                 z.writestr(name, data)
     return Response(buf.getvalue(), mimetype='application/zip',
                     headers={'Content-Disposition': 'attachment; filename="downloader-extension.zip"', 'Cache-Control': 'no-store'})
@@ -1193,7 +1343,7 @@ def api_update():
         return jsonify(ok=False, error=str(e)), 500
     if out.returncode != 0:
         tail = (out.stderr or out.stdout).strip().splitlines()[-3:]
-        return jsonify(ok=False, error='\n'.join(tail) or 'pip завершился с ошибкой'), 500
+        return jsonify(ok=False, error='\n'.join(tail) or tr('pip завершился с ошибкой', 'pip failed')), 500
     new = subprocess.run(
         [sys.executable, '-c', 'import yt_dlp; print(yt_dlp.version.__version__)'],
         capture_output=True, text=True, timeout=60).stdout.strip()
@@ -1225,13 +1375,15 @@ def read_update_cache():
 
 def check_app_update(notify_new=False):
     """Спрашивает GitHub о новой версии. Нашлась — помним и в файле: плашка видна и после перезапуска."""
+    updater.LANG = i18n.CURRENT
     info = updater.check(VERSION, github_open, UPDATE_API)
     app_update['latest'] = info
     cache = read_update_cache()
     cache.update(checked=time.time(), latest=info)
     if info and notify_new and cache.get('notified') != info['version']:
         cache['notified'] = info['version']
-        notify(f'Вышла версия {info["version"]}. Обновить можно на странице программы — одной кнопкой.')
+        notify(tr('Вышла версия {}. Обновить можно на странице программы — одной кнопкой.',
+                   'Version {} is out. You can update on the program page with one click.').format(info['version']))
     try:
         UPDATE_CACHE.write_text(json.dumps(cache, ensure_ascii=False), encoding='utf-8')
     except OSError:
@@ -1270,18 +1422,19 @@ def install_app_update():
     """Качает и проверяет новую версию, запускает updater.py и закрывает программу: файлы он заменит сам."""
     info = app_update['latest']
     try:
+        updater.LANG = i18n.CURRENT
         root = updater.download(info, github_open, UPDATE_DIR, lambda done, total: app_update.update(done=done, total=total))
         script = UPDATE_DIR / 'updater.py'  # копия: свой файл updater.py тоже заменится
         shutil.copy2(BASE / 'updater.py', script)
         subprocess.Popen([sys.executable, str(script), '--base', str(BASE), '--work', str(UPDATE_DIR),
                           '--new', str(root), '--version', info['version'], '--old-version', VERSION,
-                          '--pid', str(os.getpid()), '--port', str(PORT)],
+                          '--pid', str(os.getpid()), '--port', str(PORT), '--lang', i18n.CURRENT],
                          cwd=UPDATE_DIR, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
     except ValueError as e:
         app_update.update(state='error', error=str(e))
         return
     except Exception as e:  # noqa: BLE001
-        app_update.update(state='error', error=f'не удалось скачать обновление: {e}')
+        app_update.update(state='error', error=tr('не удалось скачать обновление: ', 'could not download the update: ') + str(e))
         return
     app_update['state'] = 'restarting'
     print(f'Обновление до {info["version"]}: программа перезапускается')
@@ -1305,20 +1458,22 @@ def api_app_update_check():
     try:
         check_app_update()
     except Exception as e:  # noqa: BLE001
-        return jsonify(error=f'Не удалось связаться с GitHub: {e}'), 502
+        return jsonify(error=tr('Не удалось связаться с GitHub: ', 'Could not reach GitHub: ') + str(e)), 502
     return jsonify(app_update_state())
 
 
 @app.post('/api/app-update')
 def api_app_update_install():
     if DEV_COPY:
-        return jsonify(error='Это папка разработки (git) — обновляйте её через git pull.'), 409
+        return jsonify(error=tr('Это папка разработки (git) — обновляйте её через git pull.',
+                                 'This is a development folder (git) — update it with git pull.')), 409
     if not app_update['latest']:
-        return jsonify(error='Новой версии нет.'), 400
+        return jsonify(error=tr('Новой версии нет.', 'No new version.')), 400
     if app_update['state'] in ('downloading', 'restarting'):
         return jsonify(app_update_state())
     if any(t['status'] in ('running', 'queued') for t in list(tasks.values())):
-        return jsonify(error='Сначала дождитесь конца загрузок или отмените их: при обновлении программа перезапускается.'), 409
+        return jsonify(error=tr('Сначала дождитесь конца загрузок или отмените их: при обновлении программа перезапускается.',
+                                 'Wait for downloads to finish or cancel them first: the program restarts when updating.')), 409
     app_update.update(state='downloading', error='', done=0, total=app_update['latest'].get('size') or 0)
     threading.Thread(target=install_app_update, daemon=True).start()
     return jsonify(app_update_state())
@@ -1436,7 +1591,7 @@ def api_info():
     data = json_body()
     url = text_arg(data, 'url')
     if not url:
-        return jsonify(error='Вставьте ссылку или напишите название песни.'), 400
+        return jsonify(error=tr('Вставьте ссылку или напишите название песни.', 'Paste a link or type a song name.')), 400
     if not URL_RE.match(url):
         exclude = [x for x in data.get('exclude') or [] if isinstance(x, str)][:500]
         try:
@@ -1444,7 +1599,7 @@ def api_info():
         except Exception as e:  # noqa: BLE001
             return error_response(e)
         if not results and not exclude:
-            return jsonify(error='Ничего не найдено. Попробуйте написать иначе.'), 404
+            return jsonify(error=tr('Ничего не найдено. Попробуйте написать иначе.', 'Nothing found. Try wording it differently.')), 404
         return jsonify(search=True, query=url, append=bool(exclude), results=results,
                        more=len(results) == SEARCH_LIMIT, failed=failed)
     def work(proxy):
@@ -1462,27 +1617,27 @@ def api_info():
         entries = [e for e in (info.get('entries') or []) if e]
         thumb = info.get('thumbnail') or next(
             ((e.get('thumbnails') or [{}])[-1].get('url') for e in entries if e.get('thumbnails')), None)
-        options = [{'id': f'v{h}', 'kind': 'video', 'label': f'до {h}p', 'note': 'MP4'}
+        options = [{'id': f'v{h}', 'kind': 'video', 'label': tr('до {}p', 'up to {}p').format(h), 'note': 'MP4'}
                    for h in (1080, 720, 480)]
         return jsonify(
             url=url, playlist=True, count=len(entries),
-            title=info.get('title') or 'Плейлист',
+            title=info.get('title') or tr('Плейлист', 'Playlist'),
             site=info.get('extractor_key') or info.get('webpage_url_domain'),
             uploader=info.get('uploader') or info.get('channel'),
             thumbnail=thumb, duration=None,
-            options=options + AUDIO_OPTIONS,
+            options=options + audio_options(),
             choices=info.get('udl_choices'),
         )
 
     return jsonify(
         url=info.get('webpage_url') or url, playlist=False, count=1,
-        title=info.get('title') or 'Без названия',
+        title=info.get('title') or tr('Без названия', 'Untitled'),
         site=info.get('extractor_key') or info.get('webpage_url_domain'),
         uploader=info.get('uploader') or info.get('channel'),
         thumbnail=info.get('thumbnail'),
         duration=info.get('duration'),
         live=bool(info.get('is_live')),
-        options=video_options(info) + AUDIO_OPTIONS,
+        options=video_options(info) + audio_options(),
         tracks=audio_tracks(info),
         subtitles=subtitle_list(info),
         loop=coub_loop(info),
@@ -1535,9 +1690,9 @@ def resolve_stream(url):
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if info.get('_type') == 'playlist' or info.get('entries'):
-                raise StreamError('Послушать можно одну песню, а это плейлист.')
+                raise StreamError(tr('Послушать можно одну песню, а это плейлист.', 'You can listen to one song, and this is a playlist.'))
             if info.get('is_live'):
-                raise StreamError('Прямой эфир здесь не послушать.')
+                raise StreamError(tr('Прямой эфир здесь не послушать.', 'Live streams cannot be played here.'))
             src = info.get('url')
             return info, proxy, (ydl.cookiejar.get_cookie_header(src) if src else '')
 
@@ -1552,7 +1707,7 @@ def resolve_stream(url):
             return listen_copy(url)
         raise StreamError(human_error(e)) from None
     if not src:
-        raise StreamError('Не нашёл звук по этой ссылке.')
+        raise StreamError(tr('Не нашёл звук по этой ссылке.', 'No audio found at this link.'))
     # ссылка YouTube (клиент TV) открывается только через несколько секунд, до этого — 403;
     # при скачивании yt-dlp ждёт сам (available_at), для прослушивания ждём здесь
     delay = (info.get('available_at') or 0) - time.time()
@@ -1583,11 +1738,13 @@ def listen_copy(url):
         with yt_dlp.YoutubeDL(opts) as ydl:
             info = ydl.extract_info(url, download=False)
             if info.get('_type') == 'playlist' or info.get('entries'):
-                raise StreamError('Послушать можно одну песню, а это плейлист.')
+                raise StreamError(tr('Послушать можно одну песню, а это плейлист.', 'You can listen to one song, and this is a playlist.'))
             if info.get('is_live'):
-                raise StreamError('Прямой эфир здесь не послушать.')
+                raise StreamError(tr('Прямой эфир здесь не послушать.', 'Live streams cannot be played here.'))
             if (info.get('duration') or 0) > LISTEN_MAX:
-                raise StreamError(f'Запись длиннее {LISTEN_MAX // 60} минут с этого сайта не послушать — её можно скачать.')
+                raise StreamError(tr('Запись длиннее {} минут с этого сайта не послушать — её можно скачать.',
+                                     'Recordings longer than {} minutes from this site cannot be played here — download it instead.')
+                                  .format(LISTEN_MAX // 60))
             ydl.process_ie_result(info, download=True)
             return info
 
@@ -1600,7 +1757,7 @@ def listen_copy(url):
             raise StreamError(human_error(e)) from None
         src = next((f for f in folder.glob('src.*') if not f.name.endswith('.part')), None)
         if not src:
-            raise StreamError('Не нашёл звук по этой ссылке.')
+            raise StreamError(tr('Не нашёл звук по этой ссылке.', 'No audio found at this link.'))
         out = folder / 'listen.m4a'
         for audio in (['-c:a', 'copy'], ['-c:a', 'aac', '-b:a', '160k']):  # не всякий звук ложится в M4A как есть
             done = subprocess.run([str(FFMPEG), '-hide_banner', '-nostdin', '-y', '-loglevel', 'error', '-i', str(src),
@@ -1608,7 +1765,8 @@ def listen_copy(url):
             if done.returncode == 0:
                 break
         else:
-            raise StreamError('Не получилось подготовить звук для прослушивания — скачайте файл.')
+            raise StreamError(tr('Не получилось подготовить звук для прослушивания — скачайте файл.',
+                               'Could not prepare the audio for listening — download the file.'))
         src.unlink(missing_ok=True)
     except BaseException:
         shutil.rmtree(folder, ignore_errors=True)
@@ -1695,7 +1853,7 @@ def api_listen():
     """Готовит прослушивание: ищет поток и отвечает понятной ошибкой, если послушать нельзя."""
     url = text_arg(json_body(), 'url')
     if not URL_RE.match(url):
-        return jsonify(error='Нужна ссылка на песню или видео.'), 400
+        return jsonify(error=tr('Нужна ссылка на песню или видео.', 'A link to a song or video is required.')), 400
     try:
         return jsonify(ok=True, **find_stream(url)['meta'])
     except StreamError as e:
@@ -1707,7 +1865,7 @@ def api_stream():
     """Звук песни для <audio>: с поддержкой Range, чтобы работала перемотка."""
     url = request.args.get('url', '').strip()
     if not URL_RE.match(url):
-        return jsonify(error='Нужна ссылка на песню или видео.'), 400
+        return jsonify(error=tr('Нужна ссылка на песню или видео.', 'A link to a song or video is required.')), 400
     m = re.fullmatch(r'bytes=(\d*)-(\d*)', request.headers.get('Range', '').strip())
     start = int(m.group(1)) if m and m.group(1) else 0
     end = int(m.group(2)) if m and m.group(2) else None
@@ -1720,7 +1878,7 @@ def api_stream():
             try:
                 resp = send_file(stream['file'], mimetype=stream['mime'], conditional=True, max_age=0)
             except FileNotFoundError:
-                return jsonify(error='Файл для прослушивания пропал — включите песню ещё раз.'), 410
+                return jsonify(error=tr('Файл для прослушивания пропал — включите песню ещё раз.', 'The listening file is gone — play the song again.')), 410
             resp.headers['Cache-Control'] = 'no-store'
             return resp
         if stream['size'] and start >= stream['size']:
@@ -1735,7 +1893,7 @@ def api_stream():
             if attempt:  # ссылка протухла, а новая тоже не открылась
                 return jsonify(error=human_error(e)), 502
         except OSError as e:
-            return jsonify(error=f'Сайт не отвечает: {e}'), 502
+            return jsonify(error=tr('Сайт не отвечает: ', 'The site does not respond: ') + str(e)), 502
 
     headers = {'Content-Type': stream['mime'], 'Cache-Control': 'no-store'}
     if first.status != 206:  # сайт не умеет Range — отдаём как есть, без перемотки
@@ -1773,16 +1931,16 @@ def check_download(data):
     """Общая проверка вариант + папка. Возвращает (folder, ошибка)."""
     option = text_arg(data, 'option')
     if not (re.fullmatch(r'v(\d{1,4}|best)', option) or option in ('a_mp3', 'a_m4a')):
-        return None, 'Неизвестный вариант.'
+        return None, tr('Неизвестный вариант.', 'Unknown option.')
     track = text_arg(data, 'track')
     langs = data.get('langs') if isinstance(data.get('langs'), list) else []
     if track and track != 'all' and not LANG_ID.fullmatch(track) or len(langs) > 60 or             not all(isinstance(x, str) and LANG_ID.fullmatch(x) for x in langs):
-        return None, 'Неизвестная звуковая дорожка.'
+        return None, tr('Неизвестная звуковая дорожка.', 'Unknown audio track.')
     if data.get('subs') is not None and not parse_subs(data):
-        return None, 'Неизвестные субтитры.'
+        return None, tr('Неизвестные субтитры.', 'Unknown subtitles.')
     folder = Path(text_arg(data, 'dir')) if text_arg(data, 'dir') else download_dir()
     if not folder.is_absolute() or not folder.is_dir():
-        return None, f'Папка не найдена: {folder}'
+        return None, tr('Папка не найдена: ', 'Folder not found: ') + str(folder)
     return folder, None
 
 
@@ -1803,13 +1961,13 @@ def parse_section(data):
         start = float(start or 0)
         end = float(end) if end not in (None, '') else float(data.get('duration') or 0)
     except (TypeError, ValueError):
-        return 'Время фрагмента указано неверно.'
+        return tr('Время фрагмента указано неверно.', 'The clip time is invalid.')
     if not (math.isfinite(start) and math.isfinite(end)):
-        return 'Время фрагмента указано неверно.'
+        return tr('Время фрагмента указано неверно.', 'The clip time is invalid.')
     if not end:
-        return 'Укажите, где фрагмент заканчивается.'
+        return tr('Укажите, где фрагмент заканчивается.', 'Specify where the clip ends.')
     if start < 0 or end <= start:
-        return 'Конец фрагмента должен быть позже начала.'
+        return tr('Конец фрагмента должен быть позже начала.', 'The clip end must be after its start.')
     return start, end
 
 
@@ -1831,7 +1989,7 @@ def new_task(data, folder, url, title, seq, index=0, section=None, from_list=Fal
         'track': text_arg(data, 'track'), 'langs': data['langs'] if isinstance(data.get('langs'), list) else [],
         'subs': parse_subs(data) if option.startswith('v') and not section and not from_list else None,
         'loop': data.get('loop') is not False,  # COUB: видео по кругу под звук, если не выбрали иначе
-        'status': 'running', 'stage': 'Подготовка', 'percent': 0,
+        'status': 'running', 'stage': tr('Подготовка', 'Preparing'), 'percent': 0,
         'speed': '', 'eta': '', 'item': '', 'error': '', 'error_detail': '',
         'files': [], 'tmp': set(), 'procs': [], 'cancel': False,
         'sort': (-seq, index),  # новые запросы сверху, ссылки из одного списка — по порядку
@@ -1852,7 +2010,7 @@ def api_download():
         return jsonify(error=section), 400
     url = text_arg(data, 'url')
     if not URL_RE.match(url):
-        return jsonify(error='Нужна ссылка на видео.'), 400
+        return jsonify(error=tr('Нужна ссылка на видео.', 'A video link is required.')), 400
     task = new_task(data, folder, url, text_arg(data, 'title') or url, next(request_seq), section=section)
     threading.Thread(target=run_task, args=(task,), daemon=True).start()
     return jsonify(id=task['id'])
@@ -1873,12 +2031,12 @@ def api_batch():
             title = titles[i] if i < len(titles) and isinstance(titles[i], str) else ''
             urls.setdefault(u.strip(), title.strip()[:300] or u.strip())
     if not urls:
-        return jsonify(error='Не нашёл ни одной ссылки.'), 400
+        return jsonify(error=tr('Не нашёл ни одной ссылки.', 'No links found.')), 400
     seq = next(request_seq)
     ids = []
     for i, (url, title) in enumerate(urls.items()):
         task = new_task(data, folder, url, title, seq, i, from_list=True)
-        task['status'], task['stage'] = 'queued', 'В очереди'
+        task['status'], task['stage'] = 'queued', tr('В очереди', 'Queued')
         download_queue.put(task)
         ids.append(task['id'])
     return jsonify(ids=ids)
@@ -1890,11 +2048,11 @@ def queue_worker():
         with tasks_lock:
             if task['status'] != 'queued':  # отменили, пока ждала очереди
                 continue
-            task['status'], task['stage'] = 'running', 'Подготовка'
+            task['status'], task['stage'] = 'running', tr('Подготовка', 'Preparing')
         try:
             run_task(task)
         except Exception as e:  # noqa: BLE001 — иначе поток очереди умрёт и остальные ссылки зависнут
-            task['status'], task['stage'], task['error'] = 'error', 'Ошибка', str(e)
+            task['status'], task['stage'], task['error'] = 'error', tr('Ошибка', 'Error'), str(e)
 
 
 threading.Thread(target=queue_worker, daemon=True).start()
@@ -1926,7 +2084,8 @@ def free_name(path):
 
 
 def size_mb(num):
-    return f'{num / 1024 / 1024:.0f} МБ' if num >= 10 * 1024 * 1024 else f'{num / 1024 / 1024:.1f} МБ'
+    mb = tr('МБ', 'MB')
+    return f'{num / 1024 / 1024:.0f} {mb}' if num >= 10 * 1024 * 1024 else f'{num / 1024 / 1024:.1f} {mb}'
 
 
 def compress_file(task, src):
@@ -1983,7 +2142,7 @@ def run_compress(task):
     try:
         for i, src in enumerate(task['sources'], 1):
             if len(task['sources']) > 1:
-                task['item'] = f'{i} из {len(task["sources"])}'
+                task['item'] = tr('{} из {}', '{} of {}').format(i, len(task['sources']))
             task['percent'] = 0
             path, before, after = compress_file(task, src)
             if path:
@@ -1991,22 +2150,24 @@ def run_compress(task):
                 total_before, total_after = total_before + before, total_after + after
             else:
                 kept += 1
-        task['status'], task['stage'], task['percent'] = 'done', 'Готово', 100
+        task['status'], task['stage'], task['percent'] = 'done', tr('Готово', 'Done'), 100
         if task['files']:
             saved = round((1 - total_after / total_before) * 100)
-            task['label'] = f'Сжато: {size_mb(total_before)} → {size_mb(total_after)} (меньше на {saved}%)'
+            task['label'] = tr('Сжато: {} → {} (меньше на {}%)', 'Compressed: {} → {} ({}% smaller)').format(
+                size_mb(total_before), size_mb(total_after), saved)
             if kept:
-                task['label'] += f' · {kept} уже были сжаты хорошо'
+                task['label'] += tr(' · {} уже были сжаты хорошо', ' · {} were already well compressed').format(kept)
         else:
-            task['label'] = 'Видео уже сжато хорошо — меньше не получилось, оставил как было'
+            task['label'] = tr('Видео уже сжато хорошо — меньше не получилось, оставил как было',
+                               'The video is already well compressed — could not make it smaller, kept it as is')
     except Cancelled:
-        task['status'], task['stage'] = 'cancelled', 'Отменено'
+        task['status'], task['stage'] = 'cancelled', tr('Отменено', 'Cancelled')
     except Exception as e:  # noqa: BLE001
         if task['cancel']:
-            task['status'], task['stage'] = 'cancelled', 'Отменено'
+            task['status'], task['stage'] = 'cancelled', tr('Отменено', 'Cancelled')
         else:
-            task['status'], task['stage'] = 'error', 'Ошибка'
-            task['error'], task['error_detail'] = 'Не удалось сжать видео.', str(e)
+            task['status'], task['stage'] = 'error', tr('Ошибка', 'Error')
+            task['error'], task['error_detail'] = tr('Не удалось сжать видео.', 'Could not compress the video.'), str(e)
     task['item'] = task['eta'] = ''
     for name in task['tmp']:  # недоделанный .part после отмены или ошибки
         if name.endswith('.part'):
@@ -2022,7 +2183,7 @@ def compress_worker():
         with tasks_lock:
             if task['status'] != 'queued':
                 continue
-            task['status'], task['stage'] = 'running', 'Сжимаю'
+            task['status'], task['stage'] = 'running', tr('Сжимаю', 'Compressing')
         run_compress(task)
 
 
@@ -2035,9 +2196,10 @@ def api_compress(task_id):
     files = [f for f in (source or {}).get('files', [])
              if Path(f).suffix.lower() in VIDEO_EXTS and os.path.exists(f)]
     if not source or source['status'] != 'done' or not files:
-        return jsonify(error='Сжать можно только скачанное видео, которое лежит на месте.'), 400
+        return jsonify(error=tr('Сжать можно только скачанное видео, которое лежит на месте.',
+                                 'Only a downloaded video that is still in place can be compressed.')), 400
     task = new_task({'option': 'compress'}, Path(files[0]).parent, '', source['title'], next(request_seq))
-    task.update(kind='compress', label='Сжатие видео', status='queued', stage='В очереди',
+    task.update(kind='compress', label=tr('Сжатие видео', 'Video compression'), status='queued', stage=tr('В очереди', 'Queued'),
                 source=task_id, sources=files, origin=source.get('origin', 'link'))
     compress_queue.put(task)
     return jsonify(id=task['id'])
@@ -2055,7 +2217,7 @@ def api_tasks():
 def cancel_task(task):
     with tasks_lock:
         if task['status'] == 'queued':
-            task['status'], task['stage'] = 'cancelled', 'Отменено'
+            task['status'], task['stage'] = 'cancelled', tr('Отменено', 'Cancelled')
             return
     task['cancel'] = True
     for proc in list(task['procs']):
@@ -2108,7 +2270,8 @@ def api_open():
 def api_settings():
     s = load_settings()
     return jsonify(download_dir=str(download_dir()), ask_every_time=s['ask_every_time'],
-                   proxy=s['proxy'], proxy_all=s['proxy_all'], proxy_sites=s['proxy_sites'], doh=s['doh'])
+                   proxy=s['proxy'], proxy_all=s['proxy_all'], proxy_sites=s['proxy_sites'], doh=s['doh'],
+                   lang=i18n.CURRENT)
 
 
 @app.post('/api/settings')
@@ -2120,10 +2283,17 @@ def api_settings_save():
         save_settings(proxy_all=bool(data['proxy_all']))
     if 'doh' in data:
         save_settings(doh=bool(data['doh']))
+    if data.get('lang') in i18n.LANGS:
+        save_settings(lang=data['lang'])
+        i18n.set_lang(data['lang'])
+        if tray_icon:
+            tray_icon.title = APP_NAME()
+            tray_icon.update_menu()
     if 'proxy' in data:
         proxy = normalize_proxy(text_arg(data, 'proxy')) if text_arg(data, 'proxy') else ''
         if proxy is None:
-            return jsonify(error='Это не похоже на адрес прокси. Пример: socks5://127.0.0.1:10808'), 400
+            return jsonify(error=tr('Это не похоже на адрес прокси. Пример: ', 'This does not look like a proxy address. Example: ')
+                           + 'socks5://127.0.0.1:10808'), 400
         save_settings(proxy=proxy)
     return api_settings()
 
@@ -2135,16 +2305,21 @@ def api_proxy_check():
     if text:
         proxy = normalize_proxy(text)
         if proxy is None:
-            return jsonify(error='Это не похоже на адрес прокси. Пример: socks5://127.0.0.1:10808'), 400
+            return jsonify(error=tr('Это не похоже на адрес прокси. Пример: ', 'This does not look like a proxy address. Example: ')
+                           + 'socks5://127.0.0.1:10808'), 400
         if not proxy_alive(proxy):
-            return jsonify(ok=False, error='По этому адресу никто не отвечает. Включена ли VPN-программа?')
+            return jsonify(ok=False, error=tr('По этому адресу никто не отвечает. Включена ли VPN-программа?',
+                                        'Nothing answers at this address. Is the VPN app running?'))
         if not proxy_works(proxy):
-            return jsonify(ok=False, error='Прокси отвечает, но YouTube через него не открылся.')
+            return jsonify(ok=False, error=tr('Прокси отвечает, но YouTube через него не открылся.',
+                                        'The proxy answers, but YouTube did not open through it.'))
     else:
         proxy = find_proxy()
         if not proxy:
-            return jsonify(ok=False, error='Прокси VPN-программы на компьютере не найден. Включите VPN-программу '
-                                           'или впишите адрес из её настроек (раздел «Прокси», «SOCKS», «Порт»).')
+            return jsonify(ok=False, error=tr('Прокси VPN-программы на компьютере не найден. Включите VPN-программу '
+                                              'или впишите адрес из её настроек (раздел «Прокси», «SOCKS», «Порт»).',
+                                              'No VPN app proxy found on this computer. Turn on the VPN app '
+                                              'or enter the address from its settings (the “Proxy”, “SOCKS” or “Port” section).'))
     save_settings(proxy=proxy)
     return jsonify(ok=True, proxy=proxy)
 
@@ -2200,7 +2375,7 @@ def notify(text):
     print(text)
     if tray_icon is not None:
         try:
-            tray_icon.notify(text, 'Универсальный скачиватель')
+            tray_icon.notify(text, APP_NAME())
         except Exception:  # noqa: BLE001
             pass
 
@@ -2213,19 +2388,20 @@ def show_page(quiet=False):
     if tell_pages('ping') and page_answered.wait(2):
         tell_pages('here')
         if SPLASH and SPLASH.alive:
-            SPLASH.close(ALREADY_OPEN_TEXT, 2.5)
+            SPLASH.close(str(ALREADY_OPEN_TEXT), 2.5)
         elif not quiet:
-            notify('Программа уже открыта — во вкладке браузера «Универсальный скачиватель».')
+            notify(tr('Программа уже открыта — во вкладке браузера «Универсальный скачиватель».',
+                       'The program is already open — in the “Universal Downloader” browser tab.'))
         return False
     if SPLASH and SPLASH.alive:
-        SPLASH.set_text('Открываю страницу в браузере…')
+        SPLASH.set_text(tr('Открываю страницу в браузере…', 'Opening the page in the browser…'))
         page_opening.set()
         threading.Thread(target=close_splash_later, daemon=True).start()
     webbrowser.open(f'http://{HOST}:{PORT}')
     return True
 
 
-ALREADY_OPEN_TEXT = 'Уже открыта — во вкладке браузера'
+ALREADY_OPEN_TEXT = Text('Уже открыта — во вкладке браузера', 'Already open — in a browser tab')
 
 
 def close_splash_later():
@@ -2234,7 +2410,8 @@ def close_splash_later():
     time.sleep(20)
     if SPLASH.alive:
         SPLASH.close()
-        notify(f'Программа запущена: значок — здесь, у часов, страница — http://{HOST}:{PORT}')
+        notify(tr('Программа запущена: значок — здесь, у часов, страница — ',
+                   'The program is running: the icon is here by the clock, the page is ') + f'http://{HOST}:{PORT}')
 
 
 @app.post('/api/show')
@@ -2274,11 +2451,13 @@ def fail(message):
         SPLASH.close()
     if TRAY and os.name == 'nt':
         import ctypes
-        ctypes.windll.user32.MessageBoxW(None, message, 'Универсальный скачиватель', 0x10)
+        ctypes.windll.user32.MessageBoxW(None, message, APP_NAME(), 0x10)
 
 
-BUSY_TEXT = ('Порт {port} занят другой программой, поэтому скачиватель не запустился. '
-             'Поменяйте «port» в settings.json (например, на 8766) и запустите снова.')
+BUSY_TEXT = Text('Порт {port} занят другой программой, поэтому скачиватель не запустился. '
+                 'Поменяйте «port» в settings.json (например, на 8766) и запустите снова.',
+                 'Port {port} is used by another program, so the downloader did not start. '
+                 'Change “port” in settings.json (for example, to 8766) and start again.')
 
 
 def open_downloads():
@@ -2355,22 +2534,23 @@ def run_tray():
         threading.Thread(target=show_page, daemon=True).start()
 
     menu = pystray.Menu(
-        pystray.MenuItem('Открыть', open_page, default=True),  # и по щелчку на значке
-        pystray.MenuItem('Папка загрузок', open_downloads),
-        pystray.MenuItem(lambda item: f'Обновить до версии {app_update["latest"]["version"]}' if app_update['latest'] else '',
+        pystray.MenuItem(lambda item: tr('Открыть', 'Open'), open_page, default=True),  # и по щелчку на значке
+        pystray.MenuItem(lambda item: tr('Папка загрузок', 'Downloads folder'), open_downloads),
+        pystray.MenuItem(lambda item: tr('Обновить до версии ', 'Update to version ') + app_update['latest']['version'] if app_update['latest'] else '',
                          open_page, visible=lambda item: bool(app_update['latest']) and not DEV_COPY),
         pystray.Menu.SEPARATOR,
-        pystray.MenuItem('Выход', quit_app),
+        pystray.MenuItem(lambda item: tr('Выход', 'Exit'), quit_app),
     )
 
     def setup(icon):
         icon.visible = True
         result = app_update['result']
         if result:
-            notify(f'Программа обновлена до версии {result["to"]}.' if result.get('ok')
-                   else f'Обновление не установилось: {result.get("error")}')
+            notify(tr('Программа обновлена до версии {}.', 'The program was updated to version {}.').format(result['to'])
+                   if result.get('ok') else tr('Обновление не установилось: ', 'The update did not install: ')
+                   + str(result.get('error')))
 
-    tray_icon = pystray.Icon('downloader', Image.open(ICON), 'Универсальный скачиватель', menu)
+    tray_icon = pystray.Icon('downloader', Image.open(ICON), APP_NAME(), menu)
     tray_icon.run(setup)
 
 
@@ -2380,7 +2560,7 @@ def main():
     if owner == 'ours':  # уже запущено — открываем страницу, только если её нет ни в одной вкладке
         if '--no-browser' not in sys.argv:
             if SPLASH:
-                SPLASH.set_text('Уже запущена — открываю страницу…')
+                SPLASH.set_text(tr('Уже запущена — открываю страницу…', 'Already running — opening the page…'))
             body = json.dumps({'quiet': bool(SPLASH)}).encode()
             req = urllib.request.Request(f'{url}/api/show', body, {'Content-Type': 'application/json'})
             try:
@@ -2390,14 +2570,14 @@ def main():
                 opened = True
                 webbrowser.open(url)
             if SPLASH:  # процесс сейчас завершится — ждём, пока надпись прочитают и заставка исчезнет
-                SPLASH.close(None if opened else ALREADY_OPEN_TEXT, 1.0 if opened else 2.5)
+                SPLASH.close(None if opened else str(ALREADY_OPEN_TEXT), 1.0 if opened else 2.5)
                 SPLASH.wait()
         elif SPLASH:
             SPLASH.close()
             SPLASH.wait()
         return
     if owner == 'other':
-        fail(BUSY_TEXT.format(port=PORT))
+        fail(str(BUSY_TEXT).format(port=PORT))
         return
     prepare_ffmpeg()
     shutil.rmtree(LISTEN_DIR, ignore_errors=True)  # песни для прослушивания с прошлого раза
@@ -2411,12 +2591,12 @@ def main():
     try:
         server = make_server(HOST, PORT, app, threaded=True)
     except (OSError, SystemExit):
-        fail(BUSY_TEXT.format(port=PORT))
+        fail(str(BUSY_TEXT).format(port=PORT))
         return
     if '--no-browser' not in sys.argv:
         threading.Thread(target=open_page_later, daemon=True).start()
     elif SPLASH:  # запустила кнопка расширения — его вкладка сама перейдёт на страницу, как только порт ответит
-        SPLASH.close('Запущена', 1.0)
+        SPLASH.close(tr('Запущена', 'Running'), 1.0)
     if not DEV_COPY:
         threading.Thread(target=check_app_update_regularly, daemon=True).start()
     if not TRAY:

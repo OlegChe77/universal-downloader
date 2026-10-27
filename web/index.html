@@ -545,6 +545,7 @@
   <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
   <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
   <symbol id="i-auto" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 0 17z" fill="currentColor"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9M12 3c-2.5 2.6-3.8 5.6-3.8 9s1.3 6.4 3.8 9"/></symbol>
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17.5h.01"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.8-3.8"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></symbol>
@@ -583,6 +584,9 @@
         <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
           <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
         </a>
+        <button class="btn ghost small lang-btn" id="lang" type="button" title="Switch to English" lang="en">
+          <svg class="icon"><use href="#i-globe"/></svg><span>English</span>
+        </button>
       </div>
     </div>
   </header>
@@ -598,28 +602,36 @@
     <div class="quick-body">
       <div class="quick-col">
         <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
-        <p>Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
+        <p data-en="A button on the browser toolbar and the “Send to Downloader” item in the right-click menu — for the page
+          and for any link under the cursor. If the program page is already open, the link goes there.">Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
           и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
         <div class="quick-actions">
           <a class="btn primary" href="/extension.zip" download><svg class="icon"><use href="#i-download"/></svg>Скачать расширение (zip)</a>
           <a class="link" href="/help#extension">Подробная инструкция</a>
         </div>
         <ul class="q-steps">
-          <li><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
+          <li data-en="&lt;b&gt;Chrome, Edge, Yandex, Opera:&lt;/b&gt; unpack the archive into a permanent folder → the extensions page
+            (&lt;code&gt;chrome://extensions&lt;/code&gt;, &lt;code&gt;edge://extensions&lt;/code&gt;, &lt;code&gt;browser://extensions&lt;/code&gt;, &lt;code&gt;opera://extensions&lt;/code&gt;) →
+            “Developer mode” → “Load unpacked” → the folder with &lt;code&gt;manifest.json&lt;/code&gt;."><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
             (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
             «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
-          <li><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
+          <li data-en="&lt;b&gt;Firefox:&lt;/b&gt; &lt;code&gt;about:debugging#/runtime/this-firefox&lt;/code&gt; → “Load Temporary Add-on…” →
+            the zip itself, no need to unpack. Works until Firefox restarts — then load it again."><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
             сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
         </ul>
       </div>
       <div class="quick-col" data-bm-box>
         <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
-        <p>Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
+        <p data-en="Nothing to install, works in any browser, including Safari. Drag the button with the mouse
+          to the bookmarks bar, then click the bookmark on a page with a video or song.">Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
           на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
         <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
         <div class="bm-note" data-bm-note role="status"></div>
         <div class="drag-hint" data-drag-hint></div>
-        <p class="muted small">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
+        <p class="muted small" data-en="No bookmarks bar? Press &lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;
+          (in Safari — &lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;, in Opera — “Easy setup” at the top right → “Show bookmarks bar”).
+          Cannot drag it? &lt;button class=&quot;link&quot; type=&quot;button&quot; data-copy-bookmarklet&gt;Copy the code&lt;/button&gt;
+          and paste it as the bookmark address.">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
           (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
           Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
           и вставьте его вместо адреса закладки.</p>
@@ -661,7 +673,7 @@
     <div class="hints">
       <span>Скопируйте адрес из браузера и вставьте сюда — варианты появятся сами</span>
       <span>Несколько ссылок — каждую с новой строки, скачаются по очереди</span>
-      <span><kbd>Enter</kbd>&nbsp;— найти, <kbd>Shift</kbd>+<kbd>Enter</kbd>&nbsp;— новая строка</span>
+      <span data-en="&lt;kbd&gt;Enter&lt;/kbd&gt;&amp;nbsp;— find, &lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;Enter&lt;/kbd&gt;&amp;nbsp;— new line"><kbd>Enter</kbd>&nbsp;— найти, <kbd>Shift</kbd>+<kbd>Enter</kbd>&nbsp;— новая строка</span>
     </div>
     <div class="error hidden" id="link-error"></div>
     <div class="loading-row hidden" id="link-loading"><div class="sk"></div><span class="spinner"></span>Смотрю, что лежит по ссылке…</div>
@@ -753,12 +765,14 @@
     </form>
     <div class="hints">
       <span>Ищем сразу на YouTube, SoundCloud и Rutube и показываем по 10 вариантов</span>
-      <span><b>MP3</b>&nbsp;— сразу скачать песню с обложкой и тегами</span>
-      <span><b>Ещё форматы</b>&nbsp;— видео или M4A</span>
-      <span><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
-      <span><b>Галочки</b>&nbsp;— выбрать несколько песен и скачать одной кнопкой</span>
+      <span data-en="&lt;b&gt;MP3&lt;/b&gt;&amp;nbsp;— download the song with cover and tags right away"><b>MP3</b>&nbsp;— сразу скачать песню с обложкой и тегами</span>
+      <span data-en="&lt;b&gt;More formats&lt;/b&gt;&amp;nbsp;— video or M4A"><b>Ещё форматы</b>&nbsp;— видео или M4A</span>
+      <span data-en="&lt;b&gt;▶&lt;/b&gt;&amp;nbsp;on the cover — listen before downloading"><b>▶</b>&nbsp;на обложке — послушать перед скачиванием</span>
+      <span data-en="&lt;b&gt;Checkboxes&lt;/b&gt;&amp;nbsp;— select several songs and download them with one button"><b>Галочки</b>&nbsp;— выбрать несколько песен и скачать одной кнопкой</span>
     </div>
-    <div class="music-note" id="music-note">Ищем на <b>YouTube, SoundCloud и Rutube</b> — в одном списке, сайт виден
+    <div class="music-note" id="music-note" data-en="We search &lt;b&gt;YouTube, SoundCloud and Rutube&lt;/b&gt; — in one list, the site is shown
+      in the song row. If some site does not open, songs from the others still appear. For a song from another site
+      (Bandcamp, Vimeo…) use the “By link” tab: paste the link and choose “Audio only”.">Ищем на <b>YouTube, SoundCloud и Rutube</b> — в одном списке, сайт виден
       в строке песни. Если какой-то сайт не открылся (YouTube без VPN), песни найдутся на остальных. Песню с другого сайта
       (VK, Яндекс Музыка…) скачивайте на вкладке «По ссылке»: вставьте ссылку и выберите «Только звук».</div>
     <div class="examples" id="examples">
@@ -787,7 +801,10 @@
   <section class="card panel not-first is-last" id="panel-vpn" role="tabpanel" aria-labelledby="tab-vpn" hidden>
     <div class="proxy">
       <p class="proxy-state">Сейчас: <b id="proxy-state">…</b></p>
-      <p class="muted">VPN-расширение в браузере на программу не действует: она ходит в интернет сама.
+      <p class="muted" data-en="A VPN browser extension does not affect the program: it goes online by itself.
+        For blocked sites, turn on a VPN app on the computer. If it has a
+        proxy (v2rayN, Hiddify, NekoBox, Clash, Happ…), the program finds it by itself when a site does not open
+        directly — or press “Find”. &lt;a href=&quot;/help#vpn&quot;&gt;More&lt;/a&gt;">VPN-расширение в браузере на программу не действует: она ходит в интернет сама.
         Для закрытых сайтов (YouTube, Instagram, Pornhub…) включите VPN-программу на компьютере. Если у неё есть
         прокси (v2rayN, Hiddify, NekoBox, Clash, Happ…), программа сама найдёт его, когда сайт не откроется
         напрямую, — или нажмите «Найти». <a href="/help#vpn">Подробнее</a></p>
@@ -800,14 +817,16 @@
       <div class="note-line" id="proxy-note"></div>
       <div class="doh">
         <label class="ask"><input type="checkbox" id="doh"> Защищённый DNS</label>
-        <p class="muted">Искать адреса сайтов через DNS по HTTPS (Cloudflare, Google), если DNS провайдера их не находит —
+        <p class="muted" data-en="Look up site addresses via DNS over HTTPS (Cloudflare, Google) when your provider’s DNS cannot find them —
+          the error “Could not find the site”. &lt;a href=&quot;/help#doh&quot;&gt;More&lt;/a&gt;">Искать адреса сайтов через DNS по HTTPS (Cloudflare, Google), если DNS провайдера их не находит —
           ошибка «Не удалось найти сайт в сети». Помогает вместе с zapret и похожими программами.
           <a href="/help#doh">Подробнее</a></p>
       </div>
     </div>
   </section>
 
-  <footer>Программа работает на вашем компьютере. Если перестало качать — загляните в <a href="/help#errors">помощь</a>.
+  <footer data-en="The program runs on your computer. If downloads stop working, see &lt;a href=&quot;/help#errors&quot;&gt;Help&lt;/a&gt;.
+    With a VPN: turn it on for the whole computer and do not switch it during a download — &lt;a href=&quot;/help#vpn&quot;&gt;more&lt;/a&gt;.">Программа работает на вашем компьютере. Если перестало качать — загляните в <a href="/help#errors">помощь</a>.
     С VPN: включайте его для всего компьютера и не переключайте во время загрузки — <a href="/help#vpn">подробнее</a>.</footer>
 </main>
 
@@ -852,7 +871,9 @@
 
 <div class="toast" id="toast" role="status"><span id="toast-text"></span></div>
 
+<script src="/i18n.js"></script>
 <script>
+translatePage();
 const $ = id => document.getElementById(id);
 const icon = name => `<svg class="icon"><use href="#i-${name}"/></svg>`;
 let current = null;      // что сейчас показано в карточке вариантов
@@ -883,7 +904,7 @@ async function api(path, body) {
   });
   const data = await res.json();
   if (!res.ok) {
-    const err = new Error(data.error || 'Ошибка сервера');
+    const err = new Error(data.error || L('Ошибка сервера', 'Server error'));
     err.detail = data.detail;  // есть у ошибок сайта/yt-dlp: исходный текст для «Подробнее»
     throw err;
   }
@@ -892,13 +913,14 @@ async function api(path, body) {
 
 function fmtSize(num) {
   if (!num) return '';
-  const units = ['Б', 'КБ', 'МБ', 'ГБ'];
+  const units = L(['Б', 'КБ', 'МБ', 'ГБ'], ['B', 'KB', 'MB', 'GB']);
   let i = 0;
   while (num >= 1024 && i < units.length - 1) { num /= 1024; i++; }
   return '~' + (i === 3 ? num.toFixed(1) : Math.round(num)) + ' ' + units[i];
 }
 
-function plural(n, one, few, many) {
+function plural(n, one, few, many, enOne, enMany) {
+  if (EN && enOne) return n === 1 ? enOne : enMany;
   const m10 = n % 10, m100 = n % 100;
   return m10 === 1 && m100 !== 11 ? one : m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14) ? few : many;
 }
@@ -916,8 +938,8 @@ function parseLinks(text) {
 
 // объяснение ошибки + «Подробнее» (исходный текст yt-dlp) + ссылка на разбор ошибок в помощи
 function errorExtra(detail, withHelp, id = '') {
-  return (detail ? `<details class="err-more" data-id="${id}"><summary>Подробнее</summary><code>${esc(detail)}</code></details>` : '')
-    + (withHelp ? `<a class="err-help" href="/help#errors">Что делать с ошибками</a>` : '');
+  return (detail ? `<details class="err-more" data-id="${id}"><summary>${L('Подробнее', 'Details')}</summary><code>${esc(detail)}</code></details>` : '')
+    + (withHelp ? `<a class="err-help" href="/help#errors">${L('Что делать с ошибками', 'What to do about errors')}</a>` : '');
 }
 function showError(box, err) {
   const msg = typeof err === 'string' ? err : err.message;
@@ -939,9 +961,9 @@ function hideToast() { $('toast').classList.remove('show'); }
 
 // ---------- тема ----------
 const THEMES = [
-  {id: 'auto', icon: 'auto', label: 'Тема: как в Windows'},
-  {id: 'light', icon: 'sun', label: 'Тема: светлая'},
-  {id: 'dark', icon: 'moon', label: 'Тема: тёмная'},
+  {id: 'auto', icon: 'auto', label: L('Тема: как в Windows', 'Theme: as in Windows')},
+  {id: 'light', icon: 'sun', label: L('Тема: светлая', 'Theme: light')},
+  {id: 'dark', icon: 'moon', label: L('Тема: тёмная', 'Theme: dark')},
 ];
 function applyTheme(id) {
   const t = THEMES.find(x => x.id === id) || THEMES[0];
@@ -957,6 +979,19 @@ $('theme').addEventListener('click', () => {
   applyTheme(next);
 });
 applyTheme(store.get('theme') || 'auto');
+
+// ---------- язык: настройка сервера (у часов, ошибки, заставка — тоже на нём), страница перезагружается ----------
+if (EN) {
+  $('lang').title = 'Переключить на русский';
+  $('lang').lang = 'ru';
+  $('lang').querySelector('span').textContent = 'Русский';
+}
+$('lang').addEventListener('click', async () => {
+  try {
+    await api('/api/settings', {lang: EN ? 'ru' : 'en'});
+    location.reload();
+  } catch (e) { toast(e.message); }
+});
 
 // ---------- вкладки ----------
 const TABS = ['link', 'music', 'vpn'];
@@ -1006,12 +1041,13 @@ function renderResult(r) {
   if (r.thumbnail) $('thumb').src = r.thumbnail;
   $('thumb-dur').textContent = duration(r.duration);
   $('thumb-dur').classList.toggle('hidden', !r.duration || !r.thumbnail);
-  $('site').textContent = r.site || 'Сайт';
+  $('site').textContent = r.site || L('Сайт', 'Site');
   $('title').textContent = r.title;
   // COUB: видео — петля на секунды, звук — целая песня
-  const length = r.loop ? `видео ${duration(r.loop.video)}, звук ${duration(r.loop.audio)}` : duration(r.duration);
-  $('info').textContent = [r.uploader, r.playlist ? `плейлист · ${r.count} ${plural(r.count, 'видео', 'видео', 'видео')}` : length,
-    r.live ? 'прямой эфир' : ''].filter(Boolean).join(' · ');
+  const length = r.loop ? L(`видео ${duration(r.loop.video)}, звук ${duration(r.loop.audio)}`,
+    `video ${duration(r.loop.video)}, audio ${duration(r.loop.audio)}`) : duration(r.duration);
+  $('info').textContent = [r.uploader, r.playlist ? `${L('плейлист', 'playlist')} · ${r.count} ${plural(r.count, 'видео', 'видео', 'видео', 'video', 'videos')}` : length,
+    r.live ? L('прямой эфир', 'live stream') : ''].filter(Boolean).join(' · ');
   const video = r.options.filter(o => o.kind === 'video');
   $('video').innerHTML = video.map(chip).join('');
   $('video-group').classList.toggle('hidden', !video.length);
@@ -1019,11 +1055,11 @@ function renderResult(r) {
   // несколько языков (дубляж YouTube, фильмы): первая — русская, иначе оригинал
   const tracks = r.tracks || [];
   $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
-    + (tracks.length && video.length ? '<option value="all">Все дорожки сразу (только видео)</option>' : '');
+    + (tracks.length && video.length ? `<option value="all">${L('Все дорожки сразу (только видео)', 'All tracks at once (video only)')}</option>` : '');
   $('track-group').classList.toggle('hidden', !tracks.length);
   // субтитры — только к видео; по умолчанию без них
   const subs = video.length ? r.subtitles || [] : [];
-  $('subs').innerHTML = '<option value="">Без субтитров</option>'
+  $('subs').innerHTML = `<option value="">${L('Без субтитров', 'No subtitles')}</option>`
     + subs.map((s, i) => `<option value="${i}">${esc(s.label)}</option>`).join('');
   $('subs').value = '';
   $('subs-mode').value = store.get('subsMode') === 'file' ? 'file' : 'embed';  // по умолчанию — вшить
@@ -1043,16 +1079,16 @@ function renderChoices(ch) {
   const players = ch && ch.players || [], seasons = ch && ch.seasons || [];
   $('choice-group').classList.toggle('hidden', players.length < 2 && !seasons.length);
   if (!ch) return;
-  $('ch-player').innerHTML = players.map((p, i) => `<option value="${i + 1}">Плеер ${esc(p)}</option>`).join('');
+  $('ch-player').innerHTML = players.map((p, i) => `<option value="${i + 1}">${L('Плеер', 'Player')} ${esc(p)}</option>`).join('');
   $('ch-player').value = ch.player || 1;
   $('ch-player').classList.toggle('hidden', players.length < 2);
-  $('ch-season').innerHTML = '<option value="">Все сезоны</option>'
-    + seasons.map(s => `<option value="${s.season}">${s.season} сезон</option>`).join('');
+  $('ch-season').innerHTML = `<option value="">${L('Все сезоны', 'All seasons')}</option>`
+    + seasons.map(s => `<option value="${s.season}">${L(s.season + ' сезон', 'Season ' + s.season)}</option>`).join('');
   $('ch-season').value = ch.season ?? '';
   $('ch-season').classList.toggle('hidden', !seasons.length);
   const episodes = (seasons.find(s => s.season === ch.season) || {}).episodes || [];
-  $('ch-episode').innerHTML = '<option value="">Все серии</option>'
-    + episodes.map(e => `<option value="${e}">${e} серия</option>`).join('');
+  $('ch-episode').innerHTML = `<option value="">${L('Все серии', 'All episodes')}</option>`
+    + episodes.map(e => `<option value="${e}">${L(e + ' серия', 'Episode ' + e)}</option>`).join('');
   $('ch-episode').value = ch.episode ?? '';
   $('ch-episode').classList.toggle('hidden', !episodes.length);
 }
@@ -1084,8 +1120,10 @@ function renderSizes() {
 }
 
 const SUBS_HINT = {
-  file: 'Файл .srt ляжет рядом с видео — плеер (VLC, «Кино и ТВ») подхватит его сам. К MP3 и M4A субтитров нет.',
-  embed: 'Субтитры будут внутри MP4 — включаются в меню субтитров плеера. К MP3 и M4A субтитров нет.',
+  file: L('Файл .srt ляжет рядом с видео — плеер (VLC, «Кино и ТВ») подхватит его сам. К MP3 и M4A субтитров нет.',
+    'The .srt file goes next to the video — a player (VLC, Movies & TV) picks it up by itself. MP3 and M4A get no subtitles.'),
+  embed: L('Субтитры будут внутри MP4 — включаются в меню субтитров плеера. К MP3 и M4A субтитров нет.',
+    'Subtitles go inside the MP4 — turn them on in the player’s subtitle menu. MP3 and M4A get no subtitles.'),
 };
 
 function renderSubs() {
@@ -1100,7 +1138,8 @@ function subsFor(id) {
   const s = $('subs').value === '' ? null : (current.subtitles || [])[$('subs').value];
   if (!s || !id.startsWith('v')) return {};
   return {subs: {lang: s.id, auto: s.auto, embed: $('subs-mode').value === 'embed'},
-    name: 'субтитры ' + s.label.replace(/ — .*/, '').toLowerCase() + ($('subs-mode').value === 'embed' ? ' (вшиты)' : '')};
+    name: L('субтитры ', 'subtitles ') + s.label.replace(/ — .*/, '').toLowerCase()
+      + ($('subs-mode').value === 'embed' ? L(' (вшиты)', ' (embedded)') : '')};
 }
 $('subs').addEventListener('change', () => renderSubs());
 $('subs-mode').addEventListener('change', () => {
@@ -1113,9 +1152,9 @@ function trackFor(id) {
   const tracks = current.tracks || [];
   if (!tracks.length) return {};
   const value = $('track').value === 'all' && !id.startsWith('v') ? tracks[0].id : $('track').value;
-  if (value === 'all') return {track: 'all', langs: tracks.map(t => t.id), name: 'все дорожки'};
+  if (value === 'all') return {track: 'all', langs: tracks.map(t => t.id), name: L('все дорожки', 'all tracks')};
   const t = tracks.find(x => x.id === value) || tracks[0];
-  return {track: t.id, name: t.label.replace(' — оригинал', '')};
+  return {track: t.id, name: t.label.replace(/ — (оригинал|original)$/, '')};
 }
 $('track').addEventListener('change', renderSizes);
 
@@ -1133,12 +1172,13 @@ async function startDownload(btn) {
     await api('/api/download', {
       url: fromMusic ? dialogHit.url : r.url, title: r.title, playlist: r.playlist, count: r.count,
       option: btn.dataset.id, dir, ...track, ...subs, origin: fromMusic ? 'music' : 'link',
-      label: [btn.dataset.label, name, subsName, {loop: 'по кругу', once: 'один раз'}[loop]].filter(Boolean).join(' · '),
+      label: [btn.dataset.label, name, subsName, {loop: L('по кругу', 'looped'), once: L('один раз', 'once')}[loop]].filter(Boolean).join(' · '),
       ...(loop ? {loop: loop === 'loop'} : {}),
     });
     btn.classList.add('added');
     btn.querySelector('use').setAttribute('href', '#i-check');
-    toast(`Скачивание началось: ${btn.dataset.label}${fromMusic ? ' — ход загрузки в строке песни' : ''}`);
+    toast(L('Скачивание началось: ', 'Download started: ') + btn.dataset.label
+      + (fromMusic ? L(' — ход загрузки в строке песни', ' — progress is shown in the song row') : ''));
     if ($('dlg').open) $('dlg').close();
   } catch (e) {
     showError($('dlg').open ? 'dlg-error' : 'link-error', e);
@@ -1192,7 +1232,7 @@ async function analyzeLink() {
     growInput();
     updateLinkClear();
     setTab('music');
-    toast('Это не ссылка — ищу песню по названию в разделе «Музыка».');
+    toast(L('Это не ссылка — ищу песню по названию в разделе «Музыка».', 'This is not a link — searching for a song by name on the Music tab.'));
     runSearch();
     return;
   }
@@ -1214,14 +1254,14 @@ async function analyzeLink() {
 
 function renderBatch(list) {
   batch = list;
-  $('batch-title').textContent = `${list.urls.length} ${plural(list.urls.length, 'ссылка', 'ссылки', 'ссылок')}` +
-    (list.skipped ? ` (строк без ссылки пропущено: ${list.skipped})` : '');
+  $('batch-title').textContent = `${list.urls.length} ${plural(list.urls.length, 'ссылка', 'ссылки', 'ссылок', 'link', 'links')}` +
+    (list.skipped ? L(` (строк без ссылки пропущено: ${list.skipped})`, ` (lines without a link skipped: ${list.skipped})`) : '');
   $('batch-links').innerHTML = list.urls.map(u => `<li title="${esc(u)}">${esc(u.replace(/^https?:\/\/(www\.)?/, ''))}</li>`).join('');
   $('batch-video').innerHTML = [2160, 1440, 1080, 720, 480, 360]
-    .map(h => chip({id: `v${h}`, label: `до ${h}p`, note: 'MP4'})).join('');
+    .map(h => chip({id: `v${h}`, label: L(`до ${h}p`, `up to ${h}p`), note: 'MP4'})).join('');
   $('batch-audio').innerHTML = [
-    {id: 'a_mp3', label: 'MP3', note: 'лучшее качество'},
-    {id: 'a_m4a', label: 'M4A', note: 'без перекодирования'},
+    {id: 'a_mp3', label: 'MP3', note: L('лучшее качество', 'best quality')},
+    {id: 'a_m4a', label: 'M4A', note: L('без перекодирования', 'no re-encoding')},
   ].map(chip).join('');
   $('batch').classList.remove('hidden');
 }
@@ -1236,7 +1276,8 @@ $('batch').addEventListener('click', async e => {
     batch.ids = [...(batch.ids || []), ...r.ids];  // ход загрузок — прямо в карточке списка
     btn.classList.add('added');
     btn.querySelector('use').setAttribute('href', '#i-check');
-    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'файл', 'файла', 'файлов')} (${btn.dataset.label}) — скачаются по одному.`);
+    toast(L(`В очереди ${r.ids.length} ${plural(r.ids.length, 'файл', 'файла', 'файлов')} (${btn.dataset.label}) — скачаются по одному.`,
+      `${r.ids.length} ${plural(r.ids.length, '', '', '', 'file', 'files')} queued (${btn.dataset.label}) — they download one at a time.`));
     poll();
   } catch (err) {
     showError('link-error', err);
@@ -1280,10 +1321,10 @@ function hitCard(h, i) {
   const site = h.site || 'YouTube';
   const sub = [h.uploader, h.duration ? duration(h.duration) : ''].filter(Boolean).join(' · ');
   return `<article class="hit" data-url="${esc(h.url)}">
-    <label class="pick" title="Выбрать"><input type="checkbox" data-pick="${i}" aria-label="Выбрать: ${esc(h.title)}"></label>
+    <label class="pick" title="${L('Выбрать', 'Select')}"><input type="checkbox" data-pick="${i}" aria-label="${L('Выбрать', 'Select')}: ${esc(h.title)}"></label>
     <div class="cover">
       ${h.thumbnail ? `<img src="${esc(h.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}
-      <button class="listen" type="button" data-hit="${i}" data-act="listen" data-listen="${esc(h.url)}" aria-label="Послушать" title="Послушать"></button>
+      <button class="listen" type="button" data-hit="${i}" data-act="listen" data-listen="${esc(h.url)}" aria-label="${L('Послушать', 'Listen')}" title="${L('Послушать', 'Listen')}"></button>
       <div class="cover-bar hidden"><i></i></div>
     </div>
     <div class="hit-body">
@@ -1291,8 +1332,8 @@ function hitCard(h, i) {
       <div class="hit-sub" title="${esc([site, sub].filter(Boolean).join(' · '))}"><span class="site site-${esc(site.toLowerCase())}">${esc(site)}</span>${sub ? ' · ' + esc(sub) : ''}</div>
     </div>
     <div class="hit-actions">
-      <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="Скачать песню в MP3">${icon('download')}MP3</button>
-      <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="Видео или M4A">Ещё форматы</button>
+      <button class="btn primary small mp3" type="button" data-hit="${i}" data-act="mp3" title="${L('Скачать песню в MP3', 'Download the song as MP3')}">${icon('download')}MP3</button>
+      <button class="btn ghost small" type="button" data-hit="${i}" data-act="more" title="${L('Видео или M4A', 'Video or M4A')}">${L('Ещё форматы', 'More formats')}</button>
     </div>
     <div class="tasks inline hit-tasks"></div>
   </article>`;
@@ -1308,7 +1349,7 @@ function updatePickBar() {
   $('pick-bar').classList.toggle('hidden', !boxes.length);
   $('pick-all').checked = n > 0 && n === boxes.length;
   $('pick-all').indeterminate = n > 0 && n < boxes.length;
-  $('pick-count').innerHTML = n ? `Выбрано <b>${n}</b> из ${boxes.length}` : 'Выбрать все';
+  $('pick-count').innerHTML = n ? L(`Выбрано <b>${n}</b> из ${boxes.length}`, `Selected <b>${n}</b> of ${boxes.length}`) : L('Выбрать все', 'Select all');
   $('pick-mp3').disabled = $('pick-m4a').disabled = !n;
   boxes.forEach(b => b.closest('.hit').classList.toggle('picked', b.checked));
 }
@@ -1329,7 +1370,8 @@ async function downloadPicked(btn) {
   try {
     const r = await api('/api/batch', {urls: list.map(h => h.url), titles: list.map(h => h.title), option, label, dir, origin: 'music'});
     pickBoxes().forEach(b => { b.checked = false; });
-    toast(`В очереди ${r.ids.length} ${plural(r.ids.length, 'песня', 'песни', 'песен')} (${label}) — скачаются по одной, ход загрузки — в строках песен.`);
+    toast(L(`В очереди ${r.ids.length} ${plural(r.ids.length, 'песня', 'песни', 'песен')} (${label}) — скачаются по одной, ход загрузки — в строках песен.`,
+      `${r.ids.length} ${plural(r.ids.length, '', '', '', 'song', 'songs')} queued (${label}) — they download one at a time, progress is in the song rows.`));
   } catch (err) {
     showError('music-error', err);
   }
@@ -1356,7 +1398,7 @@ async function runSearch() {
   $('music-go').disabled = true;
   $('more-row').classList.add('hidden');
   $('search-head').classList.remove('hidden');
-  $('search-title').textContent = `Ищу «${q}»…`;
+  $('search-title').textContent = L(`Ищу «${q}»…`, `Searching for “${q}”…`);
   $('search-count').textContent = '';
   $('search-failed').classList.add('hidden');
   $('hits').innerHTML = skeletonCard().repeat(6);
@@ -1382,12 +1424,13 @@ function renderSearch(data) {
   const html = data.results.map((h, j) => hitCard(h, from + j)).join('');
   if (append) $('hits').insertAdjacentHTML('beforeend', html);
   else $('hits').innerHTML = html;
-  $('search-title').textContent = `Найдено по запросу «${data.query}»`;
-  $('search-count').textContent = `${hits.length} ${plural(hits.length, 'вариант', 'варианта', 'вариантов')}`;
+  $('search-title').textContent = L(`Найдено по запросу «${data.query}»`, `Results for “${data.query}”`);
+  $('search-count').textContent = `${hits.length} ${plural(hits.length, 'вариант', 'варианта', 'вариантов', 'result', 'results')}`;
   const failed = data.failed || [];
   $('search-failed').textContent = !failed.length ? ''
-    : `Не ответил${failed.length > 1 ? 'и' : ''} ${failed.join(' и ')} — ${data.results.length ? 'показаны песни с других сайтов' : 'попробуйте ещё раз'}.`
-      + (failed.includes('YouTube') ? ' YouTube без VPN может не открываться — см. вкладку «VPN».' : '');
+    : L(`Не ответил${failed.length > 1 ? 'и' : ''} ${failed.join(' и ')} — ${data.results.length ? 'показаны песни с других сайтов' : 'попробуйте ещё раз'}.`,
+        `${failed.join(' and ')} did not respond — ${data.results.length ? 'showing songs from other sites' : 'try again'}.`)
+      + (failed.includes('YouTube') ? L(' YouTube без VPN может не открываться — см. вкладку «VPN».', ' If YouTube is blocked where you are, see the Proxy tab.') : '');
   $('search-failed').classList.toggle('hidden', !failed.length);
   $('more-row').classList.toggle('hidden', !hits.length);
   $('more').classList.toggle('hidden', !data.more);
@@ -1408,7 +1451,7 @@ $('examples').addEventListener('click', e => {
 $('more').addEventListener('click', async () => {
   const btn = $('more');
   btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span>Ищу ещё…';
+  btn.innerHTML = '<span class="spinner"></span>' + L('Ищу ещё…', 'Searching for more…');
   $('hits').insertAdjacentHTML('beforeend', skeletonCard().repeat(4));
   hideError('music-error');
   try {
@@ -1418,7 +1461,7 @@ $('more').addEventListener('click', async () => {
     showError('music-error', e);
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Показать ещё 10';
+    btn.textContent = L('Показать ещё 10', 'Show 10 more');
   }
 });
 
@@ -1475,8 +1518,8 @@ async function openDialog(h) {
   hideError('dlg-error');
   $('result').classList.add('hidden');
   $('dlg-slot').appendChild($('result'));
-  $('dlg-title').textContent = h.title || 'Все варианты скачивания';
-  $('dlg-loading-text').textContent = 'Загружаю варианты…';
+  $('dlg-title').textContent = h.title || L('Все варианты скачивания', 'All download options');
+  $('dlg-loading-text').textContent = L('Загружаю варианты…', 'Loading options…');
   $('dlg-loading').classList.remove('hidden');
   $('dlg').showModal();
   try {
@@ -1508,8 +1551,8 @@ const audioEl = $('p-audio');
 const player = {url: null, item: null, fromHits: false, duration: 0, loading: false, error: '', seeking: false, token: 0};
 const fillIcon = name => `<svg class="icon fill"><use href="#i-${name}"/></svg>`;
 const LISTEN_VIEW = {
-  idle: ['play', 'Послушать'], paused: ['play', 'Продолжить'], playing: ['pause', 'Пауза'],
-  loading: ['spin', 'Загружается…'], error: ['play', 'Попробовать ещё раз'],
+  idle: ['play', L('Послушать', 'Listen')], paused: ['play', L('Продолжить', 'Resume')], playing: ['pause', L('Пауза', 'Pause')],
+  loading: ['spin', L('Загружается…', 'Loading…')], error: ['play', L('Попробовать ещё раз', 'Try again')],
 };
 
 function listenState(url) {
@@ -1558,7 +1601,9 @@ function syncPlayerMp3() {
   const t = player.url && tasksByUrl.get(player.url);
   const busy = !!t && (t.status === 'running' || t.status === 'queued');
   $('p-mp3').disabled = !player.url || busy;
-  $('p-mp3').title = busy ? 'Песня уже качается' : t && t.status === 'done' ? 'Уже скачано — скачать ещё раз в MP3' : 'Скачать эту песню в MP3';
+  $('p-mp3').title = busy ? L('Песня уже качается', 'The song is already downloading')
+    : t && t.status === 'done' ? L('Уже скачано — скачать ещё раз в MP3', 'Already downloaded — download again as MP3')
+    : L('Скачать эту песню в MP3', 'Download this song as MP3');
   $('p-mp3').querySelector('use').setAttribute('href', t && t.status === 'done' ? '#i-check' : '#i-download');
 }
 
@@ -1600,7 +1645,7 @@ function listen(item, fromHits = false) {
   }
   const token = ++player.token;
   Object.assign(player, {url: item.url, item, fromHits, duration: item.duration || 0, loading: true, error: '', seeking: false});
-  $('p-title').textContent = item.title || 'Без названия';
+  $('p-title').textContent = item.title || L('Без названия', 'Untitled');
   $('p-title').title = item.title || '';
   setPlayerSub(item.uploader || '');
   $('p-cover').classList.toggle('hidden', !item.thumbnail);
@@ -1645,7 +1690,7 @@ audioEl.addEventListener('canplay', () => { if (audioEl.paused) setLoading(false
   if (!player.seeking) setSeek(audioEl.currentTime);
 }));
 audioEl.addEventListener('error', () => {
-  if (audioEl.getAttribute('src')) playerError('Не получилось включить звук. Попробуйте ещё раз или скачайте файл.');
+  if (audioEl.getAttribute('src')) playerError(L('Не получилось включить звук. Попробуйте ещё раз или скачайте файл.', 'Could not play the audio. Try again or download the file.'));
 });
 
 $('p-play').addEventListener('click', () => {
@@ -1668,7 +1713,7 @@ $('p-mp3').addEventListener('click', async () => {
   try {
     // url — ровно тот, что у карточки, чтобы её состояние «качается / скачано» тоже обновилось
     await api('/api/download', {url: item.url, title: item.title, option: 'a_mp3', label: 'MP3', dir, origin: 'music'});
-    toast(`«${item.title}» — MP3 скачивается, ход загрузки — в строке песни`);
+    toast(L(`«${item.title}» — MP3 скачивается, ход загрузки — в строке песни`, `“${item.title}” — the MP3 is downloading, progress is in the song row`));
   } catch (e) {
     toast(e.message);
     $('p-mp3').disabled = false;
@@ -1710,7 +1755,7 @@ $('p-seek').addEventListener('change', () => {
 function syncVolume() {
   const muted = audioEl.muted || audioEl.volume === 0;
   $('p-mute').innerHTML = icon(muted ? 'mute' : 'volume');
-  const label = muted ? 'Включить звук' : 'Выключить звук';
+  const label = muted ? L('Включить звук', 'Unmute') : L('Выключить звук', 'Mute');
   $('p-mute').setAttribute('aria-label', label);
   $('p-mute').title = label;
   $('p-volume').value = audioEl.muted ? 0 : audioEl.volume;
@@ -1748,8 +1793,8 @@ function renderProxy() {
   $('proxy-all').checked = !!settings.proxy_all;
   $('doh').checked = !!settings.doh;
   const sites = ['YouTube', ...(settings.proxy_sites || []).filter(s => !/youtube|youtu\.be/.test(s))];
-  $('proxy-state').textContent = !proxy ? 'прокси не используется, программа ходит напрямую'
-    : settings.proxy_all ? `${proxy}, все сайты` : `${proxy}: ${sites.join(', ')}`;
+  $('proxy-state').textContent = !proxy ? L('прокси не используется, программа ходит напрямую', 'no proxy, the program connects directly')
+    : settings.proxy_all ? `${proxy}, ${L('все сайты', 'all sites')}` : `${proxy}: ${sites.join(', ')}`;
 }
 
 function proxyNote(text, kind = '') {
@@ -1758,12 +1803,13 @@ function proxyNote(text, kind = '') {
 }
 
 async function checkProxy(proxy) {
-  proxyNote(proxy ? 'Проверяю, открывается ли YouTube через этот прокси…' : 'Ищу прокси VPN-программы на компьютере…');
+  proxyNote(proxy ? L('Проверяю, открывается ли YouTube через этот прокси…', 'Checking whether YouTube opens through this proxy…')
+    : L('Ищу прокси VPN-программы на компьютере…', 'Looking for a VPN app proxy on this computer…'));
   try {
     const r = await api('/api/proxy/check', {proxy});
     if (r.ok) {
       settings.proxy = r.proxy;
-      proxyNote(`Готово: YouTube открывается через ${r.proxy}.`, 'on');
+      proxyNote(L(`Готово: YouTube открывается через ${r.proxy}.`, `Done: YouTube opens through ${r.proxy}.`), 'on');
     } else {
       proxyNote(r.error, 'bad');
     }
@@ -1784,7 +1830,7 @@ $('proxy-save').addEventListener('click', async () => {
   }
   renderSettings();
   if (proxy) checkProxy(proxy);
-  else proxyNote('Прокси выключен: программа ходит в интернет напрямую.');
+  else proxyNote(L('Прокси выключен: программа ходит в интернет напрямую.', 'Proxy is off: the program connects directly.'));
 });
 $('proxy').addEventListener('keydown', e => { if (e.key === 'Enter') $('proxy-save').click(); });
 $('proxy-all').addEventListener('change', async e => {
@@ -1805,7 +1851,7 @@ async function loadSettings() {
 
 // Открывает окно Windows «Выбор папки». Возвращает путь или null, если окно закрыли.
 async function chooseFolder() {
-  toast('Выберите папку в открывшемся окне Windows.', {sticky: true});
+  toast(L('Выберите папку в открывшемся окне Windows.', 'Choose a folder in the Windows dialog that opened.'), {sticky: true});
   try {
     const r = await api('/api/folder/pick', {});
     if (r.cancelled) return null;
@@ -1830,7 +1876,8 @@ $('ask-every').addEventListener('change', async e => {
 loadSettings();
 
 // ---------- загрузки ----------
-const STATUS = {running: 'Качается', queued: 'В очереди', done: 'Готово', error: 'Ошибка', cancelled: 'Отменено'};
+const STATUS = L({running: 'Качается', queued: 'В очереди', done: 'Готово', error: 'Ошибка', cancelled: 'Отменено'},
+  {running: 'Downloading', queued: 'Queued', done: 'Done', error: 'Error', cancelled: 'Cancelled'});
 const VIDEO_EXT = /\.(mp4|mkv|webm|mov|m4v|avi|flv|ts)$/i;
 
 const originOf = t => t.origin || 'link';
@@ -1847,18 +1894,18 @@ const canCompress = (t, list) => t.status === 'done' && t.kind === 'video' && t.
 function taskHtml(t, list, inline) {
   const active = t.status === 'running' || t.status === 'queued';
   const details = t.status === 'running'
-    ? [t.stage, t.item, t.speed, t.eta && 'осталось ' + t.eta].filter(Boolean).join(' · ')
+    ? [t.stage, t.item, t.speed, t.eta && L('осталось ', 'left ') + t.eta].filter(Boolean).join(' · ')
     : t.status === 'done' || t.status === 'error' ? '' : t.stage;
   const actions = active
-    ? `<button class="btn ghost small" type="button" data-act="cancel" data-id="${t.id}">Отмена</button>`
+    ? `<button class="btn ghost small" type="button" data-act="cancel" data-id="${t.id}">${L('Отмена', 'Cancel')}</button>`
     : `${canCompress(t, list) ? `<button class="btn ghost small" type="button" data-act="compress" data-id="${t.id}"
-         title="Сделать файл меньше (H.265). Видео с YouTube уменьшится на 20–50%, с телефона — в разы. Исходный файл останется.">Сжать</button>` : ''}
-       ${t.status === 'done' && (t.kind !== 'compress' || t.files.length) ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}Показать</button>` : ''}
-       <button class="btn ghost small" type="button" data-act="remove" data-id="${t.id}" title="Убрать из списка (файл останется)">Убрать</button>`;
+         title="${L('Сделать файл меньше (H.265). Видео с YouTube уменьшится на 20–50%, с телефона — в разы. Исходный файл останется.', 'Make the file smaller (H.265). YouTube videos shrink by 20–50%, phone videos — several times. The original file stays.')}">${L('Сжать', 'Compress')}</button>` : ''}
+       ${t.status === 'done' && (t.kind !== 'compress' || t.files.length) ? `<button class="btn ghost small" type="button" data-act="open" data-id="${t.id}">${icon('folder')}${L('Показать', 'Show')}</button>` : ''}
+       <button class="btn ghost small" type="button" data-act="remove" data-id="${t.id}" title="${L('Убрать из списка (файл останется)', 'Remove from the list (the file stays)')}">${L('Убрать', 'Remove')}</button>`;
   // фрагмент ffmpeg качает без процентов — показываем бегущую полосу
   const wait = t.status === 'running' && !t.percent;
   const pill = t.status === 'running' && t.percent ? `${t.percent}%`
-    : t.kind === 'compress' && t.status === 'running' ? 'Сжимается' : STATUS[t.status] || t.status;
+    : t.kind === 'compress' && t.status === 'running' ? L('Сжимается', 'Compressing') : STATUS[t.status] || t.status;
   const width = t.status === 'error' || t.status === 'done' ? 100 : t.percent;
   const title = inline ? t.label || t.title : t.title;
   const info = inline ? (details === pill ? '' : details) : [t.label, details].filter(Boolean).join(' · ');
@@ -1959,7 +2006,7 @@ function flashTitle() {
   let n = 0;
   flashTimer = setInterval(() => {
     n++;
-    document.title = n % 2 ? '● Программа уже открыта' : PAGE_TITLE;
+    document.title = n % 2 ? L('● Программа уже открыта', '● The program is already open') : PAGE_TITLE;
     if (n >= 16 || (n % 2 === 0 && document.visibilityState === 'visible' && document.hasFocus())) clearInterval(flashTimer);
   }, 700);
 }
@@ -1969,7 +2016,7 @@ const UPD_LATER_MS = 3 * 24 * 3600 * 1000;  // «Позже» — до след�
 
 function notesHtml(md) {
   // описание релиза в Markdown: показываем только «Что нового» — строки, списки, **жирное**, `код`, ссылки
-  const i = md.search(/^##\s*Что нового/m);
+  const i = md.search(/^##\s*(Что нового|What.s new)/m);
   if (i >= 0) md = md.slice(i).replace(/^##[^\n]*\n/, '');
   const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>')
     .replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
@@ -1993,29 +2040,29 @@ function renderUpdate() {
   const later = String(store.get('updLater') || '').split('|');
   if (!u) { /* ничего */ }
   else if (u.state === 'restarting') {
-    html = `<span class="upd-text"><b>Программа перезапускается…</b><small>Страница обновится сама через несколько секунд.</small></span>
+    html = `<span class="upd-text"><b>${L('Программа перезапускается…', 'The program is restarting…')}</b><small>${L('Страница обновится сама через несколько секунд.', 'The page will reload by itself in a few seconds.')}</small></span>
       <div class="bar wait"><i></i></div>`;
   } else if (u.state === 'downloading') {
     const pct = u.total ? Math.min(100, Math.round(u.done / u.total * 100)) : 0;
-    html = `<span class="upd-text"><b>Скачиваю версию ${esc(u.latest.version)}…</b> ${pct}%</span>
+    html = `<span class="upd-text"><b>${L('Скачиваю версию', 'Downloading version')} ${esc(u.latest.version)}…</b> ${pct}%</span>
       <div class="bar"><i style="width:${pct}%"></i></div>`;
   } else if (u.result && store.get('updResult') !== updResultKey(u.result)) {
     const r = u.result;
     cls = r.ok ? 'ok' : 'fail';
     icon = r.ok ? 'i-check' : 'i-alert';
-    html = `<span class="upd-text"><b>${r.ok ? `Программа обновлена до версии ${esc(r.to)}` : 'Обновление не установилось'}</b>
+    html = `<span class="upd-text"><b>${r.ok ? L('Программа обновлена до версии ', 'The program was updated to version ') + esc(r.to) : L('Обновление не установилось', 'The update did not install')}</b>
       ${r.ok ? '' : `<small>${esc(r.error)}</small>`}</span>
-      <div class="upd-acts"><button class="btn ghost small" type="button" data-upd="seen">Понятно</button></div>`;
+      <div class="upd-acts"><button class="btn ghost small" type="button" data-upd="seen">${L('Понятно', 'OK')}</button></div>`;
   } else if (u.latest && !u.dev && !(later[0] === u.latest.version && Date.now() < +later[1])) {
     const v = u.latest, page = /^https:\/\/github\.com\//.test(v.page) ? v.page : '';
-    html = `<span class="upd-text"><b>Вышла версия ${esc(v.version)}</b> <span class="muted">— у вас ${esc(u.version)}</span>
-        <small>Программа перезапустится сама. Настройки, cookies.txt и скачанное останутся.</small></span>
+    html = `<span class="upd-text"><b>${L('Вышла версия', 'Version')} ${esc(v.version)}${L('', ' is out')}</b> <span class="muted">— ${L('у вас', 'you have')} ${esc(u.version)}</span>
+        <small>${L('Программа перезапустится сама. Настройки, cookies.txt и скачанное останутся.', 'The program restarts by itself. Settings, cookies.txt and downloads stay.')}</small></span>
       <div class="upd-acts">
-        <button class="btn primary small" type="button" data-upd="install">Обновить</button>
-        <button class="btn ghost small" type="button" data-upd="later">Позже</button>
+        <button class="btn primary small" type="button" data-upd="install">${L('Обновить', 'Update')}</button>
+        <button class="btn ghost small" type="button" data-upd="later">${L('Позже', 'Later')}</button>
       </div>
-      ${u.state === 'error' ? `<p class="upd-err">Не получилось: ${esc(u.error)}${page ? ` Можно скачать вручную <a href="${esc(page)}" target="_blank" rel="noopener">со страницы версии</a>.` : ''}</p>` : ''}
-      ${v.notes ? `<details><summary>Что нового</summary><div class="upd-notes">${notesHtml(v.notes)}</div></details>` : ''}`;
+      ${u.state === 'error' ? `<p class="upd-err">${L('Не получилось: ', 'Failed: ')}${esc(u.error)}${page ? L(` Можно скачать вручную <a href="${esc(page)}" target="_blank" rel="noopener">со страницы версии</a>.`, ` You can download it manually <a href="${esc(page)}" target="_blank" rel="noopener">from the release page</a>.`) : ''}</p>` : ''}
+      ${v.notes ? `<details><summary>${L('Что нового', 'What’s new')}</summary><div class="upd-notes">${notesHtml(v.notes)}</div></details>` : ''}`;
   }
   box.className = `card upd ${cls}`;
   box.hidden = !html;

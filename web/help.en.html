@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="en">
+<head>
+<!-- Английская копия help.html: отдаётся по /help, когда язык программы — английский. Правки делать в обеих. -->
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How it works</title>
+<link rel="icon" href="/favicon.ico">
+<script>
+  // тема — та же, что выбрана на главной странице
+  try {
+    const t = localStorage.getItem('theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch { /* тема как в Windows */ }
+</script>
+<style>
+  :root {
+    --bg: #f4f5f7; --card: #ffffff; --text: #16181d; --muted: #6b7280;
+    --line: #e3e5ea; --accent: #2f6df6; --accent-soft: #e8efff;
+    --ok: #16a34a; --err: #dc2626; --warn: #b45309; --chip: #f1f3f6; --code: #f6f7f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      color-scheme: dark;
+      --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
+      --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
+      --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
+    --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
+    --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 60px; }
+  a { color: var(--accent); }
+  .back { display: inline-block; text-decoration: none; }
+  .head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .head-left { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .lang-link { font-size: inherit; }
+  /* «Помощь проекту» — как на главной */
+  a.donate {
+    position: relative; overflow: hidden; display: inline-flex; align-items: center; gap: 8px;
+    padding: 11px 20px; border-radius: 12px; font-weight: 600; font-size: 15.5px; text-decoration: none;
+    color: #fff; background: linear-gradient(135deg, #ff8a3d 0%, #ff5a6e 55%, #e8448f 100%);
+    box-shadow: 0 4px 14px rgba(255, 90, 110, .35), inset 0 1px 0 rgba(255, 255, 255, .25);
+    transition: transform .15s, box-shadow .15s, filter .15s;
+  }
+  a.donate::after {
+    content: ""; position: absolute; inset: 0; transform: translateX(-120%);
+    background: linear-gradient(100deg, transparent 30%, rgba(255, 255, 255, .35) 50%, transparent 70%);
+    transition: transform .6s;
+  }
+  a.donate:hover { transform: translateY(-1px); filter: brightness(1.05); box-shadow: 0 6px 20px rgba(255, 90, 110, .45); }
+  a.donate:hover::after { transform: translateX(120%); }
+  a.donate .hearts { display: inline-flex; align-items: center; gap: 2px; }
+  a.donate .hearts svg { width: 15px; height: 15px; fill: currentColor; stroke: none; opacity: .85; animation: beat 2.4s ease-in-out infinite; }
+  a.donate .hearts svg:nth-child(2) { width: 18px; height: 18px; animation-delay: .3s; }
+  a.donate .hearts svg:nth-child(3) { animation-delay: .6s; }
+  @keyframes beat { 0%, 30%, 100% { transform: scale(1); opacity: .85; } 12% { transform: scale(1.15); opacity: 1; } 20% { transform: scale(.97); } }
+  @media (prefers-reduced-motion: reduce) { a.donate .hearts svg { animation: none; } a.donate::after { display: none; } }
+  :root[data-theme="dark"] a.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) a.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
+  }
+  h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin: 36px 0 12px; }
+  .sub { color: var(--muted); margin: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px; margin-top: 12px;
+  }
+  button {
+    font: inherit; cursor: pointer; border: 0; border-radius: 10px;
+    padding: 10px 16px; background: var(--accent); color: #fff; font-weight: 600;
+  }
+  button:disabled { opacity: .6; cursor: default; }
+  code, pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13.5px; }
+  code { background: var(--code); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; }
+  kbd {
+    font: 12px/1 Consolas, "Cascadia Mono", monospace; padding: 2px 5px; border-radius: 4px; white-space: nowrap;
+    border: 1px solid var(--line); border-bottom-width: 2px; background: var(--card);
+  }
+  pre {
+    background: var(--code); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; overflow-x: auto; margin: 8px 0;
+  }
+  .muted { color: var(--muted); }
+
+  .update-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+  #update-msg { font-size: 14px; }
+  #update-msg.ok { color: var(--ok); }
+  #update-msg.err, #app-msg.err { color: var(--err); white-space: pre-wrap; }
+  #app-msg { font-size: 14px; }
+  #app-msg.ok { color: var(--ok); }
+  .app-row { margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; }
+  td { padding: 9px 0; border-top: 1px solid var(--line); vertical-align: top; }
+  tr:first-child td { border-top: 0; }
+  td:first-child { width: 34%; padding-right: 14px; }
+
+  /* неполадки */
+  details { border-top: 1px solid var(--line); }
+  details:first-child { border-top: 0; }
+  summary { cursor: pointer; padding: 12px 0; font-weight: 600; list-style: none; display: flex; gap: 10px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::before { content: '▸'; color: var(--muted); transition: transform .15s; }
+  details[open] summary::before { transform: rotate(90deg); }
+  .fix { padding: 0 0 14px 22px; }
+  .fix ol, .fix ul { margin: 4px 0; padding-left: 20px; }
+  .fix li { margin: 3px 0; }
+  .note {
+    border-left: 3px solid var(--warn); background: var(--code);
+    padding: 8px 12px; border-radius: 0 8px 8px 0; margin: 8px 0; font-size: 14px;
+  }
+
+  /* скачивать прямо с сайта */
+  .quick h3 { font-size: 16px; margin: 0 0 8px; }
+  .quick ol { margin: 10px 0; padding-left: 22px; }
+  .quick li { margin: 4px 0; }
+  .quick p { margin: 8px 0; }
+  .quick h3 { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; }
+  .quick h4 { display: flex; align-items: center; gap: 8px; font-size: 15px; margin: 22px 0 6px; padding-top: 14px; border-top: 1px solid var(--line); scroll-margin-top: 12px; }
+  .quick ul { margin: 6px 0; padding-left: 22px; }
+  .quick ol ul { margin: 4px 0; }
+  .brws { display: inline-flex; align-items: center; gap: 5px; }
+  .brw { width: 18px; height: 18px; flex-shrink: 0; vertical-align: -4px; }
+  .brw-tbl th { text-align: left; font-size: 13px; color: var(--muted); font-weight: 600; padding: 0 14px 6px 0; }
+  .brw-tbl td:first-child { width: auto; white-space: nowrap; }
+  .brw-tbl td:first-child .brw { margin-right: 8px; }
+  .brw-tbl td { padding-right: 14px; }
+  .more { margin-top: 10px; }
+  .bm-row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
+  .bm, .dl-btn {
+    display: inline-block; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: #fff;
+    font-weight: 600; text-decoration: none; cursor: grab;
+  }
+  .dl-btn { cursor: pointer; }
+  .bm-note { display: none; margin-top: 8px; font-size: 14px; color: var(--accent); }
+  .bm-note.on { display: block; }
+  .drag-hint { margin-top: 12px; }
+  button.link { background: none; color: var(--accent); padding: 0; border-radius: 0; font-weight: 600; text-decoration: underline; }
+
+  @media (max-width: 720px) {
+    td:first-child { width: 40%; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="head-row">
+    <span class="head-left"><a class="back" href="/">← Back to downloads</a>
+      <button class="link lang-link" id="lang" type="button" lang="ru" title="Переключить на русский">Русский</button></span>
+    <a class="donate" href="https://dalink.to/olegche" target="_blank" rel="noopener"
+       title="Support the development of the program (DonationAlerts)">
+      <span class="hearts" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg></span>Support the project
+    </a>
+  </div>
+  <h1>How it works</h1>
+  <p class="sub">What happens inside the program and what to do if it stops downloading.</p>
+
+  <h2>Updates</h2>
+  <section class="card">
+    <div class="update-row">
+      <button id="update" type="button">Update yt-dlp</button>
+      <span id="update-msg" class="muted">The first thing to try if downloads stop working.</span>
+    </div>
+    <div class="update-row app-row">
+      <button id="app-check" type="button">Check for a new program version</button>
+      <span id="app-msg" class="muted">The program checks by itself every three days and offers the update on the main page.</span>
+    </div>
+  </section>
+
+  <h2>How to use</h2>
+  <section class="card">
+    <table>
+      <tr><td><b>Starting</b></td><td>The desktop shortcut “Универсальный скачиватель” (Universal Downloader). While the program starts,
+        a “Starting…” splash is shown at the bottom right — it disappears when the page opens. There is no black window: the program
+        lives as an arrow icon by the clock (bottom right; if you do not see it, click the “^” arrow next to the clock).
+        Clicking the icon opens the page, right-click opens the menu: “Open”, “Downloads folder”, “Exit”.</td></tr>
+      <tr><td><b>First start</b></td><td>The program installs what it needs (Python, yt-dlp, ffmpeg, Deno) by itself — a couple of minutes,
+        without windows: an icon with the hint “Installing components” appears by the clock, then the page opens.
+        The same happens when the program needs new components. If the installation fails, a window with the error appears.
+        <code>Запуск.bat</code> (Start) in the program folder shows the installation progress in a window.</td></tr>
+      <tr><td><b>Page</b></td><td>Three tabs: “By link”, “Music” and “Proxy” (for blocked sites).
+        The download folder (the “Choose folder” button, the “ask for the folder every time” checkbox) is right under the link
+        or search field on both tabs. Download progress with “Cancel” and “Show” buttons appears where you started it: for a video —
+        in its card under the title, for a song — in its row in the results, for a list of links — in the list card.
+        There is no separate list of downloads: the files are in the folder (“Open” next to the folder).
+        The theme button in the corner switches: as in Windows → light → dark. The language button switches Russian ↔ English.</td></tr>
+      <tr><td><b>By link</b></td><td>Paste the address of a video, playlist or page — the options appear by themselves.
+        Choose the video quality (MP4) or “Audio only” (MP3/M4A). If you type a song name instead of a link,
+        the program switches to “Music” by itself.</td></tr>
+      <tr><td><b>Music</b></td><td>Type the artist and title — a list of 10 results appears: the search runs on
+        YouTube, SoundCloud and Rutube at once, the site is shown in the song row. If a site did not open (for example, YouTube is blocked),
+        the program says which one above the list, and songs from the others still appear. Paid SoundCloud tracks (30-second previews)
+        are not listed.
+        <b>MP3</b> downloads the song right away (with cover and tags), “More formats” gives video or M4A.
+        “Show 10 more” adds new results without repeats. The song row shows the download: percent, “Cancel”,
+        and “Show” when it is done.
+        Use the checkboxes to select several songs and download them with one button (MP3 or M4A) — one at a time.</td></tr>
+      <tr><td><b>Listen</b></td><td>The ▶ button on a song cover on the “Music” tab plays the audio right on the page,
+        without downloading anything. A player appears at the bottom: pause, seek, time, volume and the “Close” cross.
+        One song plays at a time: starting another stops the first one. When a song from the results ends, the next one starts;
+        ⏮ ⏭ in the player are previous and next (⏮ after 3 seconds returns to the start of the song).
+        The <b>MP3</b> button in the player downloads what is playing now.
+        Keys: <kbd>Space</kbd> — pause, <kbd>←</kbd> <kbd>→</kbd> — 5 seconds back and forward
+        (when the cursor is not in a text field); keyboard media keys work too. The audio starts in 2–5 seconds —
+        the program finds it through yt-dlp. Sites that serve audio in small chunks (SoundCloud, Rutube and others) are first
+        downloaded to a temporary folder — the audio starts a bit later, in 5–15 seconds. Live streams,
+        playlists and such recordings longer than 40 minutes cannot be played — only downloaded.</td></tr>
+      <tr><td><b>Several links</b></td><td>On the “By link” tab, paste links in a column (one per line; Shift+Enter adds a line by hand).
+        A list appears — choose one option for all, for example “MP3” or “up to 1080p”.
+        The files download one at a time. Lines without a link and duplicates are skipped.</td></tr>
+      <tr><td><b>Audio track</b></td><td>If a video has several dubs (YouTube dubbing, movies), the card shows “Audio track”.
+        Russian is selected first, otherwise the original. The choice applies both to video and to MP3/M4A.
+        “All tracks at once” puts all languages into one video: switch them in the player (VLC, Movies &amp; TV — the audio menu);
+        the file gets bigger. Playlists and link lists take the Russian track if there is one.</td></tr>
+      <tr><td><b>Subtitles</b></td><td>If a video has subtitles, the card shows “Subtitles”: the language and how to save them —
+        embed in MP4 (turn them on in the player’s subtitle menu) or a separate .srt file next to the video (the player picks it up by itself).
+        The program remembers the chosen way.
+        “No subtitles” is selected by default — choose a language if you need them. For YouTube there are also
+        auto-generated subtitles and an auto-translation into Russian (made by the site, may contain mistakes).
+        Subtitles are for video only: MP3/M4A, playlists and link lists get none.
+        If the site did not give the subtitles, the video still downloads — the download row says “no subtitles”.</td></tr>
+      <tr><td><b>COUB</b></td><td>On COUB the picture is a loop of a few seconds, and the audio is a whole song. As on the site, the video
+        is looped while the audio plays (without re-encoding, so the file is bigger). In the card you can choose “play once” —
+        then the audio is cut to the video length. MP3/M4A — the whole song.</td></tr>
+      <tr><td><b>Movies and series</b></td><td>Online cinema sites (kinogo and similar) show movies in the CCDN, ShizaHD and
+        VeoVeo players. Paste a link to a movie page — the card shows a “What to download” row: the player (if the first one does not
+        open, the program takes the next one), and for a series — the season and episode. “All episodes” downloads the whole season one by one,
+        “All seasons” — the whole series. Dubs are in “Audio track”. The Alloha player is not supported yet.</td></tr>
+      <tr><td><b>Compress video</b></td><td>A downloaded video (in its card) has a “Compress” button: a file “… (сжато).mp4” appears next to it
+        (H.265 format), the original stays — delete it yourself if the compressed one is fine. Videos from YouTube and other sites are already compressed,
+        so they shrink by about 20–50%; videos shot on a phone — several times. If it barely got smaller, the second file is not kept.
+        Compression loads the processor and takes about as long as the video lasts (longer on a slow computer);
+        several videos are compressed one at a time, “Cancel” stops it. Compressed videos play in browsers, VLC, phones and TVs;
+        the standard Windows 10 player may need “HEVC Video Extensions” from the Microsoft Store.</td></tr>
+    </table>
+  </section>
+
+  <h2 id="quick">Download right from a site</h2>
+  <p class="muted">No need to copy the address by hand: click a button on a page with a video — the program opens with the link already pasted
+    and checked. If the program page is already open, the browser tries to send the link there instead of a new tab
+    (the extension always does, the bookmark button — when the browser allows it). There are two ways — choose either or both.</p>
+  <section class="card">
+    <table class="brw-tbl">
+      <tr><th>Browser</th><th>Extension</th><th>Bookmark button</th></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#chrome"/></svg>Google Chrome</td><td>yes, permanently — <a href="#ext-chromium">how to install</a></td><td>yes</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#edge"/></svg>Microsoft Edge</td><td>yes, permanently — <a href="#ext-chromium">how to install</a></td><td>yes</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#yandex"/></svg>Yandex Browser</td><td>yes, permanently — <a href="#ext-chromium">how to install</a></td><td>yes</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#opera"/></svg>Opera (and Opera GX)</td><td>yes, permanently — <a href="#ext-chromium">how to install</a></td><td>yes</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#firefox"/></svg>Mozilla Firefox</td><td>yes, until the browser restarts — <a href="#ext-firefox">how to install</a></td><td>yes, permanently</td></tr>
+      <tr><td><svg class="brw" aria-hidden="true"><use href="/browsers.svg#safari"/></svg>Safari (Mac)</td><td>no</td><td>yes</td></tr>
+    </table>
+    <p class="muted">The extension is handier: a button with the program icon on the browser toolbar and an item in the right-click menu,
+      including on links — you can send a video straight from a list or search results without opening it. The bookmark button installs
+      nothing and works everywhere, but it can only “send this page”.</p>
+  </section>
+
+  <section class="card quick" data-bm-box>
+    <h3>Bookmark button <span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Yandex Browser"><title>Yandex Browser</title><use href="/browsers.svg#yandex"/></svg><svg class="brw" role="img" aria-label="Opera"><title>Opera</title><use href="/browsers.svg#opera"/></svg><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw" role="img" aria-label="Safari"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
+    <div class="bm-row">
+      <a class="bm" data-bookmarklet draggable="true">⬇ Send to Downloader</a>
+      <span class="muted">← drag it with the mouse to the bookmarks bar</span>
+    </div>
+    <div class="bm-note" data-bm-note role="status"></div>
+    <div class="drag-hint" data-drag-hint></div>
+    <ol>
+      <li>Show the bookmarks bar: <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> (in Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>;
+        in Opera — the “Easy setup” icon at the top right → “Show bookmarks bar”).</li>
+      <li>Hold the blue button with the mouse and drag it to the bar, as in the picture. No need to click it here.</li>
+      <li>Open a video or song on any site and click the “Send to Downloader” bookmark.</li>
+    </ol>
+    <p class="muted">Cannot drag it (for example, the bar is hidden in Yandex)? <button class="link" type="button" data-copy-bookmarklet>Copy the bookmark code</button>,
+      create any bookmark (<kbd>Ctrl</kbd>+<kbd>D</kbd>), open “Edit” and paste the code into the “URL” field. If the browser blocked
+      the pop-up, the program opens in the same tab — the “Back” button returns you to the site.</p>
+  </section>
+
+  <section class="card quick" id="extension">
+    <h3>Extension <span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Yandex Browser"><title>Yandex Browser</title><use href="/browsers.svg#yandex"/></svg><svg class="brw" role="img" aria-label="Opera"><title>Opera</title><use href="/browsers.svg#opera"/></svg><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
+    <p>Adds a button with the program icon to the browser toolbar and the “Send to Downloader” item to the right-click menu:
+      on a page it sends the page address, on a link — the link itself. If the program is not running, the button starts it: the browser asks whether to open
+      the “Универсальный скачиватель” (Universal Downloader) app — click “Open”, and the “Always allow” checkbox removes this question. If your extension was downloaded before this version, download and install it again.</p>
+    <p><a class="dl-btn" href="/extension.zip" download>Download the extension (zip)</a>
+      <span class="muted">— one archive for all browsers, the program port is already in it.</span></p>
+    <p class="muted">No extension store needed: browsers allow installing an extension from a file. The extension sends nothing
+      to the internet — it only opens the program page on your computer (<code>http://127.0.0.1</code>)
+      and passes it the page or link address.</p>
+
+    <h4 id="ext-chromium"><span class="brws"><svg class="brw" role="img" aria-label="Chrome"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw" role="img" aria-label="Edge"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw" role="img" aria-label="Yandex Browser"><title>Yandex Browser</title><use href="/browsers.svg#yandex"/></svg><svg class="brw" role="img" aria-label="Opera"><title>Opera</title><use href="/browsers.svg#opera"/></svg></span> Chrome, Edge, Yandex Browser, Opera</h4>
+    <ol>
+      <li>Click “Download the extension (zip)” above. The file <code>downloader-extension.zip</code> appears in your “Downloads” folder.</li>
+      <li>Right-click it → “Extract All…” → “Extract”. You get a folder with <code>manifest.json</code> directly inside
+        (if there is another folder inside, you need the one that contains <code>manifest.json</code>).</li>
+      <li>Move this folder to where it will stay for good, for example into the program folder next to <code>app.py</code>.
+        The browser does not copy the extension, it loads it from this folder: delete or rename the folder and the extension stops working.</li>
+      <li>Open the extensions page — type it into the address bar and press <kbd>Enter</kbd>:
+        <ul>
+          <li>Chrome — <code>chrome://extensions</code></li>
+          <li>Edge — <code>edge://extensions</code></li>
+          <li>Yandex — <code>browser://extensions</code></li>
+          <li>Opera and Opera GX — <code>opera://extensions</code></li>
+        </ul></li>
+      <li>Turn on <b>“Developer mode”</b>: in Chrome, Yandex and Opera — the switch at the top right, in Edge — in the left panel
+        (if you do not see it — the ☰ button at the top left).</li>
+      <li>A row of buttons appears. Click <b>“Load unpacked”</b>
+        and choose the folder from step 3 — the one with <code>manifest.json</code>, then “Select Folder”.</li>
+      <li>The list shows “Universal Downloader” with the switch on. If there is a red “Errors” button next to it,
+        most likely the wrong folder was chosen: remove the extension and choose the folder with <code>manifest.json</code>.</li>
+      <li>Pin the button to the toolbar: the puzzle icon to the right of the address bar → the pin next to “Universal Downloader”
+        (in Edge — the eye icon “Show in toolbar”, in Opera — the cube icon to the right of the address bar → the pin).</li>
+    </ol>
+    <div class="note">Chrome and Edge sometimes offer to disable developer mode extensions at startup — close that
+      message with the cross. Developer mode is safe: it only allows installing extensions from a folder.</div>
+
+    <h4 id="ext-firefox"><span class="brws"><svg class="brw" role="img" aria-label="Firefox"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span> Firefox</h4>
+    <p>Firefox permanently installs only extensions signed by Mozilla, and this extension is built on your computer
+      and has no signature. So in regular Firefox it is installed <b>temporarily — until the browser closes</b>. It takes
+      half a minute, no need to unpack the archive.</p>
+    <ol>
+      <li>Click “Download the extension (zip)” above and remember where <code>downloader-extension.zip</code> is.</li>
+      <li>Type <code>about:debugging#/runtime/this-firefox</code> into the address bar and press <kbd>Enter</kbd>
+        (or <code>about:debugging</code> → “This Firefox” on the left).</li>
+      <li>Click <b>“Load Temporary Add-on…”</b> and choose the file <code>downloader-extension.zip</code> itself
+        (<code>manifest.json</code> from the unpacked folder works too).</li>
+      <li>The “Temporary Extensions” section shows “Universal Downloader” with the line “Background Script: Running”.
+        There should be no warnings or errors.</li>
+      <li>Pin the button: the puzzle icon on the toolbar → the gear next to “Universal Downloader” → “Pin to Toolbar”.</li>
+    </ol>
+    <p>After Firefox restarts, the extension is gone — repeat steps 2–3, no need to download the archive again.
+      If that is inconvenient, use the bookmark button above in Firefox: it stays for good and does the same,
+      except for the right-click menu item.</p>
+    <details class="more">
+      <summary>Install permanently in Firefox (Developer Edition, Nightly or ESR)</summary>
+      <div class="fix">
+        <p>Regular Firefox does not allow unsigned extensions. In Firefox Developer Edition, Nightly and ESR you can allow them:</p>
+        <ol>
+          <li>Open <code>about:config</code>, accept the warning, find <code>xpinstall.signatures.required</code>
+            and set it to <code>false</code> (double-click).</li>
+          <li>Rename <code>downloader-extension.zip</code> to <code>downloader-extension.xpi</code>.</li>
+          <li>Open <code>about:addons</code> → the gear → “Install Add-on From File…” → choose the <code>.xpi</code> → “Add”.</li>
+        </ol>
+      </div>
+    </details>
+
+    <h4>How to use</h4>
+    <ul>
+      <li><b>Toolbar button</b> — open a video or song and click the program icon: the program opens with this link.</li>
+      <li><b>Right-click on a page</b> or on an embedded video → “Send to Downloader” — the same.</li>
+      <li><b>Right-click on a link</b> → “Send to Downloader (this link)” — sends the link without opening it:
+        handy in a video list, search results or a feed.</li>
+      <li>If the program tab is already open, the link goes there (the player is not interrupted), otherwise a new tab opens next to it.</li>
+    </ul>
+
+    <h4>Update, remove, if it does not work</h4>
+    <ul>
+      <li>Changed the program port (<code>port</code> in <code>settings.json</code>)? Download the archive again. Chrome, Edge, Yandex, Opera:
+        replace the files in the extension folder and click the round “Reload” arrow of the extension on the extensions page.
+        Firefox: on <code>about:debugging</code> — “Remove”, then load the new archive.</li>
+      <li>To remove — the “Remove” button on the extensions page; after that you can delete the folder too.</li>
+      <li>“This site can’t be reached” opens — the program is not running: start it with the desktop shortcut
+        and click the button again.</li>
+      <li>In Firefox a new tab opens every time even though the program is already open — allow the extension access
+        to <code>127.0.0.1</code>: <code>about:addons</code> → “Universal Downloader” → “Permissions”.</li>
+    </ul>
+  </section>
+
+  <h2>If it stopped working</h2>
+  <p class="muted">Find your case. The error text is shown on the page next to the download, and startup errors are in the <code>program.log</code> file in the program folder.
+    “Restart the program” below means: right-click the icon by the clock → “Exit”, then the desktop shortcut again.</p>
+  <section class="card">
+    <details open>
+      <summary>YouTube (or another site) stopped downloading, although it worked before</summary>
+      <div class="fix">
+        <p>Almost always the site changed its protection and a fresh yt-dlp version is needed.</p>
+        <ol>
+          <li>Click “Update yt-dlp” at the top of this page.</li>
+          <li>Restart the program (the icon by the clock → “Exit”, then the shortcut).</li>
+          <li>Try again.</li>
+        </ol>
+        <p>If it still does not work after the update, the fix is not out yet. It usually comes out within 1–3 days.
+          You can check whether the problem is known in the <a href="https://github.com/yt-dlp/yt-dlp/issues" target="_blank" rel="noopener">yt-dlp issue list</a>:
+          search by the site name.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary>“The site requires signing in” / “Sign in to confirm you're not a bot”</summary>
+      <div class="fix">
+        <p>The site wants to see that you are signed in. Give the program the cookies from your browser:</p>
+        <ol>
+          <li>Install the <b>Get cookies.txt LOCALLY</b> extension in Chrome or Edge (in Firefox — <b>cookies.txt</b>).</li>
+          <li>Open the site (for example, youtube.com) and make sure you are signed in.</li>
+          <li>Click the extension icon → <b>Export</b>.</li>
+          <li>Rename the file to <code>cookies.txt</code> and put it into the program folder, next to <code>Запуск.bat</code>.</li>
+          <li>Try again — no restart needed.</li>
+        </ol>
+        <div class="note">cookies.txt gives access to your account. Never send it to anyone.
+          Cookies expire over time — if the error comes back, export them again.</div>
+      </div>
+    </details>
+
+    <details>
+      <summary>YouTube shows few qualities or mentions JavaScript / “n challenge”</summary>
+      <div class="fix">
+        <p>YouTube needs a JS engine (Deno), which the program installs by itself.</p>
+        <ol>
+          <li>Click “Exit” in the icon menu by the clock and run <code>Запуск.bat</code> — it installs Deno by itself (internet required).</li>
+          <li>If that does not help, do a clean reinstall (see below).</li>
+          <li>Still no luck — update yt-dlp with the button at the top.</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>The page does not open</summary>
+      <div class="fix">
+        <ul>
+          <li>The program runs while its icon is by the clock. No icon — start the desktop shortcut.</li>
+          <li>The page address: <a href="http://127.0.0.1:8765">http://127.0.0.1:8765</a>. You can change the port in <code>settings.json</code>
+            (the line <code>"port": 8765</code>, then restart the program) — for example, if 8765 is used by another program.
+            After changing the port, drag the bookmark button again and reinstall the extension.</li>
+          <li>The icon does not appear — run <code>Запуск.bat</code>: it shows in a window what goes wrong,
+            and errors of the program itself are in <code>program.log</code>. If Python or the components could not be downloaded, check the internet
+            (python.org and pypi.org must open) and run it again.</li>
+          <li>An antivirus may block <code>ffmpeg.exe</code> or the script itself — add the program folder to its exclusions.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Errors at startup, “ModuleNotFoundError”, everything broke after an update</summary>
+      <div class="fix">
+        <p>Reinstall the program cleanly — your files in <code>Скачанное</code> (Downloads) are safe:</p>
+        <ol>
+          <li>Close the program: the icon by the clock → “Exit”.</li>
+          <li>Delete the <code>python</code> and <code>bin</code> folders in the program folder.</li>
+          <li>Run <code>Запуск.bat</code> — it installs everything again (internet required, about a minute).</li>
+        </ol>
+      </div>
+    </details>
+
+    <details>
+      <summary>Downloaded, but there is no sound, the video does not open or an “ffmpeg” error</summary>
+      <div class="fix">
+        <ul>
+          <li>Delete the <code>bin</code> folder and restart the program — ffmpeg will be put back.</li>
+          <li>1440p and 4K videos from YouTube use the VP9/AV1 codecs, not every player opens them.
+            Install <a href="https://www.videolan.org/vlc/" target="_blank" rel="noopener">VLC</a> or download in 1080p.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>“This site is not supported” / “The video is DRM-protected”</summary>
+      <div class="fix">
+        <ul>
+          <li>Make sure the link leads to the page of the video itself, not to the home page or a feed.</li>
+          <li>Is the site in the <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">list of supported sites</a>?
+            If not, the program tries to find a video on the page by itself, but that does not always work.</li>
+          <li>Netflix, Disney+, Amazon Prime Video, Spotify, Apple Music and similar are DRM-protected — they cannot be downloaded.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>“Listen” does not play or shows an error</summary>
+      <div class="fix">
+        <ul>
+          <li>Wait a few seconds: while the program looks for the audio, a wheel spins on the button.</li>
+          <li>The error is shown in the player under the title. From SoundCloud, Rutube and similar sites the audio starts later (the program downloads the song first), and recordings longer than 40 minutes from them cannot be played — only downloaded.</li>
+          <li>Click ▶ in the player again — the program looks for the audio again. Did not help — update yt-dlp with the button at the top.</li>
+          <li>No sound, but the time runs — check the volume in the player (the speaker icon) and in Windows.</li>
+        </ul>
+      </div>
+    </details>
+
+    <details>
+      <summary>Downloads are very slow</summary>
+      <div class="fix">
+        <p>The speed is set by the site itself. Some sites (VK, Rutube) serve video in small chunks — that is slower than YouTube.
+          Choosing a lower quality helps. If it has become slow only now — update yt-dlp.</p>
+      </div>
+    </details>
+  </section>
+
+  <h2 id="errors">Errors and what to do</h2>
+  <p class="muted">The program shows a plain explanation next to the download, and the original error text under “Details”.
+    If there is no explanation (just the original text) — find similar words in the left column.</p>
+  <section class="card">
+    <table>
+      <tr><td><b>The site requires signing in</b><br><small class="muted">Sign in, login, cookies, registered users</small></td>
+        <td>Only signed-in users can see the video. Put <code>cookies.txt</code> into the program folder (how — above, in “If it stopped working”).</td></tr>
+      <tr><td><b>Confirm you are not a bot</b><br><small class="muted">Sign in to confirm you're not a bot</small></td>
+        <td>YouTube does not trust your address: this happens with VPNs and with addresses that download a lot. Turn off the VPN or switch servers; if that does not help — <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Age restriction 18+</b><br><small class="muted">confirm your age, age-restricted</small></td>
+        <td>You need an account with a confirmed age: <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Paid / members only</b><br><small class="muted">members-only, premium, purchase</small></td>
+        <td>You can download it only if your account has access: <code>cookies.txt</code> of that account.</td></tr>
+      <tr><td><b>Private video</b><br><small class="muted">private video</small></td>
+        <td>The author has made the video private. It can be downloaded only from an account that has access: <code>cookies.txt</code>.</td></tr>
+      <tr><td><b>Not available in your country</b><br><small class="muted">geo restricted, not available in your country</small></td>
+        <td>The site shows the video only in some countries. A proxy or VPN in another country may help — see <a href="#vpn">“If you use a VPN”</a>.</td></tr>
+      <tr><td><b>The video was deleted</b><br><small class="muted">Video unavailable, has been removed</small></td>
+        <td>Check the link in a browser. If the video plays there — right-click the video itself → “Send to Downloader”.</td></tr>
+      <tr><td><b>TikTok does not give the post</b><br><small class="muted">Your IP address is blocked from accessing this post</small></td>
+        <td>TikTok answers this way both for a deleted post and for one closed in your country. Check the link in a browser; if it opens only with a VPN — set up the proxy on the “Proxy” tab.</td></tr>
+      <tr><td><b>Instagram did not show the post without signing in</b><br><small class="muted">Instagram sent an empty media response</small></td>
+        <td>The account is private, the post is 18+ or Instagram limited viewing without an account. <code>cookies.txt</code> from a browser where you are signed in to Instagram helps.</td></tr>
+      <tr><td><b>No video in the post</b><br><small class="muted">There is no video in this post</small></td>
+        <td>The Instagram post has only photos — the program downloads video and audio.</td></tr>
+      <tr><td><b>Error 404</b><br><small class="muted">HTTP Error 404: Not Found</small></td>
+        <td>The file link is outdated or the video was deleted. Open the page in a browser and send the video from there (right-click → “Send to Downloader”).</td></tr>
+      <tr><td><b>Error 410 — page deleted</b><br><small class="muted">HTTP Error 410: Gone</small></td>
+        <td>The page was deleted or the site is closed for your country. Check the link in a browser; if it opens only with a VPN — set up the proxy on the “Proxy” tab.</td></tr>
+      <tr><td><b>Error 403 — the site refused</b><br><small class="muted">HTTP Error 403: Forbidden</small></td>
+        <td>Try again in a minute. Do not turn on or switch a VPN during a download. If it keeps happening — update yt-dlp with the button at the top.</td></tr>
+      <tr><td><b>Too many requests</b><br><small class="muted">HTTP Error 429</small></td>
+        <td>The site has temporarily limited downloads. Wait 10–30 minutes or switch the VPN server.</td></tr>
+      <tr><td><b>A problem on the site’s side</b><br><small class="muted">HTTP Error 500, 502, 503</small></td>
+        <td>The site is having errors right now. Try again later.</td></tr>
+      <tr><td><b>The site changed its page</b><br><small class="muted">Unable to extract, please report this issue</small></td>
+        <td>yt-dlp did not understand the new site page. Update yt-dlp; if that does not help, a fix will come out in a few days.</td></tr>
+      <tr><td><b>The site is not supported</b><br><small class="muted">Unsupported URL</small></td>
+        <td>You need a link to the page of the video itself, not to a feed. Check the <a href="https://github.com/yt-dlp/yt-dlp/blob/master/supportedsites.md" target="_blank" rel="noopener">list of sites</a>.</td></tr>
+      <tr><td><b>The site is closed for yt-dlp</b><br><small class="muted">[Liability] … will not be supported</small></td>
+        <td>The yt-dlp developers dropped the site for legal reasons (for example, Suno). Updating will not help.</td></tr>
+      <tr><td><b>DRM protection</b><br><small class="muted">DRM protected</small></td>
+        <td>Netflix, Disney+, Amazon Prime Video, Spotify, paid music — cannot be downloaded.</td></tr>
+      <tr><td><b>The stream has not started yet</b><br><small class="muted">Premieres in, live event will begin</small></td>
+        <td>Wait for the start. A live stream is recorded while it is running.</td></tr>
+      <tr><td><b>No such quality</b><br><small class="muted">Requested format is not available</small></td>
+        <td>Check the link again and choose another option.</td></tr>
+      <tr><td><b>No connection to the site</b><br><small class="muted">timed out, connection reset, getaddrinfo failed</small></td>
+        <td>Check the internet. If the site is blocked in your country, you need a VPN for the whole computer
+          or its proxy, see <a href="#vpn">“If you use a VPN”</a>. With a VPN — switch servers. “Could not find the site”
+          while the internet works — turn on <a href="#doh">Secure DNS</a>.</td></tr>
+      <tr><td><b>The connection was cut</b><br><small class="muted">UNEXPECTED_EOF, EOF occurred in violation of protocol</small></td>
+        <td>This is how a provider closes a blocked site. You need a VPN for the whole computer or its proxy — <a href="#vpn">what to do</a>.</td></tr>
+      <tr><td><b>Secure connection</b><br><small class="muted">SSL, certificate verify failed</small></td>
+        <td>Check the date and time on the computer. This also happens when an antivirus inspects HTTPS or a VPN intercepts the connection.</td></tr>
+      <tr><td><b>No disk space</b><br><small class="muted">No space left, WinError 112</small></td>
+        <td>Free up space or choose another download folder.</td></tr>
+      <tr><td><b>No access to the folder</b><br><small class="muted">Permission denied, WinError 5</small></td>
+        <td>Choose another download folder or add it to the antivirus exclusions.</td></tr>
+      <tr><td><b>The file is in use</b><br><small class="muted">WinError 32, used by another process</small></td>
+        <td>Close the file in the player and try again.</td></tr>
+      <tr><td><b>The path is too long</b><br><small class="muted">File name too long, WinError 206</small></td>
+        <td>Choose a folder closer to the drive root, for example <code>D:\Downloads</code>.</td></tr>
+      <tr><td><b>ffmpeg error</b><br><small class="muted">Postprocessing, conversion failed</small></td>
+        <td>Choose another option; if it keeps happening, delete the <code>bin</code> folder and restart the program.</td></tr>
+    </table>
+  </section>
+
+  <h2 id="vpn">If you use a VPN</h2>
+  <section class="card">
+    <ul>
+      <li><b>A VPN for the whole computer</b> (a separate app) — the program goes online through it, just like the browser.</li>
+      <li><b>A VPN browser extension</b> does not affect the program: it changes only the browser itself, while the program
+        goes online on its own. What to do:
+        <ul>
+          <li>install a VPN app on the computer — many VPN services have a Windows app in addition to the extension;</li>
+          <li>if the VPN app works as a <b>proxy</b> (v2rayN, Hiddify, NekoBox, Clash, Happ and similar), you do not need to
+            turn it on “for the whole computer”: when a site does not open directly, the program finds the proxy by itself and goes
+            through it. To find it by hand — on the main page: the “Proxy” tab → “Find”;</li>
+          <li>not found — enter the proxy address from the VPN app settings (the “Proxy”, “SOCKS” or “Port” section), for example
+            <code>socks5://127.0.0.1:10808</code> or <code>http://127.0.0.1:10809</code>.</li>
+        </ul>
+        YouTube and sites that did not open directly go through the proxy (or all sites — the “all sites through
+        the proxy” checkbox). Other sites still download directly. When you turn the VPN app off, the program
+        goes back to connecting directly by itself.</li>
+      <li><b>A VPN only for selected apps</b> (split tunneling) — add
+        <code>python\python.exe</code> from the program folder to the list.</li>
+      <li><b>YouTube through a VPN</b> asks to “confirm you are not a bot” more often. Switch servers or add <code>cookies.txt</code>.</li>
+      <li><b>Local sites and online cinemas</b> may not give the video through a VPN in another country — turn the VPN off for them.</li>
+    </ul>
+    <div class="note">Do not turn on or switch a VPN during a download or while listening: video links are tied
+      to your address, and the download breaks with error 403. Then just start it again.</div>
+  </section>
+
+  <h2 id="doh">Secure DNS</h2>
+  <section class="card">
+    <p>To open a site, the computer first asks the provider’s DNS for its address. A provider may “not know” the addresses
+      of blocked sites — then the download stops with the error “Could not find the site” (<code>getaddrinfo failed</code>),
+      although the internet works.</p>
+    <p>The “Secure DNS” checkbox on the “Proxy” tab (off by default): if the provider’s DNS did not find the address, the program
+      asks Cloudflare or Google over HTTPS — the provider does not see this request and cannot replace it.
+      Other sites are looked up as usual.</p>
+    <ul>
+      <li>This is not a VPN: if the provider blocks the connection to the site itself, you need a VPN or a tool like zapret — with them
+        Secure DNS helps.</li>
+      <li>It affects only this program, Windows settings do not change.</li>
+    </ul>
+  </section>
+
+  <h2>Manual commands</h2>
+  <p class="muted">If the buttons do not help. Open PowerShell in the program folder
+    (in File Explorer: Shift + right-click on an empty spot → “Open PowerShell window here”).</p>
+  <section class="card">
+    <p>Update yt-dlp:</p>
+    <pre>python\python.exe -m pip install -U "yt-dlp[default,curl-cffi]"</pre>
+    <p>See what yt-dlp finds at a link, and the full error text:</p>
+    <pre>python\python.exe -m yt_dlp -F "link"</pre>
+    <p>Check the yt-dlp version:</p>
+    <pre>python\python.exe -m yt_dlp --version</pre>
+  </section>
+
+  <h2 id="uninstall">How to uninstall the program</h2>
+  <section class="card">
+    <p>Run <code>Удалить.bat</code> (Uninstall) in the program folder. It shows what will be removed and asks for confirmation. Then it:</p>
+    <ol>
+      <li>closes the program (the icon by the clock disappears, unfinished downloads stop);</li>
+      <li>if the <code>Скачанное</code> (Downloads) folder inside the program has files — asks whether to delete them or move them to the desktop;</li>
+      <li>removes the desktop shortcut and the <code>udl-downloader:</code> link the extension uses to start the program;</li>
+      <li>deletes the whole program folder — with the settings, <code>cookies.txt</code>, its own Python and ffmpeg.</li>
+    </ol>
+    <p>Files downloaded to another folder (chosen with the “Choose folder” button) stay in place. The program installs nothing into Windows,
+      so it is not in “Apps” and there is nothing else to clean up.</p>
+    <p>The extension and the bookmarklet live in the browser — remove them yourself: the “Universal Downloader” extension — on the extensions page
+      (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>;
+      in Firefox it disappears after a restart anyway), the bookmark button — right-click → “Delete”.</p>
+    <div class="note">By hand: right-click the icon by the clock → “Exit”, then delete the program folder and the
+      “Универсальный скачиватель” shortcut on the desktop. The <code>udl-downloader:</code> link can stay — without the program it does nothing.</div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+const post = (path, body = {}) => fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)});
+
+$('lang').addEventListener('click', async () => {
+  await post('/api/settings', {lang: 'ru'});
+  location.reload();
+});
+
+$('update').addEventListener('click', async () => {
+  const btn = $('update'), msg = $('update-msg');
+  btn.disabled = true;
+  btn.textContent = 'Updating…';
+  msg.className = 'muted';
+  msg.textContent = 'This takes up to a minute.';
+  try {
+    const res = await post('/api/update');
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Could not update');
+    msg.className = 'ok';
+    msg.textContent = d.before === d.after
+      ? `You have the latest version (${d.after}).`
+      : `Updated: ${d.before} → ${d.after}. Restart the program: the icon by the clock → “Exit”, then the desktop shortcut.`;
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = `Error: ${e.message}\nCheck the internet or use the manual command below.`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Update yt-dlp';
+  }
+});
+
+$('app-check').addEventListener('click', async () => {
+  const btn = $('app-check'), msg = $('app-msg');
+  btn.disabled = true;
+  msg.className = 'muted';
+  msg.textContent = 'Asking GitHub…';
+  try {
+    const res = await post('/api/app-update/check');
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || 'Could not check');
+    msg.className = 'ok';
+    if (!d.latest) msg.textContent = `You have the latest version (${d.version}).`;
+    else if (d.dev) msg.textContent = `Version ${d.latest.version} is out. This is a development folder — update it with git pull.`;
+    else msg.innerHTML = `Version ${esc(d.latest.version)} is out. <a href="/">Update on the main page</a> — with one click.`;
+  } catch (e) {
+    msg.className = 'err';
+    msg.textContent = `Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+</script>
+<script src="/i18n.js"></script>
+<script src="/quick.js"></script>
+</body>
+</html>
