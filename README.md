@@ -1,5 +1,3 @@
-❤ **[Помощь проекту](https://www.donationalerts.com/r/olegche)**: https://www.donationalerts.com/r/olegche
-
 # Универсальный скачиватель
 
 Программа для Windows, которая скачивает видео и музыку с YouTube, VK, Rutube, Одноклассников, Дзена, SoundCloud, TikTok, Instagram и ещё 1000+ сайтов.
