@@ -1,4 +1,17 @@
+<p align="center">
+  <a href="https://dalink.to/olegche"><img src="docs/donate.svg" width="388" height="72" alt="❤ Помощь проекту"></a>
+</p>
+
 # Универсальный скачиватель
+
+[![Последняя версия](https://img.shields.io/github/v/release/OlegChe77/universal-downloader?label=%D0%B2%D0%B5%D1%80%D1%81%D0%B8%D1%8F&color=2f6fed)](../../releases/latest)
+[![Сколько раз скачали](https://img.shields.io/github/downloads/OlegChe77/universal-downloader/total?label=%D1%81%D0%BA%D0%B0%D1%87%D0%B8%D0%B2%D0%B0%D0%BD%D0%B8%D0%B9&color=2ea44f)](../../releases)
+[![Windows 10 и 11](https://img.shields.io/badge/Windows-10%20%7C%2011-0078d6)](#установка)
+[![На основе yt-dlp](https://img.shields.io/badge/%D0%BD%D0%B0%20%D0%BE%D1%81%D0%BD%D0%BE%D0%B2%D0%B5-yt--dlp-e5322d)](https://github.com/yt-dlp/yt-dlp)
+[![Интерфейс на русском](https://img.shields.io/badge/%D1%8F%D0%B7%D1%8B%D0%BA-%D1%80%D1%83%D1%81%D1%81%D0%BA%D0%B8%D0%B9-6f42c1)](#возможности)
+[![Последнее обновление](https://img.shields.io/github/last-commit/OlegChe77/universal-downloader?label=%D0%BE%D0%B1%D0%BD%D0%BE%D0%B2%D0%BB%D0%B5%D0%BD%D0%BE)](../../commits/main)
+[![Звёзды на GitHub](https://img.shields.io/github/stars/OlegChe77/universal-downloader?label=%D0%B7%D0%B2%D1%91%D0%B7%D0%B4%D1%8B&style=social)](../../stargazers)
+[![Поддержать проект](https://img.shields.io/badge/%E2%9D%A4%20%D0%BF%D0%BE%D0%B4%D0%B4%D0%B5%D1%80%D0%B6%D0%B0%D1%82%D1%8C-DonationAlerts-ff5a6e)](https://dalink.to/olegche)
 
 Программа для Windows, которая скачивает видео и музыку с YouTube, VK, Rutube, Одноклассников, Дзена, SoundCloud, TikTok, Instagram и ещё 1000+ сайтов.
 Вставляете ссылку или название песни, выбираете качество и получаете файл MP4, MP3 или M4A на своём компьютере.

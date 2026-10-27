@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="388" height="72" viewBox="0 0 388 72" role="img" aria-label="Помощь проекту">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a3d"/>
+      <stop offset=".55" stop-color="#ff5a6e"/>
+      <stop offset="1" stop-color="#e8448f"/>
+    </linearGradient>
+    <linearGradient id="gloss" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".22"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <path id="heart" d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/>
+  </defs>
+  <rect x="2" y="2" width="384" height="68" rx="16" fill="url(#bg)"/>
+  <rect x="2" y="2" width="384" height="68" rx="16" fill="url(#gloss)"/>
+  <g fill="#fff">
+    <g transform="translate(46 36)"><g opacity=".85">
+      <use href="#heart" transform="translate(-11 -12) scale(.92)"/>
+      <animateTransform attributeName="transform" type="scale" values="1;1.15;.97;1;1" keyTimes="0;.12;.2;.3;1" dur="2.4s" repeatCount="indefinite"/>
+    </g></g>
+    <g transform="translate(74 36)"><g>
+      <use href="#heart" transform="translate(-13.5 -14.5) scale(1.12)"/>
+      <animateTransform attributeName="transform" type="scale" values="1;1;1.15;.97;1;1" keyTimes="0;.125;.245;.325;.425;1" dur="2.4s" repeatCount="indefinite"/>
+    </g></g>
+    <g transform="translate(102 36)"><g opacity=".85">
+      <use href="#heart" transform="translate(-11 -12) scale(.92)"/>
+      <animateTransform attributeName="transform" type="scale" values="1;1;1.15;.97;1;1" keyTimes="0;.25;.37;.45;.55;1" dur="2.4s" repeatCount="indefinite"/>
+    </g></g>
+  </g>
+  <text x="130" y="45" fill="#fff" font-family="'Segoe UI', Arial, Helvetica, sans-serif" font-size="26" font-weight="700">Помощь проекту</text>
+</svg>

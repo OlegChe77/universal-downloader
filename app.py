@@ -33,13 +33,80 @@ from pathlib import Path
 
 BASE = Path(__file__).resolve().parent
 TRAY = '--tray' in sys.argv
-if TRAY:  # окна нет — всё, что программа пишет (и ошибки запуска), сохраняем в файл
-    sys.stdout = sys.stderr = open(BASE / 'program.log', 'w', encoding='utf-8', buffering=1)
-# Заставка у часов — до тяжёлых импортов: без окна иначе несколько секунд не видно, запустилось ли что-то
+DEFAULT_PORT = 8765
+
+
+def settings_port():
+    """Порт страницы: DOWNLOADER_PORT (для тестов) или «port» из settings.json. Нужен до тяжёлых импортов."""
+    try:
+        port = os.environ.get('DOWNLOADER_PORT')
+        if not port:
+            try:
+                port = json.loads((BASE / 'settings.json').read_text(encoding='utf-8')).get('port')
+            except (OSError, ValueError):
+                port = None
+        port = int(port or DEFAULT_PORT)
+    except (TypeError, ValueError, AttributeError):
+        return DEFAULT_PORT
+    return port if 1024 <= port <= 65535 else DEFAULT_PORT
+
+
+PORT = settings_port()
+ERROR_ALREADY_EXISTS = 183
+MUTEX = None  # мьютекс Windows «копия на этом порту работает или запускается» — держим, пока живы
+
+
+def take_mutex():
+    """True — других копий на этом порту нет (мьютекс наш)."""
+    global MUTEX, kernel32
+    if os.name != 'nt':
+        return True
+    import ctypes
+    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+    kernel32.CreateMutexW.restype = ctypes.c_void_p
+    kernel32.WaitForSingleObject.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+    MUTEX = kernel32.CreateMutexW(None, True, f'Local\\udl-app-{PORT}')
+    return not MUTEX or ctypes.get_last_error() != ERROR_ALREADY_EXISTS
+
+
+def wait_first_copy():
+    """Другая копия ещё запускается (на медленном ПК — десятки секунд, а ярлык и кнопку расширения жмут снова —
+    у часов оказывалось по 4 копии). Ждём, пока она займёт порт (тогда main() просто покажет её страницу)
+    или завершится (тогда запускаемся сами — мьютекс наш). True — мьютекс наш."""
+    deadline = time.monotonic() + 600
+    while time.monotonic() < deadline:
+        if kernel32.WaitForSingleObject(MUTEX, 500) in (0, 0x80):  # WAIT_OBJECT_0, WAIT_ABANDONED
+            return True
+        with socket.socket() as s:
+            if s.connect_ex(('127.0.0.1', PORT)) == 0:
+                return False
+    return False
+
+
+def open_log():
+    """Окна нет — всё, что программа пишет (и ошибки запуска), сохраняем в файл. Только копия с мьютексом:
+    вторая копия раньше затирала журнал работающей."""
+    if TRAY:
+        sys.stdout = sys.stderr = open(BASE / 'program.log', 'w', encoding='utf-8', buffering=1)
+
+
+FIRST = True
 SPLASH = None
-if TRAY and __name__ == '__main__' and '--no-browser' not in sys.argv and os.name == 'nt':
-    import splash
-    SPLASH = splash.show('Запускается…', str(BASE / 'web' / 'icon.ico'))
+if __name__ == '__main__':
+    FIRST = take_mutex()
+    if FIRST:
+        open_log()
+    elif '--no-browser' in sys.argv:  # страницу открывать не нужно, а программа запускается и без нас
+        sys.exit()
+    # Заставка у часов — до тяжёлых импортов: без окна иначе несколько секунд не видно, запустилось ли что-то
+    if TRAY and os.name == 'nt':
+        import splash
+        SPLASH = splash.show('Запускается…' if FIRST else 'Уже запускается — подождите…',
+                             str(BASE / 'web' / 'icon.ico'))
+    if not FIRST:
+        FIRST = wait_first_copy()
+        if FIRST:
+            open_log()
 
 import imageio_ffmpeg
 import yt_dlp
@@ -62,8 +129,7 @@ DOWNLOADS = BASE / 'Скачанное'
 COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
-DEFAULT_PORT = 8765
-VERSION = '1.2'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
+VERSION = '1.2.1'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
 UPDATE_API = (os.environ.get('DOWNLOADER_UPDATE_API')  # для проверки обновления без настоящего релиза
               or 'https://api.github.com/repos/OlegChe77/universal-downloader/releases/latest')
 UPDATE_DIR = BASE / 'update'  # скачанная новая версия и старые файлы на время замены
@@ -140,16 +206,6 @@ def save_settings(**changes):
     return settings
 
 
-def settings_port():
-    """Порт страницы: DOWNLOADER_PORT (для тестов) или «port» из settings.json."""
-    try:
-        port = int(os.environ.get('DOWNLOADER_PORT') or load_settings()['port'])
-    except (TypeError, ValueError):
-        return DEFAULT_PORT
-    return port if 1024 <= port <= 65535 else DEFAULT_PORT
-
-
-PORT = settings_port()
 LOCAL_HOSTS = {f'127.0.0.1:{PORT}', f'localhost:{PORT}'}
 LOCAL_ORIGINS = {f'http://{h}' for h in LOCAL_HOSTS}
 
@@ -2336,6 +2392,9 @@ def main():
             if SPLASH:  # процесс сейчас завершится — ждём, пока надпись прочитают и заставка исчезнет
                 SPLASH.close(None if opened else ALREADY_OPEN_TEXT, 1.0 if opened else 2.5)
                 SPLASH.wait()
+        elif SPLASH:
+            SPLASH.close()
+            SPLASH.wait()
         return
     if owner == 'other':
         fail(BUSY_TEXT.format(port=PORT))
@@ -2356,6 +2415,8 @@ def main():
         return
     if '--no-browser' not in sys.argv:
         threading.Thread(target=open_page_later, daemon=True).start()
+    elif SPLASH:  # запустила кнопка расширения — его вкладка сама перейдёт на страницу, как только порт ответит
+        SPLASH.close('Запущена', 1.0)
     if not DEV_COPY:
         threading.Thread(target=check_app_update_regularly, daemon=True).start()
     if not TRAY:
