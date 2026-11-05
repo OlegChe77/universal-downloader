@@ -138,7 +138,7 @@ DOWNLOADS = BASE / 'Скачанное'
 COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
-VERSION = '1.3'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
+VERSION = '1.3.1'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
 UPDATE_API = (os.environ.get('DOWNLOADER_UPDATE_API')  # для проверки обновления без настоящего релиза
               or 'https://api.github.com/repos/OlegChe77/universal-downloader/releases/latest')
 UPDATE_DIR = BASE / 'update'  # скачанная новая версия и старые файлы на время замены
@@ -1219,7 +1219,22 @@ def page(name):
     if i18n.CURRENT == 'en':
         html = html.replace('<html lang="ru">', '<html lang="en">', 1).replace(
             '<title>Универсальный скачиватель</title>', '<title>Universal Downloader</title>', 1)
+    # i18n.js вставляем в страницу: тогда она не зависит от того, как браузер примет внешний скрипт
+    tag = '<script src="/i18n.js"></script>'
+    if tag in html:
+        try:
+            html = html.replace(tag, '<script>\n' + (WEB / 'i18n.js').read_text(encoding='utf-8') + '\n</script>', 1)
+        except OSError:
+            pass  # файла нет — останется внешний <script src>
     resp = Response(html, mimetype='text/html')
+    resp.headers['Cache-Control'] = 'no-cache'
+    return resp
+
+
+def js_file(name):
+    """Скрипт с явным типом. send_from_directory берёт тип из реестра Windows (HKCR\\.js, Content Type):
+    там бывает text/plain, и с nosniff браузер такой скрипт не выполняет."""
+    resp = send_from_directory(WEB, name, mimetype='text/javascript')
     resp.headers['Cache-Control'] = 'no-cache'
     return resp
 
@@ -1236,22 +1251,22 @@ def help_page():
 
 @app.get('/i18n.js')
 def i18n_js():
-    return send_from_directory(WEB, 'i18n.js')
+    return js_file('i18n.js')
 
 
 @app.get('/favicon.ico')
 def favicon():
-    return send_from_directory(WEB, 'icon.ico')
+    return send_from_directory(WEB, 'icon.ico', mimetype='image/x-icon')
 
 
 @app.get('/quick.js')
 def quick_js():
-    return send_from_directory(WEB, 'quick.js')
+    return js_file('quick.js')
 
 
 @app.get('/browsers.svg')
 def browsers_svg():
-    return send_from_directory(WEB, 'browsers.svg')
+    return send_from_directory(WEB, 'browsers.svg', mimetype='image/svg+xml')
 
 
 # английские тексты расширения: архив собирается на языке программы (меню — в background.js по UDL_LANG)
