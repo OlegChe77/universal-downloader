@@ -8,6 +8,8 @@ const L = (ru, en) => EN ? en : ru;
 
 const EN_TEXT = {
   'Универсальный скачиватель': 'Universal Downloader',
+  'Что скачаем сегодня?': 'What shall we download today?',
+  'Меню': 'Menu',
   'Видео и музыка с YouTube, VK, Rutube, SoundCloud и ещё 1000+ сайтов — прямо на компьютер':
     'Video and music from YouTube, SoundCloud, Vimeo, TikTok and 1000+ other sites — straight to your computer',
   'Поддержать разработку программы (DonationAlerts)': 'Support the development of the program (DonationAlerts)',

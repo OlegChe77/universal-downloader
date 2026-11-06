@@ -14,29 +14,46 @@
   } catch { /* тема как в Windows */ }
 </script>
 <style>
+  /* как на главной: бирюзовая тема, стеклянные карточки на цветном фоне */
   :root {
-    --bg: #f4f5f7; --card: #ffffff; --text: #16181d; --muted: #6b7280;
-    --line: #e3e5ea; --accent: #2f6df6; --accent-soft: #e8efff;
-    --ok: #16a34a; --err: #dc2626; --warn: #b45309; --chip: #f1f3f6; --code: #f6f7f9;
+    color-scheme: light;
+    --bg: #e6f1ef; --bg-a: #8fe0cc; --bg-b: #b9d3ff; --bg-c: #f3f0b5;
+    --card: #f6fbfa; --glass: rgba(255, 255, 255, .55); --glass-line: rgba(255, 255, 255, .85);
+    --text: #0f1f1d; --muted: #4f6965;
+    --line: rgba(10, 60, 55, .13); --accent: #0a8070; --accent-soft: rgba(12, 154, 135, .14);
+    --ok: #15803d; --err: #c62828; --warn: #b45309; --chip: rgba(10, 60, 55, .07); --code: rgba(255, 255, 255, .7);
+    --shadow: 0 1px 2px rgba(10, 60, 55, .06), 0 14px 44px rgba(10, 80, 70, .14);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
-      --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
-      --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+      --bg: #07100f; --bg-a: #0f6b5c; --bg-b: #1c3f78; --bg-c: #4a5a1a;
+      --card: #121f1d; --glass: rgba(20, 34, 32, .6); --glass-line: rgba(255, 255, 255, .1);
+      --text: #e8f2f0; --muted: #9db5b1;
+      --line: rgba(255, 255, 255, .11); --accent: #5fe0cb; --accent-soft: rgba(31, 184, 162, .18);
+      --ok: #3ccf73; --err: #ff7b7b; --warn: #fbbf24; --chip: rgba(255, 255, 255, .08); --code: rgba(0, 0, 0, .28);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #111317; --card: #1a1d23; --text: #eceef2; --muted: #9aa1ad;
-    --line: #2a2e36; --accent: #5b8cff; --accent-soft: #1f2a44;
-    --ok: #22c55e; --err: #f87171; --warn: #fbbf24; --chip: #232731; --code: #14161b;
+    --bg: #07100f; --bg-a: #0f6b5c; --bg-b: #1c3f78; --bg-c: #4a5a1a;
+    --card: #121f1d; --glass: rgba(20, 34, 32, .6); --glass-line: rgba(255, 255, 255, .1);
+    --text: #e8f2f0; --muted: #9db5b1;
+    --line: rgba(255, 255, 255, .11); --accent: #5fe0cb; --accent-soft: rgba(31, 184, 162, .18);
+    --ok: #3ccf73; --err: #ff7b7b; --warn: #fbbf24; --chip: rgba(255, 255, 255, .08); --code: rgba(0, 0, 0, .28);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
   }
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
-    font: 15px/1.55 "Segoe UI", system-ui, sans-serif;
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); overflow-x: hidden;
+    font: 15px/1.55 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  }
+  body::before {
+    content: ""; position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; opacity: .85; pointer-events: none;
+    background: radial-gradient(560px 460px at 0% 0%, var(--bg-a), transparent 70%),
+                radial-gradient(520px 420px at 100% 10%, var(--bg-b), transparent 70%),
+                radial-gradient(560px 420px at 60% 105%, var(--bg-c), transparent 70%);
   }
   main { max-width: 860px; margin: 0 auto; padding: 32px 16px 60px; }
   a { color: var(--accent); }
@@ -73,12 +90,16 @@
   h2 { font-size: 19px; margin: 36px 0 12px; }
   .sub { color: var(--muted); margin: 0; }
   .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
-    padding: 18px; margin-top: 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow);
+    padding: 20px; margin-top: 12px;
+  }
+  /* стекло — только где есть размытие, иначе сплошной цвет */
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .card { background: var(--glass); border-color: var(--glass-line); -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); }
   }
   button {
     font: inherit; cursor: pointer; border: 0; border-radius: 10px;
-    padding: 10px 16px; background: var(--accent); color: #fff; font-weight: 600;
+    padding: 10px 16px; background: var(--btn, #0a8070); color: #fff; font-weight: 600;
   }
   button:disabled { opacity: .6; cursor: default; }
   code, pre { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13.5px; }
@@ -139,7 +160,7 @@
   .more { margin-top: 10px; }
   .bm-row { display: flex; align-items: center; gap: 8px 14px; flex-wrap: wrap; }
   .bm, .dl-btn {
-    display: inline-block; padding: 9px 16px; border-radius: 10px; background: var(--accent); color: #fff;
+    display: inline-block; padding: 9px 16px; border-radius: 10px; background: var(--btn, #0a8070); color: #fff;
     font-weight: 600; text-decoration: none; cursor: grab;
   }
   .dl-btn { cursor: pointer; }
@@ -189,12 +210,12 @@
         without windows: an icon with the hint “Installing components” appears by the clock, then the page opens.
         The same happens when the program needs new components. If the installation fails, a window with the error appears.
         <code>Запуск.bat</code> (Start) in the program folder shows the installation progress in a window.</td></tr>
-      <tr><td><b>Page</b></td><td>Three tabs: “By link”, “Music” and “Proxy” (for blocked sites).
-        The download folder (the “Choose folder” button, the “ask for the folder every time” checkbox) is right under the link
-        or search field on both tabs. Download progress with “Cancel” and “Show” buttons appears where you started it: for a video —
+      <tr><td><b>Page</b></td><td>On the left is a panel with three tabs: “By link”, “Music” and “Proxy” (for blocked sites);
+        on a phone it is at the top, with the tabs in a row. The same panel holds the download folder (the “Choose folder” button,
+        the “ask for the folder every time” checkbox), “Support the project”, theme, help and language. Download progress with “Cancel” and “Show” buttons appears where you started it: for a video —
         in its card under the title, for a song — in its row in the results, for a list of links — in the list card.
         There is no separate list of downloads: the files are in the folder (“Open” next to the folder).
-        The theme button in the corner switches: as in Windows → light → dark. The language button switches Russian ↔ English.</td></tr>
+        The theme button (the circle at the bottom of the panel) switches: as in Windows → light → dark. The language button switches Russian ↔ English.</td></tr>
       <tr><td><b>By link</b></td><td>Paste the address of a video, playlist or page — the options appear by themselves.
         Choose the video quality (MP4) or “Audio only” (MP3/M4A). If you type a song name instead of a link,
         the program switches to “Music” by itself.</td></tr>
@@ -207,7 +228,7 @@
         and “Show” when it is done.
         Use the checkboxes to select several songs and download them with one button (MP3 or M4A) — one at a time.</td></tr>
       <tr><td><b>Listen</b></td><td>The ▶ button on a song cover on the “Music” tab plays the audio right on the page,
-        without downloading anything. A player appears at the bottom: pause, seek, time, volume and the “Close” cross.
+        without downloading anything. A player appears above the search field (on a phone — at the bottom of the screen): pause, seek, time, volume and the “Close” cross.
         One song plays at a time: starting another stops the first one. When a song from the results ends, the next one starts;
         ⏮ ⏭ in the player are previous and next (⏮ after 3 seconds returns to the start of the song).
         The <b>MP3</b> button in the player downloads what is playing now.

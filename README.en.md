@@ -21,7 +21,7 @@ Everything runs on your computer: no ads, no sign-up, no third-party servers. Yo
 
 The interface is in English and Russian: the language button is at the top right of the page (by default — the language of Windows).
 
-![Main page: a YouTube link checked, MP4, MP3 and M4A options, the “By link”, “Music” and “Proxy” tabs; at the top, the “Download right from a site” panel with Chrome, Edge, Yandex, Opera, Firefox and Safari icons](docs/screenshots/en/link.png)
+![Main page: on the left, a panel with the “By link”, “Music” and “Proxy” tabs, the download folder and “Support the project”; in the center, the link field and a video card with MP4, MP3 and M4A options; below, the “Download right from a site” panel with Chrome, Edge, Yandex, Opera, Firefox and Safari icons](docs/screenshots/en/link.png)
 
 **[⬇ Download the latest version (zip)](https://github.com/OlegChe77/universal-downloader/releases/latest/download/universal-downloader.zip)** (`universal-downloader.zip`, direct file) · [release page with the changes](../../releases/latest)
 
@@ -32,7 +32,7 @@ The interface is in English and Russian: the language button is at the top right
 - **Video by link**: MP4 in the quality you choose, from 144p to 4K. Video and audio are merged automatically.
 - **Audio only**: MP3 with cover and tags (“Artist – Song” is taken from the video title) or M4A without re-encoding.
 - **Music search by name** on YouTube, SoundCloud and Rutube at once — one list of 10 songs with covers and a “Show 10 more” button. MP3 downloads in one click, and with checkboxes you can select several songs and download them with one button.
-- **Listen before downloading**: a player at the bottom of the page with seeking, volume and the next song. It works with the keyboard and media keys.
+- **Listen before downloading**: a player “island” above the field with seeking, volume and the next song. It works with the keyboard and media keys.
 - **Audio tracks and subtitles**: for videos in several languages — choose the track (the original by default) or all of them in one MP4; subtitles — embedded in the video or as a separate `.srt`.
 - **Compress video**: a button on a downloaded video makes the file smaller (H.265), the original stays.
 - **Playlists and lists of links**: a whole playlist or several links (one per line) download one after another.
@@ -46,7 +46,7 @@ The interface is in English and Russian: the language button is at the top right
 
 | Music: search by name, checkboxes and “Download MP3 / M4A” | Listen before downloading |
 |---|---|
-| ![The “Music” tab: a list of 10 songs, two checked, the “Selected 2 of 10” bar with “Download MP3” and “M4A” buttons](docs/screenshots/en/music.png) | ![The player at the bottom of the page: cover, title, seek bar, volume and the MP3 button; the song in the list is marked as playing](docs/screenshots/en/player.png) |
+| ![The “Music” tab: a list of 10 songs, two checked, the “Selected 2 of 10” bar with “Download MP3” and “M4A” buttons](docs/screenshots/en/music.png) | ![The player “island” above the search field: cover, title, seek bar, volume and the MP3 button; the song in the list is marked as playing](docs/screenshots/en/player.png) |
 
 | The “Proxy” tab: for blocked sites | Dark theme |
 |---|---|
@@ -54,7 +54,7 @@ The interface is in English and Russian: the language button is at the top right
 
 | On a narrow screen |
 |---|
-| <img src="docs/screenshots/en/phone.png" alt="A narrow window: tabs, music search and the song selection bar in one column" width="390"> |
+| <img src="docs/screenshots/en/phone.png" alt="A narrow window: the panel with tabs in a row and the folder on top, music search and the song selection bar in one column" width="390"> |
 
 ---
 

@@ -13,40 +13,56 @@
   } catch { /* хранилище недоступно — тема как в Windows */ }
 </script>
 <style>
+  /* «Стекло, рейка»: бирюзовая тема, полупрозрачные карточки на цветном фоне.
+     --card — сплошной цвет стекла (для браузеров без backdrop-filter и для окон), --glass — полупрозрачный */
   :root {
     color-scheme: light;
-    --bg: #f2f3f6; --card: #ffffff; --card-2: #f7f8fa; --text: #15171c; --muted: #5f6673; --faint: #9399a5;
-    --line: #e1e4ea; --accent: #2f62ea; --accent-hover: #2453d2; --accent-text: #2f62ea; --accent-soft: #eaf0ff;
-    --on-accent: #ffffff; --ok: #15803d; --ok-soft: #e5f5eb; --err: #c62828; --err-soft: #fdeded;
-    --chip: #eceef2; --skeleton: #e8eaef; --skeleton-hi: #f4f5f8; --overlay: rgba(12, 14, 20, .5);
-    --shadow: 0 1px 2px rgba(16, 24, 40, .04), 0 6px 20px rgba(16, 24, 40, .06);
+    --bg: #e6f1ef; --bg-a: #8fe0cc; --bg-b: #b9d3ff; --bg-c: #f3f0b5;
+    --card: #f6fbfa; --card-2: #ffffff; --glass: rgba(255, 255, 255, .55); --glass-line: rgba(255, 255, 255, .85); --inner: rgba(255, 255, 255, .6);
+    --text: #0f1f1d; --muted: #4f6965; --faint: #8fa5a1;
+    --line: rgba(10, 60, 55, .13); --accent: #0a8070; --accent-hover: #086b5e; --accent-text: #08705f; --accent-soft: rgba(12, 154, 135, .14);
+    --on-accent: #ffffff; --ok: #15803d; --ok-soft: rgba(21, 128, 61, .13); --err: #c62828; --err-soft: #fdeded;
+    --chip: rgba(10, 60, 55, .07); --skeleton: rgba(10, 60, 55, .08); --skeleton-hi: rgba(10, 60, 55, .03); --overlay: rgba(6, 22, 20, .5);
+    --shadow: 0 1px 2px rgba(10, 60, 55, .06), 0 14px 44px rgba(10, 80, 70, .16);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --bg: #0f1115; --card: #181b21; --card-2: #1e2229; --text: #eceef2; --muted: #a0a7b3; --faint: #6c7380;
-      --line: #2a2f38; --accent: #4a6cf0; --accent-hover: #5b7af5; --accent-text: #8ca5ff; --accent-soft: #1d2643;
-      --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: #14291c; --err: #ff7b7b; --err-soft: #321a1c;
-      --chip: #242830; --skeleton: #22262d; --skeleton-hi: #2b3038; --overlay: rgba(0, 0, 0, .62);
-      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+      --bg: #07100f; --bg-a: #0f6b5c; --bg-b: #1c3f78; --bg-c: #4a5a1a;
+      --card: #121f1d; --card-2: #1a2927; --glass: rgba(20, 34, 32, .6); --glass-line: rgba(255, 255, 255, .1); --inner: rgba(255, 255, 255, .06);
+      --text: #e8f2f0; --muted: #9db5b1; --faint: #647a76;
+      --line: rgba(255, 255, 255, .11); --accent: #0d7f6e; --accent-hover: #109483; --accent-text: #5fe0cb; --accent-soft: rgba(31, 184, 162, .18);
+      --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: rgba(60, 207, 115, .15); --err: #ff7b7b; --err-soft: #3a1c1e;
+      --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
+      --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
     }
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #0f1115; --card: #181b21; --card-2: #1e2229; --text: #eceef2; --muted: #a0a7b3; --faint: #6c7380;
-    --line: #2a2f38; --accent: #4a6cf0; --accent-hover: #5b7af5; --accent-text: #8ca5ff; --accent-soft: #1d2643;
-    --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: #14291c; --err: #ff7b7b; --err-soft: #321a1c;
-    --chip: #242830; --skeleton: #22262d; --skeleton-hi: #2b3038; --overlay: rgba(0, 0, 0, .62);
-    --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 6px 20px rgba(0, 0, 0, .25);
+    --bg: #07100f; --bg-a: #0f6b5c; --bg-b: #1c3f78; --bg-c: #4a5a1a;
+    --card: #121f1d; --card-2: #1a2927; --glass: rgba(20, 34, 32, .6); --glass-line: rgba(255, 255, 255, .1); --inner: rgba(255, 255, 255, .06);
+    --text: #e8f2f0; --muted: #9db5b1; --faint: #647a76;
+    --line: rgba(255, 255, 255, .11); --accent: #0d7f6e; --accent-hover: #109483; --accent-text: #5fe0cb; --accent-soft: rgba(31, 184, 162, .18);
+    --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: rgba(60, 207, 115, .15); --err: #ff7b7b; --err-soft: #3a1c1e;
+    --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
+    --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
   }
 
   * { box-sizing: border-box; }
   body {
-    margin: 0; background: var(--bg); color: var(--text);
+    margin: 0; min-height: 100vh; background: var(--bg); color: var(--text); overflow-x: hidden;
     font: 15px/1.5 "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
-  main { max-width: 980px; margin: 0 auto; padding: 22px 16px 48px; }
+  /* цветные пятна за стеклом */
+  body::before {
+    content: ""; position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: -1; opacity: .85; pointer-events: none;
+    background: radial-gradient(560px 460px at 0% 0%, var(--bg-a), transparent 70%),
+                radial-gradient(520px 420px at 100% 10%, var(--bg-b), transparent 70%),
+                radial-gradient(560px 420px at 60% 105%, var(--bg-c), transparent 70%);
+  }
+  /* справа от рейки; на широком экране — по центру свободного места */
+  main { margin-left: 272px; margin-left: calc(272px + max(0px, (100vw - 1236px) / 2)); max-width: 960px; padding: 14px 22px 48px 14px; }
   .icon { width: 18px; height: 18px; flex-shrink: 0; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .hidden { display: none !important; }
   .muted { color: var(--muted); }
@@ -76,16 +92,28 @@
   .link:hover { text-decoration: underline; }
   :focus-visible { outline: 2px solid var(--accent-text); outline-offset: 2px; }
 
-  /* шапка */
-  .top { display: flex; align-items: center; gap: 12px 16px; flex-wrap: wrap; margin-bottom: 18px; }
-  .brand { display: flex; align-items: center; gap: 12px; flex: 1; min-width: 240px; }
-  .brand img { width: 40px; height: 40px; }
-  .brand h1 { font-size: 22px; line-height: 1.2; margin: 0; letter-spacing: -.01em; }
-  .brand p { margin: 2px 0 0; color: var(--muted); font-size: 13.5px; }
-  .top-side { display: flex; flex-direction: column; align-items: stretch; gap: 8px; }
-  .top-tools { display: flex; gap: 8px; }
-  .top-tools .btn { flex: 1; }
+  /* боковая рейка: название, вкладки, папка, «Помощь проекту», тема/помощь/язык */
+  .rail {
+    position: fixed; top: 14px; bottom: 14px; left: 14px; width: 244px; z-index: 5; overflow-y: auto;
+    display: flex; flex-direction: column; gap: 14px; padding: 16px 12px 14px; border-radius: 28px;
+  }
+  .brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+  .brand img { width: 36px; height: 36px; flex-shrink: 0; }
+  .brand h1 { font-size: 16px; line-height: 1.25; margin: 0; font-weight: 700; }
+  .rail-fill { flex: 1; }
+  .rail-foot { display: flex; flex-direction: column; gap: 10px; }
+  .top-tools { display: flex; gap: 6px; }
+  .top-tools .btn { padding: 8px 10px; border-radius: 12px; }
+  .top-tools .lang-btn { flex: 1; }
+  /* у темы и помощи в рейке — только значок, подпись остаётся для чтения с экрана */
+  .top-tools .label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .rail a.btn.donate { width: 100%; }
   a.btn { color: inherit; text-decoration: none; }
+
+  /* заголовок над полем */
+  .hero { text-align: center; padding: 26px 0 18px; }
+  .hero h2 { margin: 0 0 6px; font-size: 32px; line-height: 1.2; letter-spacing: -.02em; }
+  .hero p { margin: 0; color: var(--muted); }
 
   /* «Помощь проекту» — тёплая, заметнее остальных кнопок */
   a.btn.donate {
@@ -113,8 +141,15 @@
     :root:not([data-theme="light"]) a.btn.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
   }
 
-  .card {
-    background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow);
+  /* стекло: сначала сплошной цвет (старые браузеры без backdrop-filter), потом полупрозрачность и размытие */
+  .card, .glass {
+    background: var(--card); border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .card, .glass {
+      background: var(--glass); border-color: var(--glass-line);
+      -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5);
+    }
   }
 
   /* ход загрузки — в карточке видео, в строке песни и в карточке списка ссылок; общего списка нет */
@@ -161,12 +196,18 @@
   .err-more summary { cursor: pointer; width: fit-content; }
   .err-more code { display: block; margin-top: 4px; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .err-help { display: inline-block; margin-top: 4px; font-size: 12.5px; color: inherit; white-space: normal; }
-  .folder-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; margin-top: 12px; font-size: 13.5px; }
-  .folder-bar .icon { width: 16px; height: 16px; color: var(--muted); }
-  .folder-bar b { font-weight: 600; overflow-wrap: anywhere; }
+  /* папка загрузок — блок в рейке */
+  .folder-bar { padding: 12px; border-radius: 18px; background: var(--card-2); border: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .folder-bar { background: var(--inner); } }
+  .folder-path { display: flex; align-items: flex-start; gap: 7px; margin: 3px 0 8px; color: var(--text); }
+  .folder-bar .icon { width: 16px; height: 16px; margin-top: 2px; color: var(--muted); }
+  .folder-bar b { font-weight: 600; overflow-wrap: anywhere; min-width: 0; }
+  .folder-links { display: flex; flex-wrap: wrap; gap: 4px 14px; }
+  .folder-bar .ask { margin: 10px 0 0; align-items: flex-start; line-height: 1.35; }
+  .folder-bar .ask input { margin-top: 1px; flex-shrink: 0; }
   .ask { display: flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; margin-left: auto; }
   .ask input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
-  .proxy { display: grid; gap: 12px; font-size: 14px; }
+  .proxy { display: grid; gap: 12px; font-size: 14px; padding: 20px; }
   .proxy p { margin: 0; }
   .note-line { font-size: 13px; color: var(--muted); width: 100%; }
   .note-line.bad { color: var(--err); }
@@ -188,35 +229,46 @@
   .music-note b { color: var(--text); }
 
   /* вкладки */
-  .tabs { display: flex; gap: 8px; margin-bottom: -1px; position: relative; z-index: 1; }
+  /* вкладки — переключатели в рейке */
+  .tabs { display: flex; flex-direction: column; gap: 4px; }
   .tab {
-    display: flex; align-items: center; gap: 10px; text-align: left; padding: 11px 16px; min-width: 0;
-    background: transparent; border: 1px solid transparent; border-bottom: 0; border-radius: 14px 14px 0 0; color: var(--muted);
+    display: flex; align-items: center; gap: 11px; text-align: left; padding: 10px 12px; min-width: 0;
+    background: transparent; border: 0; border-radius: 16px; color: var(--muted); transition: background .15s, color .15s;
   }
-  .tab:hover { color: var(--text); background: var(--card-2); }
-  .tab[aria-selected="true"] { background: var(--card); border-color: var(--line); color: var(--text); }
-  .tab .icon { width: 20px; height: 20px; }
-  .tab[aria-selected="true"] .icon { color: var(--accent-text); }
-  .tab b { display: block; font-size: 15px; }
-  .tab small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
-  .panel { padding: 20px; border-top-left-radius: 0; }
-  .panel.not-first { border-top-left-radius: 16px; }
+  .tab .ico { width: 34px; height: 34px; border-radius: 11px; display: grid; place-items: center; background: var(--chip); flex-shrink: 0; }
+  .tab:hover { background: var(--chip); }
+  .tab .icon { width: 19px; height: 19px; color: var(--text); }
+  .tab b { display: block; font-size: 15px; color: var(--text); line-height: 1.25; }
+  .tab small { display: block; font-size: 12px; font-weight: 400; line-height: 1.3; }
+  .tab[aria-selected="true"] { background: var(--accent); color: rgba(255, 255, 255, .85); box-shadow: 0 8px 20px rgba(10, 128, 112, .32); }
+  .tab[aria-selected="true"] b, .tab[aria-selected="true"] .icon { color: #fff; }
+  .tab[aria-selected="true"] .ico { background: rgba(255, 255, 255, .22); }
+  /* вкладка — не карточка: поле и результат стоят на фоне отдельными стеклянными блоками */
+  .card.panel { padding: 0; background: none; border: 0; border-radius: 0; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
 
-  .field { display: flex; gap: 8px; }
-  .field textarea, .field input {
-    flex: 1; min-width: 0; padding: 12px 14px; font: inherit; font-size: 16px; color: inherit; resize: none;
-    background: var(--card-2); border: 2px solid var(--faint); border-radius: 12px; outline: none;
-    overflow-y: auto; max-height: 180px; transition: border-color .15s, background .15s;
+  /* поле — большая стеклянная строка с кнопкой внутри */
+  .field {
+    display: flex; gap: 8px; padding: 6px; border-radius: 22px;
+    background: var(--card); border: 2px solid var(--faint); box-shadow: var(--shadow); transition: border-color .15s, box-shadow .15s;
   }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .field { background: var(--glass); -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); }
+  }
+  .field:focus-within { border-color: var(--accent); }
+  .field textarea, .field input {
+    flex: 1; min-width: 0; padding: 11px 12px; font: inherit; font-size: 16px; line-height: 24px; color: inherit; resize: none;
+    background: transparent; border: 0; border-radius: 16px; outline: none;
+    overflow-y: auto; max-height: 180px;
+  }
+  .field textarea { field-sizing: content; }  /* длинная ссылка и список растягивают поле (до 180px); где не умеют — как раньше, прокрутка */
   /* Safari рисует type=search системным полем и не даёт задать рамку, скругление и отступы */
   .field input[type="search"] { -webkit-appearance: none; appearance: none; }
   .field input::-webkit-search-decoration { -webkit-appearance: none; }
-  .field textarea:focus, .field input:focus { border-color: var(--accent); background: var(--card); }
   .field textarea::placeholder, .field input::placeholder { color: var(--faint); }
-  .field .btn { padding: 0 22px; min-height: 50px; align-self: flex-start; }
-  .hints { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; font-size: 13px; color: var(--muted); }
+  .field .btn { padding: 0 24px; min-height: 46px; border-radius: 16px; align-self: flex-start; }
+  .hints { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 18px; margin-top: 12px; font-size: 13px; color: var(--muted); }
   .hints span::before { content: ''; display: inline-block; vertical-align: middle; width: 4px; height: 4px; margin: -2px 7px 0 0; border-radius: 50%; background: var(--faint); }
-  .examples { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 14px; font-size: 13px; color: var(--muted); }
+  .examples { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 6px; margin-top: 14px; font-size: 13px; color: var(--muted); }
   .example { border: 1px solid var(--line); background: var(--card-2); border-radius: 99px; padding: 3px 11px; font-size: 13px; }
   .example:hover { border-color: var(--accent); color: var(--accent-text); }
   .error:not(.task, .pill) {  /* рамка с ошибкой; у загрузки и значка «Ошибка» тот же класс, но свой вид */
@@ -225,11 +277,17 @@
   }
 
   /* карточка видео (разбор ссылки) */
-  .result { margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
-  dialog .result { margin: 0; padding: 0; border: 0; }
+  .result {
+    margin-top: 22px; padding: 18px; border-radius: 26px;
+    background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .result { background: var(--glass); border-color: var(--glass-line); -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); }
+  }
+  dialog .result { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
   .media { display: flex; gap: 18px; }
   .thumb-wrap { position: relative; width: 280px; flex-shrink: 0; align-self: flex-start; }
-  .thumb { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 12px; background: var(--chip); }
+  .thumb { display: block; width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 16px; background: var(--chip); box-shadow: 0 10px 24px rgba(0, 0, 0, .2); }
   .dur {
     position: absolute; right: 8px; bottom: 8px; padding: 1px 6px; border-radius: 5px; font-size: 12px; font-weight: 600;
     background: rgba(0, 0, 0, .78); color: #fff; font-variant-numeric: tabular-nums;
@@ -248,11 +306,14 @@
     color: var(--muted); margin: 0 0 8px;
   }
   .group h3 .icon { width: 16px; height: 16px; }
-  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  /* варианты — строками-плитками по ширине карточки */
+  .chips { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
   .chip {
-    display: flex; align-items: center; gap: 10px; padding: 8px 14px 8px 11px; text-align: left;
-    background: var(--card-2); border: 1px solid var(--line); border-radius: 10px; transition: border-color .15s, background .15s;
+    display: flex; align-items: center; gap: 11px; padding: 10px 14px 10px 12px; text-align: left; min-width: 0;
+    background: var(--card-2); border: 1px solid var(--line); border-radius: 15px; transition: border-color .15s, background .15s;
   }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .chip { background: var(--inner); } }
+  .chip > span { min-width: 0; }
   .chip .icon { color: var(--accent-text); }
   .chip b { display: block; font-weight: 600; }
   .chip small { display: block; font-size: 12px; color: var(--muted); }
@@ -293,7 +354,10 @@
   .pick-actions { display: flex; gap: 6px; margin-left: auto; }
   .pick-bar input, .pick input { accent-color: var(--accent); width: 17px; height: 17px; margin: 0; cursor: pointer; }
   /* найденные песни — компактный список */
-  .hits { display: grid; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  .hits { display: grid; grid-template-columns: minmax(0, 1fr); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; background: var(--card); box-shadow: var(--shadow); }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+    .hits { background: var(--glass); border-color: var(--glass-line); -webkit-backdrop-filter: blur(22px) saturate(1.5); backdrop-filter: blur(22px) saturate(1.5); }
+  }
   .hits:empty { display: none; }
   .hit {
     display: grid; grid-template-columns: auto 80px minmax(0, 1fr) auto; align-items: center; gap: 12px;
@@ -334,8 +398,8 @@
   .hit.skeleton .cover .sk { position: absolute; inset: 0; border-radius: 0; }
   .hit.skeleton .pick { width: 21px; }
   .sk-line { height: 12px; margin: 4px 0; }
-  .loading-row { display: flex; align-items: center; gap: 12px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--muted); }
-  dialog .loading-row { margin: 0; padding: 0; border: 0; }
+  .loading-row { display: flex; align-items: center; gap: 12px; margin-top: 22px; padding: 18px; border-radius: 26px; border: 1px solid var(--line); background: var(--card); color: var(--muted); }
+  dialog .loading-row { margin: 0; padding: 0; border: 0; border-radius: 0; background: none; }
   .loading-row .sk { width: 160px; aspect-ratio: 16/9; border-radius: 10px; flex-shrink: 0; }
   .spinner {
     width: 16px; height: 16px; border-radius: 50%; border: 2px solid currentColor; border-right-color: transparent;
@@ -382,43 +446,48 @@
   #batch-tasks { max-height: 330px; overflow-y: auto; }
   .result.music [data-clear-link] { display: none; }  /* в окне «Ещё форматы» — песня из «Музыки», очищать нечего */
   .listen .spinner { width: 15px; height: 15px; }
-  html.has-player { scroll-padding-bottom: 96px; }
-  .has-player main { padding-bottom: 120px; }
-  .has-player .toast { bottom: 100px; }
+  /* плеер — тёмный «островок» сверху над полем, едет вместе с прокруткой (sticky) */
+  html.has-player { scroll-padding-top: 96px; }
+  .has-player .pick-bar { top: 88px; }  /* полоса выбора песен — под островком */
 
   .player {
-    position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; background: var(--card);
-    border-top: 1px solid var(--line); box-shadow: 0 -6px 24px rgba(16, 24, 40, .1);
-    padding-bottom: env(safe-area-inset-bottom);
+    position: -webkit-sticky; position: sticky; top: 14px; z-index: 9; width: min(720px, 100%); margin: 0 auto 4px;
+    border-radius: 34px; color: #eef4f3; background: #0c1413; border: 1px solid rgba(255, 255, 255, .08);
+    box-shadow: 0 12px 34px rgba(0, 20, 18, .4);
   }
   .player-in {
-    max-width: 980px; margin: 0 auto; padding: 10px 16px; display: grid; align-items: center; gap: 4px 14px;
-    grid-template-columns: auto minmax(0, 250px) auto minmax(0, 1fr) auto auto auto;
-    grid-template-areas: "cover meta ctrl seek vol mp3 close";
+    padding: 8px 12px 8px 8px; display: grid; align-items: center; gap: 0 12px;
+    grid-template-columns: 48px minmax(0, 1fr) auto auto auto auto;
+    grid-template-areas: "cover meta ctrl vol mp3 close" "cover seek ctrl vol mp3 close";
   }
-  .p-cover { grid-area: cover; width: 64px; height: 48px; border-radius: 8px; object-fit: cover; background: var(--chip); display: block; }
-  .p-meta { grid-area: meta; min-width: 0; }
-  .p-title { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .p-sub { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .p-sub.err { color: var(--err); white-space: normal; overflow-wrap: anywhere; }
+  .p-cover { grid-area: cover; width: 48px; height: 48px; border-radius: 50%; object-fit: cover; background: #23302e; display: block; }
+  .p-meta { grid-area: meta; min-width: 0; align-self: end; }
+  .p-title { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .p-sub { font-size: 12px; color: #98aba8; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .p-sub.err { color: #ff8a8a; white-space: normal; overflow-wrap: anywhere; }
   .p-ctrl { grid-area: ctrl; display: flex; align-items: center; gap: 2px; }
   .p-ctrl .icon-btn .icon { width: 16px; height: 16px; }
+  .player .icon-btn { color: #c4d0ce; border-radius: 50%; }
+  .player .icon-btn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
   .icon-btn:disabled { opacity: .35; cursor: default; background: transparent; color: var(--muted); }
+  .player .icon-btn:disabled { color: #c4d0ce; background: transparent; }
   .p-mp3 { grid-area: mp3; }
-  .p-play { width: 44px; height: 44px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
-    background: var(--accent); color: var(--on-accent);
+  .player .btn.ghost { color: #eef4f3; border-color: rgba(255, 255, 255, .2); border-radius: 99px; }
+  .player .btn.ghost:hover { background: rgba(255, 255, 255, .1); border-color: rgba(255, 255, 255, .35); }
+  .p-play { width: 42px; height: 42px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center;
+    background: #fff; color: #0c1413;
   }
-  .p-play:hover { background: var(--accent-hover); }
+  .p-play:hover { background: #d9f5ef; }
   .p-play .icon { width: 20px; height: 20px; }
   .p-play .spinner { width: 18px; height: 18px; }
-  .p-seek { grid-area: seek; display: flex; align-items: center; gap: 10px; min-width: 0; }
-  .p-time { font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 38px; }
+  .p-seek { grid-area: seek; display: flex; align-items: center; gap: 8px; min-width: 0; align-self: start; }
+  .p-time { font-size: 11.5px; color: #98aba8; font-variant-numeric: tabular-nums; min-width: 34px; }
   .p-time:last-child { text-align: right; }
-  .player input[type="range"] { accent-color: var(--accent); margin: 0; cursor: pointer; min-width: 0; height: 20px; }
+  .player input[type="range"] { accent-color: #5fe0cb; margin: 0; cursor: pointer; min-width: 0; height: 18px; }
   .player input[type="range"]:disabled { cursor: default; opacity: .5; }
   .p-seek input { flex: 1; width: 100%; }
-  .p-vol { grid-area: vol; display: flex; align-items: center; gap: 4px; }
-  .p-vol input { width: 90px; }
+  .p-vol { grid-area: vol; display: flex; align-items: center; gap: 2px; }
+  .p-vol input { width: 80px; }
   .p-close { grid-area: close; }
 
   /* новая версия программы */
@@ -444,7 +513,7 @@
   .upd-notes ul { margin: 2px 0; padding-left: 20px; }
 
   /* скачивать прямо с сайта */
-  .quick { margin-bottom: 14px; }
+  .quick { margin-top: 26px; }
   .quick summary {
     display: flex; align-items: center; gap: 9px; padding: 14px 18px; cursor: pointer; font-weight: 600; list-style: none;
   }
@@ -479,28 +548,55 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition: none !important; }
   }
+  /* узкий экран: рейка — блок сверху (вкладки в ряд), плеер — внизу */
+  @media (max-width: 860px) {
+    .rail { position: static; width: auto; margin: 8px; padding: 12px; gap: 10px; border-radius: 22px; overflow: visible; }
+    .tabs { flex-direction: row; }
+    .tab { flex: 1; flex-direction: column; text-align: center; gap: 4px; padding: 8px 4px; }
+    .tab small, .rail-fill { display: none; }
+    .tab b { font-size: 14px; white-space: nowrap; }
+    .rail-foot { display: flex; gap: 8px; }
+    /* папка компактно: путь в одну строку, чтобы поле ссылки было ближе к верху */
+    .folder-bar { padding: 9px 12px; }
+    .folder-path { margin: 2px 0 6px; }
+    .folder-path b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .folder-bar .ask { margin-top: 6px; }
+    .rail-foot .donate { flex: 1; width: auto; }
+    main { margin-left: 0; max-width: none; padding: 0 8px 40px; }
+    .hero { padding: 14px 0 14px; }
+    .hero h2 { font-size: 24px; }
+    .player {
+      position: fixed; top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; margin: 0; border-radius: 22px;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    html.has-player { scroll-padding-top: 0; scroll-padding-bottom: 124px; }
+    .has-player main { padding-bottom: 140px; }
+    .has-player .toast { bottom: 128px; }
+    .has-player .pick-bar { top: 0; }
+    .player-in {
+      padding: 8px 12px 8px 8px; gap: 2px 10px;
+      grid-template-columns: 44px minmax(0, 1fr) auto auto;
+      grid-template-areas: "cover meta ctrl close" "seek seek seek mp3";
+    }
+    .p-cover { width: 44px; height: 44px; }
+    .p-meta { align-self: center; }
+    .p-seek { align-self: center; }
+    .p-vol { display: none; }  /* на телефоне громкость — кнопками телефона */
+  }
   @media (max-width: 700px) {
     .media { flex-direction: column; }
     .thumb-wrap { width: 100%; }
-    .tab small { display: none; }
-    .tab { flex: 1; justify-content: center; }
-    .panel.is-last { border-top-right-radius: 0; }  /* вкладки во всю ширину: крайняя справа прилегает к углу */
   }
   @media (max-width: 560px) {
     .quick-body { grid-template-columns: 1fr; }
     .quick summary small { display: none; }
-    main { padding-top: 16px; }
-    .brand h1 { font-size: 19px; }
-    .brand p { display: none; }
-    .brand img { width: 34px; height: 34px; }
-    .tab { padding: 10px 6px; gap: 6px; }
-    .tab b { font-size: 14px; white-space: nowrap; }
-    .top-tools .label { display: none; }
-    .top-side { width: 100%; flex-direction: row; }
-    .top-side .donate { flex: 1; }
-    .top-tools .btn { flex: none; }
-    .panel { padding: 16px; }
-    .field { flex-direction: column; }
+    .rail-foot { flex-wrap: wrap; }
+    .hero p { display: none; }
+    .hero h2 { font-size: 21px; }
+    .rail-foot .donate { flex-basis: 100%; }
+    .top-tools { flex: 1; }
+    .result { padding: 14px; border-radius: 22px; }
+    .field { flex-direction: column; border-radius: 20px; }
     .field .btn { align-self: stretch; min-height: 46px; }
     .ask { margin-left: 0; }
     .tasks { max-height: 250px; }
@@ -515,20 +611,10 @@
     .pick-actions .btn { flex: 1; }
     .more-row .btn { width: 100%; }
     .loading-row .sk { width: 100px; }
-    .player-in {
-      padding: 8px 12px; gap: 2px 10px;
-      grid-template-columns: auto minmax(0, 1fr) auto auto;
-      grid-template-areas: "cover meta ctrl close" "seek seek seek mp3";
-    }
-    .p-cover { width: 48px; height: 36px; }
     .p-play { width: 40px; height: 40px; }
     .p-ctrl .icon-btn { width: 30px; }
     .p-mp3 .label { display: none; }
     .p-mp3.btn.small { padding: 6px 8px; }
-    .p-vol { display: none; }  /* на телефоне громкость — кнопками телефона */
-    html.has-player { scroll-padding-bottom: 124px; }
-    .has-player main { padding-bottom: 150px; }
-    .has-player .toast { bottom: 128px; }
   }
 </style>
 </head>
@@ -563,96 +649,94 @@
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
 </svg>
 
-<main>
-  <header class="top">
-    <div class="brand">
-      <img src="/favicon.ico" alt="">
-      <div>
-        <h1>Универсальный скачиватель</h1>
-        <p>Видео и музыка с YouTube, VK, Rutube, SoundCloud и ещё 1000+ сайтов — прямо на компьютер</p>
-      </div>
-    </div>
-    <div class="top-side">
-      <a class="btn donate" href="https://dalink.to/olegche" target="_blank" rel="noopener"
-         title="Поддержать разработку программы (DonationAlerts)">
-        <span class="hearts" aria-hidden="true"><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg></span>Помощь проекту
-      </a>
-      <div class="top-tools">
-        <button class="btn ghost small" id="theme" type="button" title="Сменить тему оформления">
-          <svg class="icon"><use href="#i-auto"/></svg><span class="label">Тема: как в Windows</span>
-        </button>
-        <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
-          <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
-        </a>
-        <button class="btn ghost small lang-btn" id="lang" type="button" title="Switch to English" lang="en">
-          <svg class="icon"><use href="#i-globe"/></svg><span>English</span>
-        </button>
-      </div>
-    </div>
-  </header>
+<aside class="rail glass" aria-label="Меню">
+  <div class="brand">
+    <img src="/favicon.ico" alt="">
+    <h1>Универсальный скачиватель</h1>
+  </div>
 
-  <section class="card upd" id="app-update" aria-live="polite" hidden></section>
-
-  <details class="card quick" id="quick">
-    <summary>
-      <svg class="icon"><use href="#i-download"/></svg>
-      <span class="q-title">Скачивать прямо с сайта <small>— расширение и кнопка-закладка для всех браузеров</small></span>
-      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
-    </summary>
-    <div class="quick-body">
-      <div class="quick-col">
-        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
-        <p data-en="A button on the browser toolbar and the “Send to Downloader” item in the right-click menu — for the page
-          and for any link under the cursor. If the program page is already open, the link goes there.">Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
-          и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
-        <div class="quick-actions">
-          <a class="btn primary" href="/extension.zip" download><svg class="icon"><use href="#i-download"/></svg>Скачать расширение (zip)</a>
-          <a class="link" href="/help#extension">Подробная инструкция</a>
-        </div>
-        <ul class="q-steps">
-          <li data-en="&lt;b&gt;Chrome, Edge, Yandex, Opera:&lt;/b&gt; unpack the archive into a permanent folder → the extensions page
-            (&lt;code&gt;chrome://extensions&lt;/code&gt;, &lt;code&gt;edge://extensions&lt;/code&gt;, &lt;code&gt;browser://extensions&lt;/code&gt;, &lt;code&gt;opera://extensions&lt;/code&gt;) →
-            “Developer mode” → “Load unpacked” → the folder with &lt;code&gt;manifest.json&lt;/code&gt;."><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
-            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
-            «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
-          <li data-en="&lt;b&gt;Firefox:&lt;/b&gt; &lt;code&gt;about:debugging#/runtime/this-firefox&lt;/code&gt; → “Load Temporary Add-on…” →
-            the zip itself, no need to unpack. Works until Firefox restarts — then load it again."><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
-            сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
-        </ul>
-      </div>
-      <div class="quick-col" data-bm-box>
-        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
-        <p data-en="Nothing to install, works in any browser, including Safari. Drag the button with the mouse
-          to the bookmarks bar, then click the bookmark on a page with a video or song.">Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
-          на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
-        <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
-        <div class="bm-note" data-bm-note role="status"></div>
-        <div class="drag-hint" data-drag-hint></div>
-        <p class="muted small" data-en="No bookmarks bar? Press &lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;
-          (in Safari — &lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;, in Opera — “Easy setup” at the top right → “Show bookmarks bar”).
-          Cannot drag it? &lt;button class=&quot;link&quot; type=&quot;button&quot; data-copy-bookmarklet&gt;Copy the code&lt;/button&gt;
-          and paste it as the bookmark address.">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
-          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
-          Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
-          и вставьте его вместо адреса закладки.</p>
-      </div>
-    </div>
-  </details>
-
-  <div class="tabs" role="tablist" aria-label="Что скачиваем">
+  <div class="tabs" role="tablist" aria-label="Что скачиваем" aria-orientation="vertical">
     <button class="tab" role="tab" id="tab-link" data-tab="link" aria-controls="panel-link" aria-selected="true" type="button">
-      <svg class="icon"><use href="#i-link"/></svg>
+      <span class="ico"><svg class="icon"><use href="#i-link"/></svg></span>
       <span><b>По ссылке</b><small>видео, звук, плейлист, список</small></span>
     </button>
     <button class="tab" role="tab" id="tab-music" data-tab="music" aria-controls="panel-music" aria-selected="false" tabindex="-1" type="button">
-      <svg class="icon"><use href="#i-music"/></svg>
+      <span class="ico"><svg class="icon"><use href="#i-music"/></svg></span>
       <span><b>Музыка</b><small>поиск песни по названию</small></span>
     </button>
     <button class="tab" role="tab" id="tab-vpn" data-tab="vpn" aria-controls="panel-vpn" aria-selected="false" tabindex="-1" type="button">
-      <svg class="icon"><use href="#i-shield"/></svg>
+      <span class="ico"><svg class="icon"><use href="#i-shield"/></svg></span>
       <span><b>VPN</b><small>закрытые сайты, прокси</small></span>
     </button>
   </div>
+
+  <div class="rail-fill"></div>
+
+  <div class="folder-bar" id="folder-bar">
+    <span class="muted">Сохранять в:</span>
+    <div class="folder-path"><svg class="icon"><use href="#i-folder"/></svg><b id="folder-path">…</b></div>
+    <div class="folder-links">
+      <button class="link" id="change-folder" type="button">Выбрать папку</button>
+      <button class="link" id="open-folder" type="button">Открыть</button>
+    </div>
+    <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
+      <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
+    </label>
+  </div>
+
+  <div class="rail-foot">
+    <a class="btn donate" href="https://dalink.to/olegche" target="_blank" rel="noopener"
+       title="Поддержать разработку программы (DonationAlerts)">
+      <span class="hearts" aria-hidden="true"><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg><svg><use href="#i-heart"/></svg></span>Помощь проекту
+    </a>
+    <div class="top-tools">
+      <button class="btn ghost small" id="theme" type="button" title="Сменить тему оформления">
+        <svg class="icon"><use href="#i-auto"/></svg><span class="label">Тема: как в Windows</span>
+      </button>
+      <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
+        <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
+      </a>
+      <button class="btn ghost small lang-btn" id="lang" type="button" title="Switch to English" lang="en">
+        <svg class="icon"><use href="#i-globe"/></svg><span>English</span>
+      </button>
+    </div>
+  </div>
+</aside>
+
+<main>
+  <section class="player" id="player" aria-label="Прослушивание" hidden>
+    <div class="player-in">
+      <img class="p-cover" id="p-cover" alt="" referrerpolicy="no-referrer">
+      <div class="p-meta">
+        <div class="p-title" id="p-title"></div>
+        <div class="p-sub" id="p-sub"></div>
+      </div>
+      <div class="p-ctrl">
+        <button class="icon-btn" id="p-prev" type="button" aria-label="Предыдущая (или сначала)" title="Предыдущая (или сначала)"><svg class="icon fill"><use href="#i-prev"/></svg></button>
+        <button class="p-play" id="p-play" type="button"></button>
+        <button class="icon-btn" id="p-next" type="button" aria-label="Следующая" title="Следующая"><svg class="icon fill"><use href="#i-next"/></svg></button>
+      </div>
+      <div class="p-seek">
+        <span class="p-time" id="p-cur">0:00</span>
+        <input type="range" id="p-seek" min="0" max="0" step="any" value="0" aria-label="Перемотка" disabled>
+        <span class="p-time" id="p-dur">0:00</span>
+      </div>
+      <div class="p-vol">
+        <button class="icon-btn" id="p-mute" type="button" aria-label="Выключить звук" title="Выключить звук"><svg class="icon"><use href="#i-volume"/></svg></button>
+        <input type="range" id="p-volume" min="0" max="1" step="0.01" value="1" aria-label="Громкость">
+      </div>
+      <button class="btn ghost small p-mp3" id="p-mp3" type="button" title="Скачать эту песню в MP3"><svg class="icon"><use href="#i-download"/></svg><span class="label">MP3</span></button>
+      <button class="icon-btn p-close" id="p-close" type="button" aria-label="Закрыть плеер" title="Закрыть"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <audio id="p-audio" preload="auto"></audio>
+  </section>
+
+  <section class="card upd" id="app-update" aria-live="polite" hidden></section>
+
+  <section class="hero">
+    <h2>Что скачаем сегодня?</h2>
+    <p>Видео и музыка с YouTube, VK, Rutube, SoundCloud и ещё 1000+ сайтов — прямо на компьютер</p>
+  </section>
 
   <section class="card panel" id="panel-link" role="tabpanel" aria-labelledby="tab-link">
     <form class="field" id="link-form">
@@ -660,16 +744,6 @@
       <button class="btn primary" id="go" type="submit"><svg class="icon"><use href="#i-search"/></svg>Найти</button>
       <button class="btn ghost hidden" id="url-clear" type="button" title="Очистить поле и убрать найденное"><svg class="icon"><use href="#i-x"/></svg>Очистить</button>
     </form>
-    <div class="folder-bar" id="folder-bar">
-      <svg class="icon"><use href="#i-folder"/></svg>
-      <span class="muted">Сохранять в:</span>
-      <b id="folder-path">…</b>
-      <button class="link" id="change-folder" type="button">Выбрать папку</button>
-      <button class="link" id="open-folder" type="button">Открыть</button>
-      <label class="ask" title="Перед каждой загрузкой откроется окно выбора папки">
-        <input type="checkbox" id="ask-every"> спрашивать папку каждый раз
-      </label>
-    </div>
     <div class="hints">
       <span>Скопируйте адрес из браузера и вставьте сюда — варианты появятся сами</span>
       <span>Несколько ссылок — каждую с новой строки, скачаются по очереди</span>
@@ -799,7 +873,7 @@
   </section>
 
   <section class="card panel not-first is-last" id="panel-vpn" role="tabpanel" aria-labelledby="tab-vpn" hidden>
-    <div class="proxy">
+    <div class="proxy glass">
       <p class="proxy-state">Сейчас: <b id="proxy-state">…</b></p>
       <p class="muted" data-en="A VPN browser extension does not affect the program: it goes online by itself.
         For blocked sites, turn on a VPN app on the computer. If it has a
@@ -825,6 +899,52 @@
     </div>
   </section>
 
+  <details class="card quick" id="quick">
+    <summary>
+      <svg class="icon"><use href="#i-download"/></svg>
+      <span class="q-title">Скачивать прямо с сайта <small>— расширение и кнопка-закладка для всех браузеров</small></span>
+      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
+    </summary>
+    <div class="quick-body">
+      <div class="quick-col">
+        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
+        <p data-en="A button on the browser toolbar and the “Send to Downloader” item in the right-click menu — for the page
+          and for any link under the cursor. If the program page is already open, the link goes there.">Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
+          и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
+        <div class="quick-actions">
+          <a class="btn primary" href="/extension.zip" download><svg class="icon"><use href="#i-download"/></svg>Скачать расширение (zip)</a>
+          <a class="link" href="/help#extension">Подробная инструкция</a>
+        </div>
+        <ul class="q-steps">
+          <li data-en="&lt;b&gt;Chrome, Edge, Yandex, Opera:&lt;/b&gt; unpack the archive into a permanent folder → the extensions page
+            (&lt;code&gt;chrome://extensions&lt;/code&gt;, &lt;code&gt;edge://extensions&lt;/code&gt;, &lt;code&gt;browser://extensions&lt;/code&gt;, &lt;code&gt;opera://extensions&lt;/code&gt;) →
+            “Developer mode” → “Load unpacked” → the folder with &lt;code&gt;manifest.json&lt;/code&gt;."><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
+            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
+            «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
+          <li data-en="&lt;b&gt;Firefox:&lt;/b&gt; &lt;code&gt;about:debugging#/runtime/this-firefox&lt;/code&gt; → “Load Temporary Add-on…” →
+            the zip itself, no need to unpack. Works until Firefox restarts — then load it again."><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
+            сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
+        </ul>
+      </div>
+      <div class="quick-col" data-bm-box>
+        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
+        <p data-en="Nothing to install, works in any browser, including Safari. Drag the button with the mouse
+          to the bookmarks bar, then click the bookmark on a page with a video or song.">Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
+          на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
+        <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
+        <div class="bm-note" data-bm-note role="status"></div>
+        <div class="drag-hint" data-drag-hint></div>
+        <p class="muted small" data-en="No bookmarks bar? Press &lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;
+          (in Safari — &lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;, in Opera — “Easy setup” at the top right → “Show bookmarks bar”).
+          Cannot drag it? &lt;button class=&quot;link&quot; type=&quot;button&quot; data-copy-bookmarklet&gt;Copy the code&lt;/button&gt;
+          and paste it as the bookmark address.">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
+          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
+          Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
+          и вставьте его вместо адреса закладки.</p>
+      </div>
+    </div>
+  </details>
+
   <footer data-en="The program runs on your computer. If downloads stop working, see &lt;a href=&quot;/help#errors&quot;&gt;Help&lt;/a&gt;.
     With a VPN: turn it on for the whole computer and do not switch it during a download — &lt;a href=&quot;/help#vpn&quot;&gt;more&lt;/a&gt;.">Программа работает на вашем компьютере. Если перестало качать — загляните в <a href="/help#errors">помощь</a>.
     С VPN: включайте его для всего компьютера и не переключайте во время загрузки — <a href="/help#vpn">подробнее</a>.</footer>
@@ -841,33 +961,6 @@
     <div id="dlg-slot"></div>
   </div>
 </dialog>
-
-<section class="player" id="player" aria-label="Прослушивание" hidden>
-  <div class="player-in">
-    <img class="p-cover" id="p-cover" alt="" referrerpolicy="no-referrer">
-    <div class="p-meta">
-      <div class="p-title" id="p-title"></div>
-      <div class="p-sub" id="p-sub"></div>
-    </div>
-    <div class="p-ctrl">
-      <button class="icon-btn" id="p-prev" type="button" aria-label="Предыдущая (или сначала)" title="Предыдущая (или сначала)"><svg class="icon fill"><use href="#i-prev"/></svg></button>
-      <button class="p-play" id="p-play" type="button"></button>
-      <button class="icon-btn" id="p-next" type="button" aria-label="Следующая" title="Следующая"><svg class="icon fill"><use href="#i-next"/></svg></button>
-    </div>
-    <div class="p-seek">
-      <span class="p-time" id="p-cur">0:00</span>
-      <input type="range" id="p-seek" min="0" max="0" step="any" value="0" aria-label="Перемотка" disabled>
-      <span class="p-time" id="p-dur">0:00</span>
-    </div>
-    <div class="p-vol">
-      <button class="icon-btn" id="p-mute" type="button" aria-label="Выключить звук" title="Выключить звук"><svg class="icon"><use href="#i-volume"/></svg></button>
-      <input type="range" id="p-volume" min="0" max="1" step="0.01" value="1" aria-label="Громкость">
-    </div>
-    <button class="btn ghost small p-mp3" id="p-mp3" type="button" title="Скачать эту песню в MP3"><svg class="icon"><use href="#i-download"/></svg><span class="label">MP3</span></button>
-    <button class="icon-btn p-close" id="p-close" type="button" aria-label="Закрыть плеер" title="Закрыть"><svg class="icon"><use href="#i-x"/></svg></button>
-  </div>
-  <audio id="p-audio" preload="auto"></audio>
-</section>
 
 <div class="toast" id="toast" role="status"><span id="toast-text"></span></div>
 
@@ -1004,9 +1097,7 @@ function setTab(name, focus = false) {
     $('panel-' + t).hidden = !on;
   });
   activeTab = name;
-  // папка — сразу под полем ссылки или поиска
-  if (name !== 'vpn') $(name + '-form').after($('folder-bar'));
-  renderTasks();
+  renderTasks();  // папка загрузок — в рейке, видна на всех вкладках
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
   if (focus) $(TAB_FOCUS[name]).focus();
@@ -1016,9 +1107,12 @@ document.querySelector('.tabs').addEventListener('click', e => {
   if (tab) setTab(tab.dataset.tab, true);
 });
 document.querySelector('.tabs').addEventListener('keydown', e => {
-  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  // в рейке вкладки столбиком (вверх/вниз), на телефоне — в ряд (влево/вправо)
+  const fwd = {ArrowRight: 1, ArrowDown: 1, ArrowLeft: 0, ArrowUp: 0}[e.key];
+  if (fwd === undefined) return;
+  e.preventDefault();
   const cur = TABS.findIndex(t => $('tab-' + t).getAttribute('aria-selected') === 'true');
-  const next = TABS[(cur + (e.key === 'ArrowRight' ? 1 : TABS.length - 1)) % TABS.length];
+  const next = TABS[(cur + (fwd ? 1 : TABS.length - 1)) % TABS.length];
   setTab(next);
   $('tab-' + next).focus();
 });
