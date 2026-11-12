@@ -6,8 +6,15 @@
 
   // Открывает программу с адресом текущей страницы. Через #url=… — тогда уже открытая вкладка программы
   // не перезагружается, а разбирает ссылку. Всплывающее окно запрещено — переходим в этой же вкладке.
+  // Урок GetCourse (только после входа): вместо страницы — ссылки на плеер и название урока, как в расширении
+  // (findPlayers в extension/background.js). Обратные слеши удвоены: код — внутри шаблонной строки.
+  const players = `var h=document.documentElement.outerHTML.replace(/\\\\\\//g,'/').replace(/&amp;/g,'&')+' '+` +
+    `performance.getEntriesByType('resource').map(function(e){return e.name}).join(' '),` +
+    `m=h.match(/https?:\\/\\/[\\w.-]+\\/sign-player\\/?\\?[^"'\\s<>]*?json=[^"'\\s<>]+/g),t=document.title.trim();` +
+    `if(m){m=m.filter(function(x,i){return m.indexOf(x)==i});u=m.map(function(x,i){return t?x+'#udl-title='+` +
+    `encodeURIComponent(m.length>1?t+' ('+(i+1)+')':t):x}).join('\\n')}`;
   const code = `(function(){var o='${BASE}',u=location.href;if(u.indexOf(o)==0)return;if(window.name=='${NAME}')window.name='';` +
-    `var w=window.open(o+'#url='+encodeURIComponent(u),'${NAME}');if(!w)location.href=o+'?url='+encodeURIComponent(u)})()`;
+    players + `var w=window.open(o+'#url='+encodeURIComponent(u),'${NAME}');if(!w)location.href=o+'?url='+encodeURIComponent(u)})()`;
   // '#' в адресе закладки обрезал бы код — кодируем
   const href = 'javascript:' + encodeURI(code).replace(/#/g, '%23');
 

@@ -11,6 +11,8 @@
 - Встроенный плеер с другого сайта (iframe): общий разборщик заходит только в плееры известных
   сайтов. Если на странице больше ничего нет — идём в iframe сами (см. GenericIE). Так берутся
   KVS-плееры (kvsplayer.com, на многих сайтах «для взрослых») и другие плееры с чужих доменов.
+- GetCourse (плеер api2.gcvh.ru): yt-dlp знает только старые домены плеера, а урок открывается только
+  после входа — тогда ссылку плеера со страницы берёт расширение (см. GetCourseRuPlayerIE, GetCourseRuIE).
 - DTF и vc.ru, d3.ru — «Unsupported URL» (см. OsnovaIE, D3IE).
 - Плееры фильмов и сериалов CCDN, ShizaHD, VeoVeo (kinogo и похожие сайты): см. BalancerIE и player_list.
 """
@@ -24,6 +26,8 @@ from urllib.parse import parse_qs, urljoin, urlparse
 from yt_dlp.extractor import gen_extractor_classes, import_extractors
 from yt_dlp.extractor.common import InfoExtractor
 from yt_dlp.extractor.generic import GenericIE as _GenericIE
+from yt_dlp.extractor.getcourseru import GetCourseRuIE as _GetCourseRuIE
+from yt_dlp.extractor.getcourseru import GetCourseRuPlayerIE as _GetCourseRuPlayerIE
 from yt_dlp.extractor.instagram import InstagramIE as _InstagramIE
 from yt_dlp.extractor.odnoklassniki import OdnoklassnikiIE as _OdnoklassnikiIE
 from yt_dlp.globals import extractors as _extractors
@@ -125,6 +129,54 @@ class OdnoklassnikiIE(_OdnoklassnikiIE):
         if isinstance(json_string, (dict, list)):
             return json_string
         return super()._parse_json(json_string, *args, **kwargs)
+
+
+class GetCourseRuPlayerIE(_GetCourseRuPlayerIE):
+    """Плеер видео GetCourse переехал на api2.gcvh.ru (и gcvh.ru вообще), а yt-dlp знает только
+    player02.getcourse.ru и cf-api-2.vhcdn.com → «Unsupported URL». Страница плеера та же.
+    Название в плеере — только хеш видео, поэтому расширение дописывает к ссылке #udl-title=<название урока>."""
+    _VALID_URL = (r'https?://(?:player02\.getcourse\.ru|(?:[\w-]+\.)?vhcdn\.com|(?:[\w-]+\.)?gcvh\.ru)'
+                  r'/sign-player/?\?(?:[^#]+&)?json=[^#&]+')
+    _EMBED_REGEX = [rf'''<iframe[^>]+\bsrc=['"](?P<url>{_VALID_URL}[^'"]*)''']
+
+    def _real_extract(self, url):
+        url, _, frag = url.partition('#')
+        info = super()._real_extract(url)
+        title = traverse_obj(parse_qs(frag), ('udl-title', -1))
+        return {**info, 'title': title.strip()} if title and title.strip() else info
+
+
+# ссылка на плеер в странице урока: в iframe (src или data-src), а то и в JSON со слешами «\/»
+GC_PLAYER_IN_PAGE = re.compile(r'''https?://[\w.-]+/sign-player/?\?[^"'\s<>]*?json=[^"'\s<>]+''')
+
+
+class GetCourseRuIE(_GetCourseRuIE):
+    """Урок GetCourse (школа.getcourse.ru/teach/control/lesson/view?id=…). Без входа сайт отдаёт страницу
+    входа — объясняем, как быть (текст — в app.py, ERROR_RULES). С cookies ищем плееры и на новых доменах
+    (api2.gcvh.ru): встроенный разборщик ищет только старые и на новой странице видео не находит."""
+
+    def _real_extract(self, url):
+        hostname = urlparse(url).hostname
+        username, password = self._get_login_info(netrc_machine=hostname)
+        if username:
+            self._login(hostname, username, password)
+        display_id = self._match_id(url)
+        webpage, urlh = self._download_webpage_handle(url, display_id)
+        if self._LOGIN_URL_PATH in urlh.url:
+            raise ExtractorError('GetCourse lesson opens only after signing in to the school', expected=True)
+        playlist_id = self._search_regex(
+            r'window\.(?:lessonId|gcsObjectId)\s*=\s*(\d+)', webpage, 'playlist id', default=display_id)
+        title = self._og_search_title(webpage, default=None) or self._html_extract_title(webpage)
+        urls = [unescapeHTML(u) for u in GC_PLAYER_IN_PAGE.findall(webpage.replace('\\/', '/'))]
+        urls = [u for u in dict.fromkeys(urls) if GetCourseRuPlayerIE.suitable(u)]
+        if not urls:
+            raise ExtractorError(tr('В этом уроке GetCourse нет видео', 'There is no video in this GetCourse lesson'),
+                                 expected=True)
+        many = len(urls) > 1
+        return self.playlist_result(
+            (self.url_result(u, GetCourseRuPlayerIE, url_transparent=True,
+                             title=f'{title} ({i})' if many and title else title)
+             for i, u in enumerate(urls, 1)), playlist_id, title, display_id=display_id)
 
 
 class InstagramIE(_InstagramIE):
@@ -747,7 +799,8 @@ class GenericIE(_GenericIE):
 
 
 OURS = {'YapFilesIE': YapFilesIE, 'YaplakalIE': YaplakalIE, 'OdnoklassnikiIE': OdnoklassnikiIE, 'ComdiIE': ComdiIE,
-        'InstagramIE': InstagramIE, 'OsnovaIE': OsnovaIE, 'D3IE': D3IE,
+        'InstagramIE': InstagramIE, 'GetCourseRuPlayerIE': GetCourseRuPlayerIE,
+        'GetCourseRuIE': GetCourseRuIE, 'OsnovaIE': OsnovaIE, 'D3IE': D3IE,
         **{ie.__name__: ie for ie in BALANCERS}}
 
 

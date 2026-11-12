@@ -53,12 +53,48 @@ async function send(link, from) {
   return (await chrome.tabs.create(opts)).id;
 }
 
-function onAction(tab) { return send(tab.url, tab); }
+// Урок GetCourse открывается только после входа — программа его не откроет. Но видео в нём — в плеере
+// (…/sign-player/?json=…), который входа не требует: берём ссылки на плеер со страницы и дописываем название
+// урока (#udl-title=…, его читает sites.py). Тот же поиск — в кнопке-закладке (web/quick.js).
+const PLAYER_RE = /\/sign-player\/?\?[^#]*json=/;
 
-function onMenu(info, tab) {
+// Выполняется на самой странице: только то, что внутри функции.
+function findPlayers() {
+  const re = /https?:\/\/[\w.-]+\/sign-player\/?\?[^"'\s<>]*?json=[^"'\s<>]+/g;
+  const text = document.documentElement.outerHTML.replace(/\\\//g, '/').replace(/&amp;/g, '&') + ' ' +
+    performance.getEntriesByType('resource').map(e => e.name).join(' ');
+  const links = [...new Set(text.match(re) || [])];
+  const title = document.title.trim();
+  return links.map((u, i) => title ? `${u}#udl-title=${encodeURIComponent(links.length > 1 ? `${title} (${i + 1})` : title)}` : u);
+}
+
+// Вкладка, открытая нажатием на кнопку или пункт меню, доступна расширению (activeTab). Не вышло
+// (chrome://, магазин расширений) — пустой список, шлём адрес страницы как раньше.
+async function players(tab) {
+  if (!tab || !isWeb(tab.url) || tab.url.startsWith(BASE)) return [];
+  try {
+    const [res] = await chrome.scripting.executeScript({target: {tabId: tab.id}, func: findPlayers});
+    return (res && res.result) || [];
+  } catch {
+    return [];
+  }
+}
+
+async function onAction(tab) {
+  const found = await players(tab);
+  return send(found.length ? found.join('\n') : tab.url, tab);
+}
+
+async function onMenu(info, tab) {
+  if (info.menuItemId === 'udl-link') return send(info.linkUrl || (tab && tab.url), tab);
   // во встроенном видео (iframe) берём адрес самого видео, а не страницы вокруг
-  const link = info.menuItemId === 'udl-link' ? info.linkUrl : info.frameUrl || info.pageUrl;
-  return send(link || (tab && tab.url), tab);
+  if (info.frameUrl && PLAYER_RE.test(info.frameUrl)) {
+    const title = ((tab && tab.title) || '').trim();
+    return send(title ? `${info.frameUrl.split('#')[0]}#udl-title=${encodeURIComponent(title)}` : info.frameUrl, tab);
+  }
+  if (info.frameUrl) return send(info.frameUrl, tab);
+  const found = await players(tab);
+  return send(found.length ? found.join('\n') : info.pageUrl || (tab && tab.url), tab);
 }
 
 chrome.action.onClicked.addListener(onAction);

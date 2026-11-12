@@ -10,7 +10,7 @@
     "default_icon": {"16": "icons/icon16.png", "32": "icons/icon32.png"}
   },
   "background": {"service_worker": "background.js", "scripts": ["config.js", "background.js"]},
-  "permissions": ["contextMenus", "activeTab"],
+  "permissions": ["contextMenus", "activeTab", "scripting"],
   "host_permissions": ["http://127.0.0.1/*"],
   "browser_specific_settings": {
     "gecko": {"id": "downloader@udl.local", "strict_min_version": "121.0", "data_collection_permissions": {"required": ["none"]}}

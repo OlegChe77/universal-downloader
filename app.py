@@ -475,6 +475,21 @@ DOH_HINT = Text(' Интернет есть, а провайдер прячет 
 # yt-dlp дописывает к разным ошибкам «Use --cookies…», поэтому «вход в аккаунт» стоит после
 # «не бот», «18+» и платного; 403/404 — по точным словам, а не по цифрам в адресе.
 ERROR_RULES = [
+    # урок GetCourse без входа (GetCourseRuIE в sites.py): видео в нём — в плеере, который открывается и без входа,
+    # ссылку на плеер со страницы урока берут расширение и кнопка-закладка
+    (r'getcourse lesson opens only after signing in',
+     Text('Урок GetCourse открывается только после входа в школу, а программа в неё не входит. Откройте урок '
+          'в браузере, где вы вошли, и нажмите там кнопку расширения «Скачать в программе» (или кнопку-закладку) — '
+          'программа возьмёт со страницы ссылку на плеер, вход для неё не нужен. Ссылка плеера действует несколько '
+          'часов — качайте сразу. Снова эта ошибка — запустите видео на странице и нажмите кнопку ещё раз; не помогло — '
+          'обновите расширение или кнопку-закладку («Скачивать прямо с сайта» на главной). '
+          'Другой способ — cookies.txt из этого браузера (как — на странице «Помощь»).',
+          'A GetCourse lesson opens only after signing in to the school, and the program does not sign in. Open the '
+          'lesson in a browser where you are signed in and click the “Send to Downloader” extension button there '
+          '(or the bookmark button) — the program takes the player link from the page, no sign-in is needed for it. '
+          'The player link works for a few hours — download right away. Same error again? Play the video on the page '
+          'and click the button again; if that does not help, update the extension or the bookmark button '
+          '(“Download right from a site” on the main page). Another way is cookies.txt from that browser (see the Help page).')),
     # yt-dlp сам заблокировал некоторые сайты (Suno и др.) из-за юридических рисков
     (r'\[liability\]|will not be supported',
      Text('Этот сайт yt-dlp не поддерживает намеренно (по юридическим причинам) — обновление не поможет. '
