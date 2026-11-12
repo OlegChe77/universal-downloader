@@ -28,7 +28,7 @@ MAX_SIZE = 50 << 20
 # Личное и то, что ставится само, — даже если оказалось в архиве, не трогаем
 KEEP = {'settings.json', 'cookies.txt', 'program.log', 'Скачанное', 'python', 'python.new', 'bin',
         '.venv', '.git', 'update', 'dist', 'tests', 'CLAUDE.md'}
-NEED = ('app.py', 'i18n.py', 'launch.vbs', 'start.ps1', 'requirements.txt', 'updater.py', 'web/index.html', 'web/i18n.js')
+NEED = ('app.py', 'i18n.py', 'top.py', 'launch.vbs', 'start.ps1', 'requirements.txt', 'updater.py', 'web/index.html', 'web/i18n.js')
 VERSION_RE = re.compile(r"^VERSION = '([\d.]+)'", re.M)
 LANG = 'ru'  # язык сообщений: app.py ставит свой (i18n.CURRENT), отдельный процесс получает --lang
 

@@ -512,8 +512,96 @@
   .upd-notes p { margin: 8px 0 2px; }
   .upd-notes ul { margin: 2px 0; padding-left: 20px; }
 
+  /* вкладка «Топ»: два ряда один под другим (русские, иностранные); в каждом — три места карточками,
+     остальные списком в две колонки. Раскладка зависит от ширины самого ряда (container query), не окна. */
+  .top-hint { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+  .top-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  .top-col { padding: 16px 16px 12px; border-radius: 26px; min-width: 0; container-type: inline-size; }
+  .top-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 10px; margin: 0 4px 12px; }
+  .top-head h3 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
+  .top-src { font-size: 12.5px; color: var(--muted); }
+  .top-podium { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 12px; }
+  .pod {
+    position: relative; display: grid; grid-template-columns: 84px minmax(0, 1fr); grid-template-areas: "cover text" "act act";
+    gap: 8px 12px; min-width: 0; padding: 10px; border-radius: 20px; background: var(--inner); border: 1px solid var(--line);
+  }
+  .pod.r1 { border-color: var(--accent); background: var(--accent-soft); }
+  .pod-cover { grid-area: cover; position: relative; width: 84px; aspect-ratio: 1; border-radius: 13px; overflow: hidden; background: var(--chip); display: grid; place-items: center; color: var(--faint); }
+  .pod-cover .icon { width: 34%; height: 34%; }
+  .pod-cover img, .trow-cover img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .rank {
+    position: absolute; left: 5px; top: 5px; z-index: 1; min-width: 24px; height: 24px; padding: 0 6px; border-radius: 99px;
+    display: grid; place-items: center; font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, .3);
+  }
+  .r1 .rank { background: linear-gradient(135deg, #ffe590, #f0b130); color: #4a3200; }
+  .r2 .rank { background: linear-gradient(135deg, #f4f7f9, #b4bfc9); color: #27323a; }
+  .r3 .rank { background: linear-gradient(135deg, #f8cfa8, #cc8650); color: #4a2608; }
+  .pod-text { grid-area: text; align-self: center; display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .pod-title {
+    font-weight: 700; font-size: 15px; line-height: 1.3; overflow: hidden; overflow-wrap: anywhere;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  }
+  .pod-artist, .trow-sub { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pod-plays { font-size: 12px; font-weight: 600; color: var(--accent-text); }
+  .pod-act { grid-area: act; display: flex; gap: 6px; }
+  .pod-act .btn { flex: 1; min-width: 0; padding: 6px 8px; font-size: 13px; border-radius: 10px; white-space: nowrap; }
+  .pod-act .btn.on { border-color: var(--accent); color: var(--accent-text); }
+  /* список: 4–20 места, в две колонки сверху вниз (число строк считает страница, --rows) */
+  .top-list {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-flow: column;
+    grid-template-rows: repeat(var(--rows, 9), auto); column-gap: 28px;
+  }
+  .trow {
+    display: grid; grid-template-columns: 26px 40px minmax(0, 1fr) auto; align-items: center; gap: 10px;
+    padding: 6px 4px; border-top: 1px solid var(--line); border-radius: 12px; transition: background .15s;
+  }
+  .trow.c0 { border-top-color: transparent; }
+  .trow:hover { background: var(--inner); }
+  .trow-pos { text-align: center; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .trow-cover { position: relative; width: 40px; height: 40px; border-radius: 9px; overflow: hidden; background: var(--chip); display: grid; place-items: center; color: var(--faint); }
+  .trow-cover .icon { width: 18px; height: 18px; }
+  .trow-body { min-width: 0; }
+  .trow-title { font-weight: 600; font-size: 14px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .trow-act { display: flex; align-items: center; gap: 6px; }
+  /* кнопка «Слушать» в строке списка — круглая, без подписи */
+  .tl {
+    width: 34px; height: 34px; padding: 0; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: transparent; color: var(--text); border: 1px solid var(--line); cursor: pointer; transition: background .15s, border-color .15s, color .15s;
+  }
+  .tl:hover { border-color: var(--accent); color: var(--accent-text); }
+  .tl.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .tl .icon { width: 14px; height: 14px; }
+  .tl .spinner { width: 15px; height: 15px; }
+  .top-fail { margin: 8px 4px 14px; padding: 18px 14px; text-align: center; border-radius: 16px; background: var(--inner); border: 1px dashed var(--line); color: var(--muted); }
+  .top-fail b { display: block; color: var(--text); font-size: 15px; margin-bottom: 2px; }
+  .top-sk { display: grid; gap: 8px; margin-bottom: 8px; }
+  .top-sk .sk { height: 46px; border-radius: 12px; }
+  .top-sk .sk.big { height: 110px; border-radius: 18px; }
+  /* ряд уже ~720 px: карточки по одной в строку, список в одну колонку */
+  @container (max-width: 719px) {
+    .top-podium { grid-template-columns: minmax(0, 1fr); gap: 8px; }
+    .pod { grid-template-columns: 64px minmax(0, 1fr) auto; grid-template-areas: "cover text act"; align-items: center; padding: 8px; border-radius: 18px; }
+    .pod-cover { width: 64px; border-radius: 11px; }
+    .pod-act .btn { flex: none; padding: 6px 10px; }
+    .top-list { grid-template-columns: minmax(0, 1fr); grid-auto-flow: row; grid-template-rows: none; }
+    .trow.c0 { border-top-color: var(--line); }
+    .trow:first-child { border-top-color: transparent; }
+  }
+  /* совсем узко (телефон): кнопки в карточке — под текстом, «Скачать» в списке — значком */
+  @container (max-width: 479px) {
+    .pod { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "cover text" "act act"; }
+    .pod-act .btn { flex: 1; }
+    .trow { gap: 8px; }
+    .trow-act .btn .lbl { display: none; }
+    .trow-act .btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; justify-content: center; }
+  }
+  @media (max-width: 560px) {
+    .top-col { padding: 14px 10px 8px; border-radius: 22px; }
+  }
+
   /* скачивать прямо с сайта */
-  .quick { margin-top: 26px; }
+  .quick { margin: 0 0 4px; }
   .quick summary {
     display: flex; align-items: center; gap: 9px; padding: 14px 18px; cursor: pointer; font-weight: 600; list-style: none;
   }
@@ -646,6 +734,7 @@
   <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M7 3.5h10a1 1 0 0 1 1 1V21l-6-4-6 4V4.5a1 1 0 0 1 1-1z"/></symbol>
   <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 1 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 1 0 0 4H19v4a1 1 0 0 1-1 1h-4v-1.5a2 2 0 1 0-4 0V20H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></symbol>
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V12M12 20V4M19 20v-6"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
 </svg>
 
@@ -663,6 +752,10 @@
     <button class="tab" role="tab" id="tab-music" data-tab="music" aria-controls="panel-music" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-music"/></svg></span>
       <span><b>Музыка</b><small>поиск песни по названию</small></span>
+    </button>
+    <button class="tab" role="tab" id="tab-top" data-tab="top" aria-controls="panel-top" aria-selected="false" tabindex="-1" type="button">
+      <span class="ico"><svg class="icon"><use href="#i-chart"/></svg></span>
+      <span><b>Топ</b><small>чарты недели</small></span>
     </button>
     <button class="tab" role="tab" id="tab-vpn" data-tab="vpn" aria-controls="panel-vpn" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-shield"/></svg></span>
@@ -732,6 +825,52 @@
   </section>
 
   <section class="card upd" id="app-update" aria-live="polite" hidden></section>
+
+  <details class="card quick" id="quick">
+    <summary>
+      <svg class="icon"><use href="#i-download"/></svg>
+      <span class="q-title">Скачивать прямо с сайта <small>— расширение и кнопка-закладка для всех браузеров</small></span>
+      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
+    </summary>
+    <div class="quick-body">
+      <div class="quick-col">
+        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
+        <p data-en="A button on the browser toolbar and the “Send to Downloader” item in the right-click menu — for the page
+          and for any link under the cursor. If the program page is already open, the link goes there.">Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
+          и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
+        <div class="quick-actions">
+          <a class="btn primary" href="/extension.zip" download><svg class="icon"><use href="#i-download"/></svg>Скачать расширение (zip)</a>
+          <a class="link" href="/help#extension">Подробная инструкция</a>
+        </div>
+        <ul class="q-steps">
+          <li data-en="&lt;b&gt;Chrome, Edge, Yandex, Opera:&lt;/b&gt; unpack the archive into a permanent folder → the extensions page
+            (&lt;code&gt;chrome://extensions&lt;/code&gt;, &lt;code&gt;edge://extensions&lt;/code&gt;, &lt;code&gt;browser://extensions&lt;/code&gt;, &lt;code&gt;opera://extensions&lt;/code&gt;) →
+            “Developer mode” → “Load unpacked” → the folder with &lt;code&gt;manifest.json&lt;/code&gt;."><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
+            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
+            «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
+          <li data-en="&lt;b&gt;Firefox:&lt;/b&gt; &lt;code&gt;about:debugging#/runtime/this-firefox&lt;/code&gt; → “Load Temporary Add-on…” →
+            the zip itself, no need to unpack. Works until Firefox restarts — then load it again."><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
+            сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
+        </ul>
+      </div>
+      <div class="quick-col" data-bm-box>
+        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
+        <p data-en="Nothing to install, works in any browser, including Safari. Drag the button with the mouse
+          to the bookmarks bar, then click the bookmark on a page with a video or song.">Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
+          на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
+        <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
+        <div class="bm-note" data-bm-note role="status"></div>
+        <div class="drag-hint" data-drag-hint></div>
+        <p class="muted small" data-en="No bookmarks bar? Press &lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;
+          (in Safari — &lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;, in Opera — “Easy setup” at the top right → “Show bookmarks bar”).
+          Cannot drag it? &lt;button class=&quot;link&quot; type=&quot;button&quot; data-copy-bookmarklet&gt;Copy the code&lt;/button&gt;
+          and paste it as the bookmark address.">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
+          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
+          Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
+          и вставьте его вместо адреса закладки.</p>
+      </div>
+    </div>
+  </details>
 
   <section class="hero">
     <h2>Что скачаем сегодня?</h2>
@@ -872,6 +1011,26 @@
     </div>
   </section>
 
+  <section class="card panel not-first" id="panel-top" role="tabpanel" aria-labelledby="tab-top" hidden>
+    <p class="top-hint" data-en="The top 20 of the week. Nothing downloads by itself: “Listen” plays the song in the player, “Download” puts it into the “Music” tab and starts the search there.">Топ-20 за неделю. Ничего не скачивается само: «Слушать» включает песню в плеере, «Скачать» подставит её на вкладку «Музыка» и запустит поиск.</p>
+    <div class="top-cols">
+      <section class="top-col glass" aria-labelledby="top-ru-h">
+        <header class="top-head">
+          <h3 id="top-ru-h">Русские</h3>
+          <span class="top-src" id="top-ru-src"></span>
+        </header>
+        <div id="top-ru-body"></div>
+      </section>
+      <section class="top-col glass" aria-labelledby="top-world-h">
+        <header class="top-head">
+          <h3 id="top-world-h">Иностранные</h3>
+          <span class="top-src" id="top-world-src"></span>
+        </header>
+        <div id="top-world-body"></div>
+      </section>
+    </div>
+  </section>
+
   <section class="card panel not-first is-last" id="panel-vpn" role="tabpanel" aria-labelledby="tab-vpn" hidden>
     <div class="proxy glass">
       <p class="proxy-state">Сейчас: <b id="proxy-state">…</b></p>
@@ -898,52 +1057,6 @@
       </div>
     </div>
   </section>
-
-  <details class="card quick" id="quick">
-    <summary>
-      <svg class="icon"><use href="#i-download"/></svg>
-      <span class="q-title">Скачивать прямо с сайта <small>— расширение и кнопка-закладка для всех браузеров</small></span>
-      <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span>
-    </summary>
-    <div class="quick-body">
-      <div class="quick-col">
-        <h3><svg class="icon"><use href="#i-puzzle"/></svg>Расширение <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg></span></h3>
-        <p data-en="A button on the browser toolbar and the “Send to Downloader” item in the right-click menu — for the page
-          and for any link under the cursor. If the program page is already open, the link goes there.">Кнопка на панели браузера и пункт «Скачать в программе» в меню правой кнопки — для страницы
-          и для любой ссылки под курсором. Если страница программы уже открыта, ссылка уйдёт в неё.</p>
-        <div class="quick-actions">
-          <a class="btn primary" href="/extension.zip" download><svg class="icon"><use href="#i-download"/></svg>Скачать расширение (zip)</a>
-          <a class="link" href="/help#extension">Подробная инструкция</a>
-        </div>
-        <ul class="q-steps">
-          <li data-en="&lt;b&gt;Chrome, Edge, Yandex, Opera:&lt;/b&gt; unpack the archive into a permanent folder → the extensions page
-            (&lt;code&gt;chrome://extensions&lt;/code&gt;, &lt;code&gt;edge://extensions&lt;/code&gt;, &lt;code&gt;browser://extensions&lt;/code&gt;, &lt;code&gt;opera://extensions&lt;/code&gt;) →
-            “Developer mode” → “Load unpacked” → the folder with &lt;code&gt;manifest.json&lt;/code&gt;."><b>Chrome, Edge, Яндекс, Опера:</b> распакуйте архив в постоянную папку → страница расширений
-            (<code>chrome://extensions</code>, <code>edge://extensions</code>, <code>browser://extensions</code>, <code>opera://extensions</code>) →
-            «Режим разработчика» → «Загрузить распакованное расширение» → папка с <code>manifest.json</code>.</li>
-          <li data-en="&lt;b&gt;Firefox:&lt;/b&gt; &lt;code&gt;about:debugging#/runtime/this-firefox&lt;/code&gt; → “Load Temporary Add-on…” →
-            the zip itself, no need to unpack. Works until Firefox restarts — then load it again."><b>Firefox:</b> <code>about:debugging#/runtime/this-firefox</code> → «Загрузить временное дополнение…» →
-            сам zip, распаковывать не нужно. Работает до перезапуска Firefox — потом загрузите снова.</li>
-        </ul>
-      </div>
-      <div class="quick-col" data-bm-box>
-        <h3><svg class="icon"><use href="#i-bookmark"/></svg>Кнопка-закладка <span class="brws"><svg class="brw"><title>Chrome</title><use href="/browsers.svg#chrome"/></svg><svg class="brw"><title>Edge</title><use href="/browsers.svg#edge"/></svg><svg class="brw"><title>Яндекс Браузер</title><use href="/browsers.svg#yandex"/></svg><svg class="brw"><title>Опера</title><use href="/browsers.svg#opera"/></svg><svg class="brw"><title>Firefox</title><use href="/browsers.svg#firefox"/></svg><svg class="brw"><title>Safari</title><use href="/browsers.svg#safari"/></svg></span></h3>
-        <p data-en="Nothing to install, works in any browser, including Safari. Drag the button with the mouse
-          to the bookmarks bar, then click the bookmark on a page with a video or song.">Ничего не устанавливается и работает в любом браузере, включая Safari. Перетащите кнопку мышкой
-          на панель закладок, потом на странице с видео или песней нажмите закладку.</p>
-        <a class="btn primary bm" data-bookmarklet draggable="true"><svg class="icon"><use href="#i-download"/></svg>Скачать в программе</a>
-        <div class="bm-note" data-bm-note role="status"></div>
-        <div class="drag-hint" data-drag-hint></div>
-        <p class="muted small" data-en="No bookmarks bar? Press &lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;
-          (in Safari — &lt;kbd&gt;⌘&lt;/kbd&gt;+&lt;kbd&gt;Shift&lt;/kbd&gt;+&lt;kbd&gt;B&lt;/kbd&gt;, in Opera — “Easy setup” at the top right → “Show bookmarks bar”).
-          Cannot drag it? &lt;button class=&quot;link&quot; type=&quot;button&quot; data-copy-bookmarklet&gt;Copy the code&lt;/button&gt;
-          and paste it as the bookmark address.">Не видно панели закладок — нажмите <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>
-          (в Safari — <kbd>⌘</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd>, в Опере — «Простая настройка» справа вверху → «Показать панель закладок»).
-          Не перетаскивается — <button class="link" type="button" data-copy-bookmarklet>скопируйте код</button>
-          и вставьте его вместо адреса закладки.</p>
-      </div>
-    </div>
-  </details>
 
   <footer data-en="The program runs on your computer. If downloads stop working, see &lt;a href=&quot;/help#errors&quot;&gt;Help&lt;/a&gt;.
     With a VPN: turn it on for the whole computer and do not switch it during a download — &lt;a href=&quot;/help#vpn&quot;&gt;more&lt;/a&gt;.">Программа работает на вашем компьютере. Если перестало качать — загляните в <a href="/help#errors">помощь</a>.
@@ -1086,9 +1199,135 @@ $('lang').addEventListener('click', async () => {
   } catch (e) { toast(e.message); }
 });
 
+// ---------- вкладка «Топ» ----------
+// Списки готовит сервер (top.py) и обновляет раз в сутки; здесь только показ. Песня не качается:
+// «Скачать» подставляет «исполнитель — название» во вкладку «Музыка» и запускает поиск;
+// «Слушать» ищет песню по тому же запросу и включает первую найденную в плеере-«островке».
+const TOP_KEYS = ['ru', 'world'];
+const topItems = {ru: [], world: []};
+const topSig = {};
+let topTimer = null;
+const compactNum = new Intl.NumberFormat(EN ? 'en' : 'ru', {notation: 'compact', maximumFractionDigits: 1});
+
+function topSource(key, d) {
+  if (key === 'ru') return 'zaycev.net · ' + L('за неделю', 'this week');
+  let s = L('Spotify, мир', 'Spotify, worldwide');
+  const day = d.asof && new Date(d.asof + 'T12:00:00');
+  if (day && !isNaN(day)) s += ' · ' + L('неделя по ', 'week to ') + day.toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long'});
+  return s;
+}
+const topCover = it => icon('music') + (it.cover
+  ? `<img src="${esc(it.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '');
+const topPlays = it => it.plays ? `${compactNum.format(it.plays)} ${L('за неделю', 'streams')}` : '';
+const topHits = new Map();  // запрос → найденная для него песня (то, что включает «Слушать»)
+let topListenToken = 0;
+const topBtns = (key, i, big) => {
+  const it = topItems[key][i], h = topHits.get(it.query);
+  const attrs = `data-topl="${key}:${i}"${h ? ` data-listen="${esc(h.url)}"` : ''}`;
+  const dl = `<button class="btn ghost small" type="button" data-top="${key}" data-i="${i}"
+    title="${esc(L('Найти эту песню на вкладке «Музыка»', 'Find this song on the Music tab'))}">${icon('download')}<span class="lbl">${L('Скачать', 'Download')}</span></button>`;
+  const ls = big
+    ? `<button class="btn ghost small" type="button" ${attrs}>${fillIcon('play')}${L('Слушать', 'Listen')}</button>`
+    : `<button class="listen tl" type="button" ${attrs} aria-label="${L('Слушать', 'Listen')}" title="${L('Слушать', 'Listen')}">${fillIcon('play')}</button>`;
+  return ls + dl;
+};
+
+function topPodium(key, it, i) {
+  return `<div class="pod r${it.pos}">
+    <div class="pod-cover"><span class="rank">${it.pos}</span>${topCover(it)}</div>
+    <div class="pod-text">
+      <div class="pod-title" title="${esc(it.title)}">${esc(it.title)}</div>
+      <div class="pod-artist" title="${esc(it.artist)}">${esc(it.artist)}</div>
+      ${topPlays(it) ? `<div class="pod-plays">${esc(topPlays(it))}</div>` : ''}
+    </div>
+    <div class="pod-act">${topBtns(key, i, true)}</div>
+  </div>`;
+}
+function topRow(key, it, i, first) {
+  const sub = [it.artist, topPlays(it)].filter(Boolean).join(' · ');
+  return `<div class="trow${first ? ' c0' : ''}">
+    <span class="trow-pos">${it.pos}</span>
+    <span class="trow-cover">${topCover(it)}</span>
+    <div class="trow-body">
+      <div class="trow-title" title="${esc(it.title)}">${esc(it.title)}</div>
+      <div class="trow-sub" title="${esc(sub)}">${esc(sub)}</div>
+    </div>
+    <div class="trow-act">${topBtns(key, i, false)}</div>
+  </div>`;
+}
+function renderTopCol(key, d) {
+  const items = d.items || [];
+  const sig = JSON.stringify([items, d.asof, d.loading, d.failed]);
+  if (topSig[key] === sig) return;
+  topSig[key] = sig;
+  topItems[key] = items;
+  $('top-' + key + '-src').textContent = items.length ? topSource(key, d) : '';
+  const body = $('top-' + key + '-body');
+  if (!items.length) {
+    body.innerHTML = d.failed
+      ? `<div class="top-fail"><b>${L('Источник недоступен', 'Source unavailable')}</b>${L('Попробуем ещё раз позже — откройте вкладку снова.', 'We will try again later — open the tab again.')}</div>`
+      : `<div class="top-sk"><div class="sk big"></div>${'<div class="sk"></div>'.repeat(5)}</div>`;
+    return;
+  }
+  const rows = Math.max(Math.ceil((items.length - 3) / 2), 1);
+  body.innerHTML = `<div class="top-podium">${items.slice(0, 3).map((it, i) => topPodium(key, it, i)).join('')}</div>`
+    + `<div class="top-list" style="--rows:${rows}">${items.slice(3).map((it, i) => topRow(key, it, i + 3, i % rows === 0)).join('')}</div>`;
+  syncListen();
+}
+
+// «Слушать»: ищем песню по «исполнитель — название» (тот же поиск, что на вкладке «Музыка») и включаем первую найденную
+async function topListen(btn) {
+  const [key, n] = btn.dataset.topl.split(':');
+  const it = topItems[key][+n];
+  if (!it) return;
+  const found = topHits.get(it.query);
+  if (found) { listen(found); return; }
+  const token = ++topListenToken;
+  const all = [...document.querySelectorAll(`[data-topl="${btn.dataset.topl}"]`)];
+  all.forEach(b => { b.disabled = true; b.innerHTML = '<span class="spinner"></span>' + (b.classList.contains('btn') ? L('Ищу…', 'Searching…') : ''); });
+  try {
+    const data = await api('/api/info', {url: it.query});
+    const hit = (data.results || [])[0];
+    if (!hit) throw new Error(L('Эту песню не нашёл — попробуйте «Скачать».', 'Could not find this song — try “Download”.'));
+    topHits.set(it.query, hit);
+    all.forEach(b => { b.dataset.listen = hit.url; });
+    if (token === topListenToken) listen(hit);  // нажали другую песню, пока искали, — не перебиваем
+  } catch (e) {
+    if (token === topListenToken) toast(e.message);
+  }
+  all.forEach(b => {
+    b.disabled = false;
+    b.innerHTML = fillIcon('play') + (b.classList.contains('btn') ? L('Слушать', 'Listen') : '');
+    delete b.dataset.st;
+  });
+  syncListen();
+}
+async function loadTop(tries = 0) {
+  clearTimeout(topTimer);
+  let data = null;
+  try { data = await api('/api/top'); } catch { /* сервер не ответил: покажем «источник недоступен» */ }
+  TOP_KEYS.forEach(k => renderTopCol(k, data ? data[k] : {items: [], failed: true}));
+  // пока сервер собирает список (первый запуск или раз в сутки), спрашиваем снова
+  if (data && TOP_KEYS.some(k => data[k].loading) && tries < 30) {
+    topTimer = setTimeout(() => { if (activeTab === 'top') loadTop(tries + 1); }, 2000);
+  }
+}
+$('panel-top').addEventListener('click', e => {
+  const l = e.target.closest('[data-topl]');
+  if (l) { topListen(l); return; }
+  const btn = e.target.closest('[data-top]');
+  const it = btn && topItems[btn.dataset.top][+btn.dataset.i];
+  if (!it) return;
+  $('query').value = it.query;
+  setTab('music');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  runSearch();
+});
+$('panel-top').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);  // нет обложки — значок
+
 // ---------- вкладки ----------
-const TABS = ['link', 'music', 'vpn'];
-const TAB_FOCUS = {link: 'url', music: 'query', vpn: 'proxy'};
+const TABS = ['link', 'music', 'top', 'vpn'];
+const TAB_FOCUS = {link: 'url', music: 'query', top: '', vpn: 'proxy'};
 function setTab(name, focus = false) {
   TABS.forEach(t => {
     const on = t === name;
@@ -1100,7 +1339,8 @@ function setTab(name, focus = false) {
   renderTasks();  // папка загрузок — в рейке, видна на всех вкладках
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
-  if (focus) $(TAB_FOCUS[name]).focus();
+  if (name === 'top') loadTop();
+  if (focus && TAB_FOCUS[name]) $(TAB_FOCUS[name]).focus();
 }
 document.querySelector('.tabs').addEventListener('click', e => {
   const tab = e.target.closest('.tab');
@@ -2214,7 +2454,7 @@ loadUpdate();
 
 renderTasks([]);
 poll();
-if (!takeIncoming()) $(store.get('tab') === 'music' ? 'query' : 'url').focus();
+if (!takeIncoming() && TAB_FOCUS[activeTab]) $(TAB_FOCUS[activeTab]).focus();
 </script>
 <script src="/quick.js"></script>
 </body>

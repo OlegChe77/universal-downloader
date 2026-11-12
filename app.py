@@ -127,6 +127,7 @@ from yt_dlp.utils import download_range_func
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import sites
+import top
 import updater
 
 sites.register()  # свои разборщики: ЯП файлы, ЯПлакалъ
@@ -138,12 +139,14 @@ DOWNLOADS = BASE / 'Скачанное'
 COOKIES = BASE / 'cookies.txt'
 SETTINGS = BASE / 'settings.json'
 EXTENSION = BASE / 'extension'
-VERSION = '1.4'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
+VERSION = '1.5'  # номер этой версии = тег релиза на GitHub без «v» (updater.py сверяет их)
 UPDATE_API = (os.environ.get('DOWNLOADER_UPDATE_API')  # для проверки обновления без настоящего релиза
               or 'https://api.github.com/repos/OlegChe77/universal-downloader/releases/latest')
 UPDATE_DIR = BASE / 'update'  # скачанная новая версия и старые файлы на время замены
 UPDATE_CACHE = Path(sys.prefix) / 'app-update.json'  # когда проверяли и что нашли
 UPDATE_EVERY = 3 * 24 * 3600
+BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
+TOP_CACHE = Path(sys.prefix) / 'top-cache.json'  # списки вкладки «Топ» (top.py): обновляются раз в сутки
 DEV_COPY = (BASE / '.git').exists()  # папка разработки обновляется через git, а не архивом
 # proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
 # doh — защищённый DNS: адреса, которые не нашёл системный DNS, искать через DNS по HTTPS
@@ -1332,6 +1335,20 @@ def program_version(name):
         return 'есть'
 
 
+def top_open(url):
+    """Страница чарта (байты) сетью yt-dlp: нужна прокси или защищённый DNS — via_proxy их подставит."""
+    def work(proxy):
+        with yt_dlp.YoutubeDL({**base_opts(), 'proxy': proxy, 'socket_timeout': 20}) as ydl:
+            headers = {'User-Agent': BROWSER_UA, 'Accept-Language': 'ru,en;q=0.8'}
+            return ydl.urlopen(yt_dlp.networking.Request(url, headers=headers)).read()
+    return via_proxy(url, work)
+
+
+@app.get('/api/top')
+def api_top():
+    return jsonify(top.snapshot())
+
+
 @app.get('/api/status')
 def api_status():
     ffmpeg = BIN / ('ffmpeg.exe' if os.name == 'nt' else 'ffmpeg')
@@ -2492,6 +2509,12 @@ def quit_app(icon):
     icon.stop()
 
 
+def top_daily():
+    while True:
+        time.sleep(3600)
+        top.start_stale()
+
+
 def update_ytdlp_daily():
     """Без окна Запуск.bat не обновляет yt-dlp, поэтому раз в сутки делаем это тихо сами.
     Новая версия заработает со следующего запуска."""
@@ -2614,6 +2637,8 @@ def main():
         SPLASH.close(tr('Запущена', 'Running'), 1.0)
     if not DEV_COPY:
         threading.Thread(target=check_app_update_regularly, daemon=True).start()
+    top.init(TOP_CACHE, top_open)
+    threading.Thread(target=top_daily, daemon=True).start()
     if not TRAY:
         print(f'Универсальный скачиватель запущен: {url}')
         print('Не закрывайте это окно, пока скачиваете. Закрыть — Ctrl+C.')
