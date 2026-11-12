@@ -21,7 +21,7 @@ Everything runs on your computer: no ads, no sign-up, no third-party servers. Yo
 
 The interface is in English and Russian: the language button is at the top right of the page (by default — the language of Windows).
 
-![Main page: on the left, a panel with the “By link”, “Music” and “Proxy” tabs, the download folder and “Support the project”; in the center, the link field and a video card with MP4, MP3 and M4A options; below, the “Download right from a site” panel with Chrome, Edge, Yandex, Opera, Firefox and Safari icons](docs/screenshots/en/link.png)
+![Main page: on the left, a panel with the “By link”, “Music”, “Top” and “Proxy” tabs, the download folder and “Support the project”; in the center, the link field and a video card with MP4, MP3 and M4A options; below, the “Download right from a site” panel with Chrome, Edge, Yandex, Opera, Firefox and Safari icons](docs/screenshots/en/link.png)
 
 **[⬇ Download the latest version (zip)](https://github.com/OlegChe77/universal-downloader/releases/latest/download/universal-downloader.zip)** (`universal-downloader.zip`, direct file) · [release page with the changes](../../releases/latest)
 
@@ -48,6 +48,10 @@ The interface is in English and Russian: the language button is at the top right
 | Music: search by name, checkboxes and “Download MP3 / M4A” | Listen before downloading |
 |---|---|
 | ![The “Music” tab: a list of 10 songs, two checked, the “Selected 2 of 10” bar with “Download MP3” and “M4A” buttons](docs/screenshots/en/music.png) | ![The player “island” above the search field: cover, title, seek bar, volume and the MP3 button; the song in the list is marked as playing](docs/screenshots/en/player.png) |
+
+| Top: the most played songs — Russian and international |
+|---|
+| ![The “Top” tab: the “Russian” (Yandex Music, Russia, daily) and “International” (Spotify, worldwide, weekly) columns; the first three songs are cards with a cover and “Listen” and “Download” buttons, the rest is a list](docs/screenshots/en/top.png) |
 
 | The “Proxy” tab: for blocked sites | Dark theme |
 |---|---|
@@ -108,6 +112,13 @@ On the **“Music”** tab type an artist or song title. The search runs on YouT
 - **checkboxes**: select several songs and download them with one button (MP3 or M4A, one at a time).
 
 Player keys: <kbd>Space</kbd> — pause, <kbd>←</kbd> / <kbd>→</kbd> — seek.
+
+### Top
+The **“Top”** tab shows the 20 most played songs: Russian (the Yandex Music Russia chart, listeners per day) and international (Spotify, worldwide, weekly). The tab itself downloads nothing:
+- **Listen**: the song plays in the player;
+- **Download**: the song goes into the “Music” tab and the search starts — then as usual.
+
+The lists refresh once a day.
 
 ### Download right from a site
 Expand the **“Download right from a site”** panel at the top of the page. There are two ways:
