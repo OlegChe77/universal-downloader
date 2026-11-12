@@ -34,7 +34,7 @@ const EN_TEXT = {
   'поиск песни по названию': 'find a song by name',
   'VPN': 'Proxy',
   'Топ': 'Top',
-  'чарты недели': 'weekly charts',
+  'чарты песен': 'song charts',
   'Русские': 'Russian',
   'Иностранные': 'International',
   'закрытые сайты, прокси': 'VPN app, blocked sites',

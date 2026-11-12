@@ -1,4 +1,4 @@
-"""Вкладка «Топ»: топ-20 недели — русские (zaycev.net) и иностранные (Spotify, мир, по данным kworb.net).
+"""Вкладка «Топ»: топ-20 — русские (Яндекс Музыка, запасной — zaycev.net) и иностранные (Spotify, мир, по данным kworb.net).
 
 Только открытые страницы, без входа и ключей. Список обновляется раз в сутки в фоне: кеш лежит в памяти и в файле,
 поэтому при открытии вкладки он есть сразу. Если один источник не ответил — работает второй, а у этого остаётся
@@ -16,6 +16,8 @@ from pathlib import Path
 COUNT = 20
 DAY = 24 * 3600
 RETRY = 15 * 60  # после неудачи пробуем не чаще
+CACHE_VER = 2  # сменился источник или поля — старый кеш не берём
+YANDEX = 'https://api.music.yandex.net/landing3/chart/russia'
 ZAYCEV = 'https://zaycev.net/popular/index.html?popular-sort=week'
 KWORB = 'https://kworb.net/spotify/country/global_weekly.html'
 OEMBED = 'https://open.spotify.com/oembed?url='
@@ -33,7 +35,7 @@ K_CELLS = re.compile(r'<td[^>]*>(.*?)</td>', re.S)
 K_DATE = re.compile(r'Chart - Global - (\d{4})/(\d{2})/(\d{2})')
 
 lock = threading.Lock()
-state = {k: {'items': [], 'asof': '', 'updated': 0.0, 'tried': 0.0, 'busy': False} for k in ('ru', 'world')}
+state = {k: {'items': [], 'asof': '', 'src': '', 'updated': 0.0, 'tried': 0.0, 'busy': False} for k in ('ru', 'world')}
 cache_file = None
 opener = None  # opener(url) → bytes
 
@@ -47,7 +49,38 @@ def query_of(artist, title):
     return f'{artist} — {title}'
 
 
+def fetch_yandex():
+    """Яндекс Музыка, чарт России: обновляется каждый день, listeners — слушатели за сутки."""
+    tracks = json.loads(opener(YANDEX))['result']['chart']['tracks']
+    items = []
+    for t in tracks:
+        tr = t.get('track') or {}
+        names = [a.get('name', '') for a in tr.get('artists') or [] if a.get('name')]
+        title = (tr.get('title') or '').strip()
+        if not names or not title:
+            continue
+        if tr.get('version'):
+            title += f" ({tr['version'].strip()})"
+        cover = tr.get('coverUri') or ''
+        items.append({'pos': len(items) + 1, 'artist': ', '.join(names), 'title': title,
+                      'query': query_of(names[0], title), 'plays': int((t.get('chart') or {}).get('listeners') or 0),
+                      'per': 'day', 'cover': 'https://' + cover.replace('%%', '200x200') if cover else ''})
+        if len(items) == COUNT:
+            break
+    if len(items) < 3:
+        raise ValueError('yandex: чарт не найден')
+    return items, '', 'yandex'
+
+
 def fetch_ru():
+    """Яндекс Музыка; не ответил — zaycev.net."""
+    try:
+        return fetch_yandex()
+    except Exception:  # noqa: BLE001
+        return fetch_zaycev()
+
+
+def fetch_zaycev():
     """zaycev.net, неделя: порядок — как в списке на странице (в данных страницы он не сохранён)."""
     page = opener(ZAYCEV).decode('utf-8', 'replace')
     items = []
@@ -66,7 +99,7 @@ def fetch_ru():
         raise ValueError('zaycev: список не найден')
     for it in items:
         it['query'] = query_of(it['artist'], it['title'])
-    return items, ''
+    return items, '', 'zaycev'
 
 
 def spotify_cover(track_id):
@@ -97,7 +130,7 @@ def fetch_world():
         track = K_TRACK.search(text.group(1))
         ids.append(track.group(1) if track else '')
         items.append({'pos': int(m.group(1)), 'artist': artist + (f', {feat}' if feat else ''), 'title': title,
-                      'query': query_of(artist, title), 'plays': streams, 'cover': ''})
+                      'query': query_of(artist, title), 'plays': streams, 'per': 'week', 'cover': ''})
         if len(items) == COUNT:
             break
     if len(items) < 3:
@@ -106,7 +139,7 @@ def fetch_world():
         for it, cover in zip(items, pool.map(lambda i: spotify_cover(i) if i else '', ids)):
             it['cover'] = cover
     date = K_DATE.search(page)
-    return items, f'{date.group(1)}-{date.group(2)}-{date.group(3)}' if date else ''
+    return items, f'{date.group(1)}-{date.group(2)}-{date.group(3)}' if date else '', 'kworb'
 
 
 FETCH = {'ru': fetch_ru, 'world': fetch_world}
@@ -116,17 +149,17 @@ def save():
     if not cache_file:
         return
     try:
-        Path(cache_file).write_text(json.dumps({k: {f: v[f] for f in ('items', 'asof', 'updated')}
-                                                for k, v in state.items()}, ensure_ascii=False), encoding='utf-8')
+        data = {k: {f: v[f] for f in ('items', 'asof', 'src', 'updated')} for k, v in state.items()}
+        Path(cache_file).write_text(json.dumps({'v': CACHE_VER, **data}, ensure_ascii=False), encoding='utf-8')
     except OSError:
         pass
 
 
 def refresh(key):
     try:
-        items, asof = FETCH[key]()
+        items, asof, src = FETCH[key]()
         with lock:
-            state[key].update(items=items, asof=asof, updated=time.time())
+            state[key].update(items=items, asof=asof, src=src, updated=time.time())
     except Exception:  # noqa: BLE001 — источник недоступен или вёрстка изменилась: остаётся прошлый список
         pass
     with lock:
@@ -152,10 +185,12 @@ def init(path, open_url):
     cache_file, opener = path, open_url
     try:
         saved = json.loads(Path(path).read_text(encoding='utf-8'))
+        if saved.get('v') != CACHE_VER:
+            saved = {}
         for k, s in state.items():
             c = saved.get(k) or {}
             if isinstance(c.get('items'), list):
-                s.update(items=c['items'], asof=str(c.get('asof') or ''), updated=float(c.get('updated') or 0))
+                s.update(items=c['items'], asof=str(c.get('asof') or ''), src=str(c.get('src') or ''), updated=float(c.get('updated') or 0))
     except (OSError, ValueError, TypeError):
         pass
     start_stale()
@@ -165,6 +200,6 @@ def snapshot():
     """Ответ вкладки: на каждый столбец — список (может быть прошлым), loading и failed."""
     start_stale()
     with lock:
-        return {k: {'items': s['items'], 'asof': s['asof'], 'updated': int(s['updated']), 'loading': s['busy'],
+        return {k: {'items': s['items'], 'asof': s['asof'], 'src': s['src'], 'updated': int(s['updated']), 'loading': s['busy'],
                     'failed': not s['items'] and not s['busy'] and s['tried'] > 0}
                 for k, s in state.items()}

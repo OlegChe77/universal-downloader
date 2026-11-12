@@ -512,10 +512,11 @@
   .upd-notes p { margin: 8px 0 2px; }
   .upd-notes ul { margin: 2px 0; padding-left: 20px; }
 
-  /* вкладка «Топ»: два ряда один под другим (русские, иностранные); в каждом — три места карточками,
-     остальные списком в две колонки. Раскладка зависит от ширины самого ряда (container query), не окна. */
+  /* вкладка «Топ»: два столбца (русские, иностранные), на узком — один под другим; в каждом — три места
+     карточками, остальные списком. Раскладка зависит от ширины самого столбца (container query), не окна. */
   .top-hint { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
-  .top-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+  /* русские и иностранные — рядом, если на каждый столбец хватает ~420 px; иначе друг под другом */
+  .top-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 16px; align-items: start; }
   .top-col { padding: 16px 16px 12px; border-radius: 26px; min-width: 0; container-type: inline-size; }
   .top-head { display: flex; align-items: baseline; justify-content: space-between; flex-wrap: wrap; gap: 2px 10px; margin: 0 4px 12px; }
   .top-head h3 { margin: 0; font-size: 19px; letter-spacing: -.01em; }
@@ -755,7 +756,7 @@
     </button>
     <button class="tab" role="tab" id="tab-top" data-tab="top" aria-controls="panel-top" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-chart"/></svg></span>
-      <span><b>Топ</b><small>чарты недели</small></span>
+      <span><b>Топ</b><small>чарты песен</small></span>
     </button>
     <button class="tab" role="tab" id="tab-vpn" data-tab="vpn" aria-controls="panel-vpn" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-shield"/></svg></span>
@@ -1012,7 +1013,7 @@
   </section>
 
   <section class="card panel not-first" id="panel-top" role="tabpanel" aria-labelledby="tab-top" hidden>
-    <p class="top-hint" data-en="The top 20 of the week. Nothing downloads by itself: “Listen” plays the song in the player, “Download” puts it into the “Music” tab and starts the search there.">Топ-20 за неделю. Ничего не скачивается само: «Слушать» включает песню в плеере, «Скачать» подставит её на вкладку «Музыка» и запустит поиск.</p>
+    <p class="top-hint" data-en="The top 20 most played songs. Nothing downloads by itself: “Listen” plays the song in the player, “Download” puts it into the “Music” tab and starts the search there.">Топ-20 самых слушаемых песен. Ничего не скачивается само: «Слушать» включает песню в плеере, «Скачать» подставит её на вкладку «Музыка» и запустит поиск.</p>
     <div class="top-cols">
       <section class="top-col glass" aria-labelledby="top-ru-h">
         <header class="top-head">
@@ -1210,7 +1211,8 @@ let topTimer = null;
 const compactNum = new Intl.NumberFormat(EN ? 'en' : 'ru', {notation: 'compact', maximumFractionDigits: 1});
 
 function topSource(key, d) {
-  if (key === 'ru') return 'zaycev.net · ' + L('за неделю', 'this week');
+  if (key === 'ru') return d.src === 'zaycev' ? 'zaycev.net · ' + L('за неделю', 'this week')
+    : L('Яндекс Музыка, Россия · обновляется каждый день', 'Yandex Music, Russia · updated daily');
   let s = L('Spotify, мир', 'Spotify, worldwide');
   const day = d.asof && new Date(d.asof + 'T12:00:00');
   if (day && !isNaN(day)) s += ' · ' + L('неделя по ', 'week to ') + day.toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long'});
@@ -1218,7 +1220,8 @@ function topSource(key, d) {
 }
 const topCover = it => icon('music') + (it.cover
   ? `<img src="${esc(it.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '');
-const topPlays = it => it.plays ? `${compactNum.format(it.plays)} ${L('за неделю', 'streams')}` : '';
+const topPlays = it => !it.plays ? '' : compactNum.format(it.plays) + ' '
+  + (it.per === 'day' ? L('слушателей за сутки', 'listeners a day') : L('за неделю', 'streams'));
 const topHits = new Map();  // запрос → найденная для него песня (то, что включает «Слушать»)
 let topListenToken = 0;
 const topBtns = (key, i, big) => {
@@ -1257,7 +1260,7 @@ function topRow(key, it, i, first) {
 }
 function renderTopCol(key, d) {
   const items = d.items || [];
-  const sig = JSON.stringify([items, d.asof, d.loading, d.failed]);
+  const sig = JSON.stringify([items, d.asof, d.src, d.loading, d.failed]);
   if (topSig[key] === sig) return;
   topSig[key] = sig;
   topItems[key] = items;

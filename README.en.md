@@ -32,7 +32,7 @@ The interface is in English and Russian: the language button is at the top right
 - **Video by link**: MP4 in the quality you choose, from 144p to 4K. Video and audio are merged automatically.
 - **Audio only**: MP3 with cover and tags (“Artist – Song” is taken from the video title) or M4A without re-encoding.
 - **Music search by name** on YouTube, SoundCloud and Rutube at once — one list of 10 songs with covers and a “Show 10 more” button. MP3 downloads in one click, and with checkboxes you can select several songs and download them with one button.
-- **Weekly top**: the “Top” tab — the 20 most listened songs of the week, Russian (zaycev.net) and international (Spotify, worldwide). The first three are cards with covers; the “Download” button puts the song into the “Music” tab and starts the search. The lists refresh once a day.
+- **Top chart**: the “Top” tab — the 20 most played songs: Russian (Yandex Music, daily) and international (Spotify, worldwide, weekly). The first three are cards with covers; the “Download” button puts the song into the “Music” tab and starts the search. The lists refresh once a day.
 - **Listen before downloading**: a player “island” above the field with seeking, volume and the next song. It works with the keyboard and media keys.
 - **Audio tracks and subtitles**: for videos in several languages — choose the track (the original by default) or all of them in one MP4; subtitles — embedded in the video or as a separate `.srt`.
 - **Compress video**: a button on a downloaded video makes the file smaller (H.265), the original stays.
