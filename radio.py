@@ -3,7 +3,9 @@
 Список (~50 тысяч станций, ~60 МБ JSON) скачивается раз в сутки в фоне и лежит в памяти и в файле кеша —
 сжато, только нужные поля. Страница получает его по частям (query), с фильтром по жанру, стране и строке поиска.
 «Сейчас играет» — из ICY-метаданных потока (now): открываем поток с заголовком Icy-MetaData: 1, читаем один
-блок и закрываем. У HLS-станций (m3u8) таких данных нет. Сеть для API — забота app.py: opener(url) → bytes.
+блок и закрываем. У HLS-станций (m3u8) таких данных нет — у них только проверяем, что поток открывается.
+Станция, чей поток не открылся (дважды подряд), — «не отвечает» (dead): в списке её не видно, и её проверяем
+снова через 2, 10, 30 минут, потом раз в час; ответила — опять в списке. Сеть для API — забота app.py: opener(url) → bytes.
 """
 import concurrent.futures
 import http.client
@@ -64,6 +66,9 @@ cache_file = None
 opener = None   # opener(url) → bytes
 proxy_of = None  # proxy_of(url) → 'http://host:port' или None — для «сейчас играет»
 now_cache = {}  # id станции → (название песни, до какого времени)
+dead = {}  # id станции → (сколько проверок подряд не ответила, когда проверить снова); только в памяти
+RECHECK = [120, 600, 1800, 3600]
+OK_STATUS = {401, 403, 429}  # не пускает нашу проверку (не браузер, лимит), но сама станция может работать
 now_pool = concurrent.futures.ThreadPoolExecutor(16, thread_name_prefix='icy')
 
 
@@ -237,8 +242,12 @@ def counts(genre, country, q):
     return genres, countries, len(view(genre, '', q))
 
 
+def dead_in(stations):
+    return sum(1 for s in stations if s['id'] in dead) if dead else 0
+
+
 def public(s):
-    return {'id': s['id'], 'name': s['n'], 'url': s['u'], 'favicon': s['f'], 'cc': s['c'], 'country': s['cn'],
+    return {'id': s['id'], 'dead': s['id'] in dead, 'name': s['n'], 'url': s['u'], 'favicon': s['f'], 'cc': s['c'], 'country': s['cn'],
             'city': s['s'], 'genre': s['g'][0] if s['g'] else '', 'tag': s['t'][0] if s['t'] else '',
             'codec': s['cd'], 'bitrate': s['br'], 'hls': bool(s['h'] or s['u'].split('?')[0].endswith('.m3u8'))}
 
@@ -255,7 +264,7 @@ def query(genre='', country='', q='', offset=0, limit=50, group=False, per_group
     if not info['count']:
         return {**info, 'total': 0, 'items': [], 'groups': [], 'genres': [], 'countries': []}
     stations = view(genre, country, q)
-    out = {**info, 'total': len(stations)}
+    out = {**info, 'total': len(stations), 'dead': dead_in(stations)}  # total — со скрытыми (для offset)
     if with_counts:
         out['genres'], out['countries'], out['all_countries'] = counts(genre, country, q)
     if group:
@@ -264,7 +273,7 @@ def query(genre='', country='', q='', offset=0, limit=50, group=False, per_group
             by_cc.setdefault(s['c'], []).append(s)
         ccs = sorted(by_cc, key=lambda cc: (cc != RU, -len(by_cc[cc]), cc))
         out['groups_total'] = len(ccs)
-        out['groups'] = [{'cc': cc, 'country': by_cc[cc][0]['cn'], 'total': len(by_cc[cc]),
+        out['groups'] = [{'cc': cc, 'country': by_cc[cc][0]['cn'], 'total': len(by_cc[cc]), 'dead': dead_in(by_cc[cc]),
                           'items': [public(s) for s in by_cc[cc][:per_group]]}
                          for cc in ccs[offset:offset + limit]]
     else:
@@ -354,13 +363,30 @@ def clean_title(text, s):
     return text[:200]
 
 
+def alive_or_raise(resp):
+    if resp.status >= 400 and resp.status not in OK_STATUS:
+        raise OSError(f'HTTP {resp.status}')
+
+
+def stream_proxy(s):
+    proxy = proxy_of(s['u']) if proxy_of else None
+    return proxy if proxy and proxy.startswith('http://') else None  # socks здесь не умеем; пробуем напрямую
+
+
+def probe(s):
+    """HLS: только проверить, что плейлист открывается (ошибка — исключение)."""
+    conn, resp = open_icy(s['u'], stream_proxy(s))
+    try:
+        alive_or_raise(resp)
+    finally:
+        conn.close()
+
+
 def read_now(s):
     """Название песни из потока станции; '' — станция его не передаёт."""
-    proxy = proxy_of(s['u']) if proxy_of else None
-    if proxy and not proxy.startswith('http://'):
-        proxy = None  # socks здесь не умеем; пробуем напрямую
-    conn, resp = open_icy(s['u'], proxy)
+    conn, resp = open_icy(s['u'], stream_proxy(s))
     try:
+        alive_or_raise(resp)
         metaint = int(resp.getheader('icy-metaint') or 0)
         if resp.status != 200 or metaint <= 0 or metaint > 256 * 1024:
             return ''
@@ -377,29 +403,54 @@ def read_now(s):
         conn.close()
 
 
+def check(s):
+    """Песня ('' — не передаёт, None — HLS) или исключение, если поток не открылся. Не открылся — ещё раз."""
+    hls = s['h'] or s['u'].split('?')[0].endswith('.m3u8')
+    for attempt in range(2):
+        try:
+            if hls:
+                probe(s)
+                return None
+            return read_now(s)
+        except Exception:  # noqa: BLE001 — сбой бывает и у живой станции: вторая попытка
+            if attempt:
+                raise
+            time.sleep(1)
+
+
 def now_one(sid, fresh=False):
     s = station(sid)
     if not s:
         return ''
-    if s['h'] or s['u'].split('?')[0].endswith('.m3u8'):
-        return None  # HLS: метаданных в потоке нет
+    t = time.time()
+    d = dead.get(sid)
+    if d and d[1] > t:
+        return False  # не отвечает, проверять ещё рано
     hit = now_cache.get(sid)  # (песня, до какого времени, когда узнали)
-    if hit and hit[1] > time.time() and not (fresh and time.time() - hit[2] > 15):
+    if not d and hit and hit[1] > t and not (fresh and hit[0] is not None and t - hit[2] > 15):
         return hit[0]
     try:
-        title = read_now(s)
-        ttl = 40 if title else 300
+        title = check(s)
     except Exception:  # noqa: BLE001 — станция не ответила
-        title, ttl = '', 120
-    now_cache[sid] = (title, time.time() + ttl, time.time())
+        fails = d[0] + 1 if d else 1
+        dead[sid] = (fails, time.time() + RECHECK[min(fails, len(RECHECK)) - 1])
+        now_cache.pop(sid, None)
+        return False
+    dead.pop(sid, None)
+    now_cache[sid] = (title, time.time() + (40 if title else 300), time.time())
     if len(now_cache) > 3000:
         for k in [k for k, v in now_cache.items() if v[1] < time.time()]:
             now_cache.pop(k, None)
     return title
 
 
+def revive(sid):
+    """Поток станции заиграл (через ffmpeg) — она отвечает."""
+    dead.pop(sid, None)
+
+
 def now(ids, fresh=False):
-    """{id: «исполнитель — песня» | '' (не передаёт) | None (HLS)} для нескольких станций сразу.
+    """{id: «исполнитель — песня» | '' (не передаёт) | None (HLS) | False (не отвечает)} для нескольких станций сразу.
     fresh — кнопка «Обновить»: узнать заново, если прошлому ответу больше 15 секунд."""
     ids = [i for i in dict.fromkeys(ids) if i][:30]
     return dict(zip(ids, now_pool.map(lambda i: now_one(i, fresh), ids)))

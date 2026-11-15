@@ -1384,8 +1384,15 @@ def api_radio():
 
 @app.get('/api/radio/now')
 def api_radio_now():
-    """«Сейчас играет» для нескольких станций: {id: песня | '' | null (HLS)}."""
+    """«Сейчас играет» для нескольких станций: {id: песня | '' | null (HLS) | false (не отвечает — скрыть)}."""
     return jsonify(radio.now(request.args.get('ids', '').split(','), fresh=request.args.get('fresh') == '1'))
+
+
+@app.post('/api/radio/alive')
+def api_radio_alive():
+    """Станция заиграла в браузере — снять пометку «не отвечает»."""
+    radio.revive(str((request.get_json(silent=True) or {}).get('id', '')))
+    return jsonify(ok=True)
 
 
 def radio_proxy(url):
@@ -1413,6 +1420,7 @@ def api_radio_play():
     if not first:
         proc.kill()
         return jsonify(error=tr('Станция не отвечает.', 'The station does not respond.')), 502
+    radio.revive(s['id'])
 
     def body():
         try:

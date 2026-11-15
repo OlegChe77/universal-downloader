@@ -637,6 +637,7 @@
     display: grid; grid-template-columns: 44px minmax(150px, 1.2fr) minmax(0, 1.3fr) auto; gap: 12px; align-items: center;
     padding: 9px 10px; margin-bottom: 7px; border-radius: 16px; box-shadow: none;
   }
+  .rrow.gone { display: none; }  /* станция не отвечает — вернётся, когда ответит */
   .rrow.pl { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
   .rlogo {
     position: relative; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; flex-shrink: 0;
@@ -2289,15 +2290,28 @@ syncVolume();
 // ---------- вкладка «Радио» ----------
 // Станции готовит сервер (radio.py: Radio Browser, кеш на сутки) и отдаёт по частям. Без жанра — общий список,
 // с жанром — блоки по странам (Россия первой, блоки сворачиваются). «Сейчас играет» — из потока станции (ICY),
-// у HLS-станций его нет. ▶ — слушать прямо в браузере (не заиграло — через сервер и ffmpeg);
+// у HLS-станций его нет. Станции, чей поток не открылся, сервер помечает «не отвечает» (false в ответе /now,
+// dead в списке): их строки скрыты, но мы спрашиваем о них раз в минуту — ответила, и строка снова видна.
+// ▶ — слушать прямо в браузере (не заиграло — через сервер и ffmpeg);
 // «Скачать песню» подставляет «исполнитель — песня» на вкладку «Музыка» и запускает поиск.
 const R_PAGE = 50, R_GROUPS = 8, R_IN_GROUP = 20, R_SHORT_GENRES = 8, R_TOP_COUNTRIES = 10;
 const radio = {genre: '', country: '', q: '', data: null, genreList: [], items: [], groups: [], total: 0, groupsTotal: 0,
-  token: 0, timer: 0, closed: new Set(), genresOpen: false, opened: false, rest: []};
+  token: 0, timer: 0, closed: new Set(), genresOpen: false, opened: false, rest: [], deadN: 0};
 const rById = new Map();  // id → станция (всё, что показано на странице)
 const rNow = new Map();   // id → «исполнитель — песня»; '' — станция не передаёт; null — HLS (не бывает)
 const rAudio = $('r-audio');
 const rPlay = {st: null, viaServer: false, loading: false, wait: 0};
+const rAlive = s => !s.dead || (rPlay.st && rPlay.st.id === s.id);  // играющую не прячем
+// сервер сказал, что станция (не) отвечает: счётчики скрытых — у списка и у блока страны
+function rSetDead(id, v) {
+  const s = rById.get(id);
+  if (!s || !!s.dead === v) return false;
+  s.dead = v;
+  radio.deadN += v ? 1 : -1;
+  const g = radio.genre && !radio.country && radio.groups.find(x => x.cc === s.cc);
+  if (g) g.dead += v ? 1 : -1;
+  return true;
+}
 const rNum = n => Number(n || 0).toLocaleString(EN ? 'en' : 'ru');
 let regionNames = null;
 try { regionNames = new Intl.DisplayNames([EN ? 'en' : 'ru'], {type: 'region'}); } catch { /* старый браузер — название с сервера */ }
@@ -2354,8 +2368,9 @@ function rRow(s) {
 function rSync() {
   const id = rPlay.st && rPlay.st.id;
   document.querySelectorAll('#radio-list .rrow').forEach(row => {
-    const on = row.dataset.id === id;
+    const on = row.dataset.id === id, s = rById.get(row.dataset.id);
     row.classList.toggle('pl', on);
+    row.classList.toggle('gone', !!s && !rAlive(s));
     const b = row.querySelector('[data-rplay]');
     const st = !on ? 'idle' : rPlay.loading ? 'load' : 'play';
     if (b.dataset.st === st) return;
@@ -2420,26 +2435,32 @@ function radioPop(open) {
 function renderRadioList() {
   const box = $('radio-list');
   const group = !!radio.genre && !radio.country;
-  const shown = group ? radio.groups.reduce((a, g) => a + g.items.length, 0) : radio.items.length;
-  $('radio-count').textContent = !radio.total ? '' : group
-    ? L(`${rNum(radio.total)} ${plural(radio.total, 'станция', 'станции', 'станций')} в ${rNum(radio.groupsTotal)} ${plural(radio.groupsTotal, 'стране', 'странах', 'странах')}`,
-        `${rNum(radio.total)} ${radio.total === 1 ? 'station' : 'stations'} in ${rNum(radio.groupsTotal)} ${radio.groupsTotal === 1 ? 'country' : 'countries'}`)
-    : L(`Показано ${rNum(shown)} из ${rNum(radio.total)}`, `Showing ${rNum(shown)} of ${rNum(radio.total)}`);
-  if (!radio.total) {
-    box.innerHTML = `<div class="rempty">${L('Ничего не нашлось. Попробуйте другой жанр, страну или запрос.', 'Nothing found. Try another genre, country or search.')}</div>`;
+  const total = Math.max(0, radio.total - radio.deadN);  // radio.total — вместе со скрытыми (для offset)
+  const shown = group ? 0 : radio.items.filter(rAlive).length;
+  $('radio-count').textContent = !total ? '' : group
+    ? L(`${rNum(total)} ${plural(total, 'станция', 'станции', 'станций')} в ${rNum(radio.groupsTotal)} ${plural(radio.groupsTotal, 'стране', 'странах', 'странах')}`,
+        `${rNum(total)} ${total === 1 ? 'station' : 'stations'} in ${rNum(radio.groupsTotal)} ${radio.groupsTotal === 1 ? 'country' : 'countries'}`)
+    : L(`Показано ${rNum(shown)} из ${rNum(total)}`, `Showing ${rNum(shown)} of ${rNum(total)}`);
+  if (!total && !(rPlay.st && rById.has(rPlay.st.id))) {
+    box.innerHTML = `<div class="rempty">${radio.deadN
+      ? L('Нашлись только станции, которые сейчас не отвечают, — они появятся здесь, когда снова заработают.', 'Only stations that do not respond right now were found — they will appear here once they work again.')
+      : L('Ничего не нашлось. Попробуйте другой жанр, страну или запрос.', 'Nothing found. Try another genre, country or search.')}</div>`;
     $('radio-more-row').classList.add('hidden');
     return;
   }
   let left;
   if (group) {
     box.innerHTML = radio.groups.map(g => {
-      const closed = radio.closed.has(g.cc), rest = g.total - g.items.length;
+      const closed = radio.closed.has(g.cc), alive = g.total - g.dead;
+      // ещё не загруженные и не скрытые: скрытых среди загруженных — g.dead минус те, что уже видели
+      const rest = g.total - g.items.length - (g.dead - g.items.filter(s => s.dead).length);
+      if (!g.items.some(rAlive) && rest <= 0) return '';
       return `<section class="rgroup${closed ? ' closed' : ''}">
         <button class="rghead" type="button" data-rg="${esc(g.cc)}" aria-expanded="${!closed}">
           <span class="rcc${g.cc === 'RU' ? ' ru' : ''}">${esc(g.cc || '—')}</span>${esc(g.cc ? rCountry(g.cc, g.country) : L('Страна не указана', 'No country'))}
-          <small>${rNum(g.total)} ${plural(g.total, 'станция', 'станции', 'станций', 'station', 'stations')}</small><hr>${icon('chev')}
+          <small>${rNum(alive)} ${plural(alive, 'станция', 'станции', 'станций', 'station', 'stations')}</small><hr>${icon('chev')}
         </button>
-        <div class="rgbody">${g.items.map(rRow).join('')}${rest > 0 && g.cc
+        <div class="rgbody">${g.items.map(rRow).join('')}${rest > 0 && g.items.length < g.total && g.cc
           ? `<button class="link rgmore" type="button" data-rgmore="${esc(g.cc)}">${L('Ещё станции этой страны', 'More stations from this country')} (${rNum(rest)})</button>` : ''}</div>
       </section>`;
     }).join('');
@@ -2496,6 +2517,7 @@ async function loadRadio({more = false, tries = 0} = {}) {
     radio.groups = [];
   }
   radio.total = data.total;
+  radio.deadN = data.dead || 0;
   if (group) {
     radio.groups.push(...data.groups);
     radio.groupsTotal = data.groups_total;
@@ -2514,6 +2536,7 @@ async function rGroupMore(btn) {
     const data = await api(radioParams({country: g.cc, offset: g.items.length, limit: R_IN_GROUP, counts: 0}));
     if (token !== radio.token) return;
     g.items.push(...data.items);
+    g.dead = data.dead || 0;
   } catch (e) { toast(e.message); }
   renderRadioList();
   rFetchNow();
@@ -2524,32 +2547,38 @@ let rNowBusy = false, rNowAgain = false;
 async function rFetchNow({fresh = false, visibleOnly = false} = {}) {
   if (rNowBusy) { rNowAgain = true; return; }
   const rows = [...document.querySelectorAll('#radio-list .rrow')].filter(r => {
-    if (!visibleOnly) return true;
+    if (!visibleOnly || r.classList.contains('gone')) return true;  // скрытые — узнать, не ожили ли
     const b = r.getBoundingClientRect();
     return b.bottom > 0 && b.top < innerHeight && b.height;
   });
   const ids = [...new Set(rows.map(r => r.dataset.id))].filter(id => {
     const s = rById.get(id);
-    return s && !s.hls && (fresh || !rNow.has(id));
+    return s && (s.dead || fresh || !rNow.has(id));
   });
   if (!ids.length) return;
   rNowBusy = true;
   const parts = [];
+  let changed = false;
   for (let i = 0; i < ids.length; i += 10) parts.push(ids.slice(i, i + 10));
   const worker = async () => {
     for (let part; (part = parts.shift());) {
       let res = {};
       try { res = await api('/api/radio/now?ids=' + part.map(encodeURIComponent).join(',') + (fresh ? '&fresh=1' : '')); } catch { /* не ответил */ }
+      let flip = false;
       for (const id of part) {
+        if (res[id] === false) { flip = rSetDead(id, true) || flip; continue; }  // не отвечает — скрыть
+        if (id in res) flip = rSetDead(id, false) || flip;
         const t = id in res ? res[id] : (rNow.has(id) ? rNow.get(id) : '');
         if (rNow.get(id) === t && rNow.has(id)) continue;
         rNow.set(id, t);
         rUpdateNow(id);
       }
+      if (flip) { changed = true; rSync(); }
     }
   };
   await Promise.all([worker(), worker()]);
   rNowBusy = false;
+  if (changed) renderRadioList();  // счётчики и пустые блоки стран
   if (rNowAgain) { rNowAgain = false; rFetchNow(); }
 }
 async function rRefreshPlaying() {
@@ -2557,7 +2586,8 @@ async function rRefreshPlaying() {
   if (!s || s.hls) return;
   try {
     const res = await api('/api/radio/now?fresh=1&ids=' + encodeURIComponent(s.id));
-    if (s.id in res && rNow.get(s.id) !== res[s.id]) { rNow.set(s.id, res[s.id]); rUpdateNow(s.id); }
+    if (res[s.id] === false) { if (rSetDead(s.id, true)) renderRadioList(); }
+    else if (s.id in res && rNow.get(s.id) !== res[s.id]) { rNow.set(s.id, res[s.id]); rUpdateNow(s.id); }
   } catch { /* не ответил — оставляем прошлое */ }
 }
 let rTick = 0;
@@ -2641,6 +2671,8 @@ rAudio.addEventListener('playing', () => {
   rPlay.loading = false;
   rBar();
   rSync();
+  const s = rPlay.st;  // заиграла, хотя проверка сервера не прошла — значит, отвечает
+  if (s && s.dead) { api('/api/radio/alive', {id: s.id}).catch(() => {}); if (rSetDead(s.id, false)) renderRadioList(); }
 });
 rAudio.addEventListener('waiting', () => { if (rPlay.st) { rPlay.loading = true; rBar(); rSync(); } });
 rAudio.addEventListener('error', () => { if (rAudio.getAttribute('src')) rFail(); });
