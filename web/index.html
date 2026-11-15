@@ -743,6 +743,10 @@
   .rbar .rdl:disabled { border-color: rgba(255, 255, 255, .15); color: #98aba8; background: transparent; }
   .rbar .rib { width: 42px; height: 42px; border: 0; background: #fff; color: #0c1413; }
   .rbar .rib:hover { background: #d9f5ef; color: #0c1413; }
+  .rb-vol { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+  .rbar .icon-btn { color: #c4d0ce; border-radius: 50%; }
+  .rbar .icon-btn:hover { background: rgba(255, 255, 255, .1); color: #fff; }
+  .rb-vol input[type="range"] { width: 92px; margin: 0; height: 18px; accent-color: #5fe0cb; cursor: pointer; }
 
   /* скачивать прямо с сайта */
   .quick { margin: 0 0 4px; }
@@ -860,6 +864,8 @@
     .rdl { padding: 0 10px; }
     .rpop-list { grid-template-columns: 1fr; }
     .rbar .eq { display: none; }
+    .rbar { gap: 8px; }
+    .rb-vol input[type="range"] { display: none; }  /* на телефоне — только «выключить звук», громкость кнопками телефона */
   }
 </style>
 </head>
@@ -994,6 +1000,10 @@
     <div class="rb-meta">
       <div class="rb-name" id="rb-name"></div>
       <div class="rb-song" id="rb-song" aria-live="polite"></div>
+    </div>
+    <div class="rb-vol">
+      <button class="icon-btn" id="rb-mute" type="button" aria-label="Выключить звук" title="Выключить звук"><svg class="icon"><use href="#i-volume"/></svg></button>
+      <input type="range" id="rb-volume" min="0" max="1" step="0.01" value="1" aria-label="Громкость">
     </div>
     <button class="rdl" id="rb-dl" type="button" title="Найти эту песню на вкладке «Музыка»"><svg class="icon"><use href="#i-download"/></svg><span class="lbl">Скачать песню</span></button>
     <button class="rib" id="rb-stop" type="button" aria-label="Остановить радио" title="Остановить радио"><svg class="icon"><use href="#i-stop"/></svg></button>
@@ -2293,21 +2303,27 @@ $('p-seek').addEventListener('change', () => {
   player.seeking = false;
 });
 
+// Громкость общая у плеера песен и радио: хранится в audioEl, r-audio получает её копию.
 function syncVolume() {
   const muted = audioEl.muted || audioEl.volume === 0;
-  $('p-mute').innerHTML = icon(muted ? 'mute' : 'volume');
   const label = muted ? L('Включить звук', 'Unmute') : L('Выключить звук', 'Mute');
-  $('p-mute').setAttribute('aria-label', label);
-  $('p-mute').title = label;
-  $('p-volume').value = audioEl.muted ? 0 : audioEl.volume;
+  for (const [b, r] of [['p-mute', 'p-volume'], ['rb-mute', 'rb-volume']]) {
+    $(b).innerHTML = icon(muted ? 'mute' : 'volume');
+    $(b).setAttribute('aria-label', label);
+    $(b).title = label;
+    $(r).value = audioEl.muted ? 0 : audioEl.volume;
+  }
+  const ra = document.getElementById('r-audio');
+  ra.volume = audioEl.volume;
+  ra.muted = audioEl.muted;
 }
-$('p-volume').addEventListener('input', () => {
-  audioEl.volume = +$('p-volume').value;
+for (const id of ['p-volume', 'rb-volume']) $(id).addEventListener('input', e => {
+  audioEl.volume = +e.target.value;
   audioEl.muted = audioEl.volume === 0;
   store.set('volume', audioEl.volume);
   syncVolume();  // volumechange приходит позже — кнопку обновляем сразу
 });
-$('p-mute').addEventListener('click', () => {
+for (const id of ['p-mute', 'rb-mute']) $(id).addEventListener('click', () => {
   if (audioEl.volume === 0) audioEl.volume = 1;
   audioEl.muted = !audioEl.muted;
   syncVolume();
@@ -2652,7 +2668,7 @@ function rStart() {
   const s = rPlay.st;
   rPlay.loading = true;
   rAudio.src = rPlay.viaServer ? '/api/radio/play?id=' + encodeURIComponent(s.id) : s.url;
-  rAudio.volume = audioEl.volume;
+  syncVolume();
   rAudio.play().catch(() => {});
   rPlay.wait = setTimeout(rFail, rPlay.viaServer ? 25000 : 10000);  // молчит — пробуем через сервер
   rBar();
