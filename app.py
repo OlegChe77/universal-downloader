@@ -775,9 +775,10 @@ def audio_tracks(info):
 
 def audio_format(track, langs):
     """Какой звук взять: выбранный язык, все дорожки (langs) или, если не выбирали, русский, если он есть
-    (в английском интерфейсе — дорожку по умолчанию, обычно оригинал)."""
-    if track == 'all' and langs:
-        return '+'.join(f'ba[language={lang}]' for lang in langs)
+    (в английском интерфейсе — дорожку по умолчанию, обычно оригинал). 'all' без langs — все озвучки фильма
+    (sites.BalancerIE с #voice=all оставляет по одной дорожке на озвучку)."""
+    if track == 'all':
+        return '+'.join(f'ba[language={lang}]' for lang in langs) if langs else 'mergeall[vcodec=none]'
     if track:
         return f'ba[language={track}]'
     return tr('ba[language^=ru]', 'ba')
@@ -881,7 +882,7 @@ def download_opts(option, playlist, folder, section=None, track='', langs=(), su
         # при одинаковом разрешении — H.264 + AAC: открывается любым плеером
         opts['format_sort'] = ['res', 'vcodec:h264', 'acodec:aac', 'ext:mp4:m4a']
         opts['merge_output_format'] = 'mp4'
-        if track == 'all' and langs:
+        if track == 'all':
             opts['allow_multiple_audio_streams'] = True
             # «по умолчанию» — только первая (русская или оригинал), иначе плеер выбирает какую хочет
             opts['postprocessor_args'] = {'merger+ffmpeg_o': ['-disposition:a', '0', '-disposition:a:0', 'default']}
@@ -944,6 +945,21 @@ class SafeNamesPP(yt_dlp.postprocessor.PostProcessor):
         path = Path(self._downloader.prepare_filename(info)).resolve()
         if not path.is_relative_to(self.folder):
             raise yt_dlp.utils.DownloadError(tr('Имя файла выходит за папку загрузок: ', 'The file name points outside the download folder: ') + str(path))
+        return [], info
+
+
+class VoiceTitlesPP(yt_dlp.postprocessor.PostProcessor):
+    """Озвучки фильма (sites.BalancerIE, udl_voice у дорожки) — названием звуковой дорожки в MP4: плеер покажет
+    «Baibako», «ТВ3», а не три «Русский». Ставит meta<N>_title до загрузки, пишет их FFmpegMetadata
+    (он есть только у «всех дорожек сразу»); номера потоков считаются так же, как у него."""
+
+    def run(self, info):
+        stream = 0
+        for f in info.get('requested_formats') or []:
+            count = 2 if 'none' not in (f.get('vcodec'), f.get('acodec')) else 1
+            if f.get('udl_voice') and f.get('vcodec') == 'none':
+                info[f'meta{stream}_title'] = info[f'meta{stream}_handler_name'] = f['udl_voice']
+            stream += count
         return [], info
 
 
@@ -1193,6 +1209,7 @@ def run_task(task):
         def run(o):
             with yt_dlp.YoutubeDL(o) as ydl:
                 ydl.add_post_processor(SafeNamesPP(ydl, task['dir']), when='video')
+                ydl.add_post_processor(VoiceTitlesPP(ydl), when='before_dl')
                 if task['kind'] == 'video' and not task['section']:
                     ydl.add_post_processor(CoubLoopPP(ydl, task['loop']), when='post_process')
                 ydl.download([task['url']])
@@ -1758,8 +1775,21 @@ def api_info():
         tracks=audio_tracks(info),
         subtitles=subtitle_list(info),
         loop=coub_loop(info),
-        choices=info.get('udl_choices'),  # плеер / сезон / серия (sites.BalancerIE) — выбор на странице
+        choices=voice_sizes(info),  # плеер / сезон / серия / озвучка (sites.BalancerIE) — выбор на странице
     )
+
+
+def voice_sizes(info):
+    """К озвучкам в udl_choices — размер их дорожки (для «все озвучки сразу» на странице)."""
+    choices = info.get('udl_choices')
+    if not choices or not choices.get('voices'):
+        return choices
+    sizes = {}
+    for f in info.get('formats') or []:
+        if f.get('vcodec') == 'none' and f.get('udl_voice'):
+            k = sites.voice_key(f['udl_voice'])
+            sizes[k] = max(sizes.get(k, 0), fsize(f, info.get('duration')))
+    return {**choices, 'voices': [{**v, 'size': sizes.get(sites.voice_key(v['name'])) or 0} for v in choices['voices']]}
 
 
 def coub_loop(info):

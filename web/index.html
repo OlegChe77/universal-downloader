@@ -1124,8 +1124,9 @@
           </span>
         </div>
         <label class="track-row hidden" id="track-group">
-          <svg class="icon"><use href="#i-music"/></svg><span>Звуковая дорожка</span>
+          <svg class="icon"><use href="#i-music"/></svg><span id="track-label">Звуковая дорожка</span>
           <select id="track" aria-label="Звуковая дорожка"></select>
+          <span class="track-note hidden" id="track-note"></span>
         </label>
         <div class="track-row hidden" id="subs-group">
           <svg class="icon"><use href="#i-subs"/></svg><span>Субтитры</span>
@@ -1665,7 +1666,17 @@ function renderResult(r) {
   const tracks = r.tracks || [];
   $('track').innerHTML = tracks.map(t => `<option value="${esc(t.id)}">${esc(t.label)}</option>`).join('')
     + (tracks.length && video.length ? `<option value="all">${L('Все дорожки сразу (только видео)', 'All tracks at once (video only)')}</option>` : '');
-  $('track-group').classList.toggle('hidden', !tracks.length);
+  // фильмы и сериалы (kinogo): вместо языков — озвучки (студии перевода) этой серии, сезона или всего сериала
+  const voices = r.choices && r.choices.voices || [];
+  if (voices.length) {
+    $('track').innerHTML = voices.map((v, i) => `<option value="${i}">${esc(voiceLabel(v, r.choices.total))}</option>`).join('')
+      + (voices.length > 1 && video.length ? `<option value="all">${L('Все озвучки сразу (только видео)', 'All dubs at once (video only)')}</option>` : '');
+    $('track').value = defaultVoice(r.choices);
+  }
+  const dubLabel = voices.length ? L('Озвучка', 'Dub') : L('Звуковая дорожка', 'Audio track');
+  $('track-label').textContent = dubLabel;
+  $('track').setAttribute('aria-label', dubLabel);
+  $('track-group').classList.toggle('hidden', !tracks.length && !voices.length);
   // субтитры — только к видео; по умолчанию без них
   const subs = video.length ? r.subtitles || [] : [];
   $('subs').innerHTML = `<option value="">${L('Без субтитров', 'No subtitles')}</option>`
@@ -1677,6 +1688,7 @@ function renderResult(r) {
   $('loop-group').classList.toggle('hidden', !(r.loop && video.length));
   renderChoices(r.choices);
   renderSizes();
+  renderVoiceNote();
   renderSubs();
   $('result').classList.remove('hidden');
   renderTasks();  // ход загрузок этого видео — в карточке
@@ -1702,25 +1714,80 @@ function renderChoices(ch) {
   $('ch-episode').classList.toggle('hidden', !episodes.length);
 }
 
+function choiceUrl(ch, params) {
+  const frag = params.filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+  return ch.base + (frag ? '#' + frag : '');
+}
+
 function applyChoice(e) {
   const ch = current && current.choices;
   if (!ch) return;
   if (e.target.id === 'ch-season') $('ch-episode').value = '';
   const season = $('ch-season').value;
-  const params = [
+  $('url').value = choiceUrl(ch, [
     ['player', (ch.players || []).length > 1 ? $('ch-player').value : ''],
     ['season', season], ['episode', season ? $('ch-episode').value : ''],
-  ].filter(([, v]) => v).map(([k, v]) => `${k}=${v}`).join('&');
-  $('url').value = ch.base + (params ? '#' + params : '');
+    // озвучка остаётся та же, если она есть и в новом сезоне (у другого плеера имена свои)
+    ['voice', e.target.id === 'ch-player' ? '' : selectedVoice()],
+  ]);
   growInput();
   analyzeLink();
 }
 ['ch-player', 'ch-season', 'ch-episode'].forEach(id => $(id).addEventListener('change', applyChoice));
 
+// озвучки: «ТВ3», «Baibako — в 19 из 22 серий»
+function voiceLabel(v, total) {
+  const part = v.n != null && total && v.n < total
+    ? L(` — в ${v.n} из ${total} ${plural(total, 'серии', 'серий', 'серий')}`, ` — in ${v.n} of ${total} episodes`) : '';
+  return v.name + part;
+}
+
+// по умолчанию — как в плеере (первая, обычно русская); в английском интерфейсе — оригинал, если он есть
+function defaultVoice(ch) {
+  const voices = ch.voices || [];
+  if (ch.voice === 'all' && voices.length > 1) return 'all';
+  const i = voices.findIndex(v => ch.voice ? v.name === ch.voice : EN && v.lang === 'en');
+  return String(Math.max(i, 0));
+}
+
+// выбранная озвучка: имя, 'all' или '' (озвучек нет)
+function selectedVoice() {
+  const voices = current && current.choices && current.choices.voices || [];
+  if (!voices.length) return '';
+  const value = $('track').value;
+  return value === 'all' ? 'all' : (voices[+value] || voices[0]).name;
+}
+
+// ссылка с выбранной озвучкой: #player, #season и #episode — как разобрали, #voice — из списка
+function voiceUrl(voice) {
+  const ch = current.choices;
+  return choiceUrl(ch, [['player', (ch.players || []).length > 1 ? ch.player : ''],
+    ['season', ch.season], ['episode', ch.episode], ['voice', voice]]);
+}
+
+function withoutVoice(url) {
+  const [base, frag] = String(url || '').split('#');
+  const rest = (frag || '').split('&').filter(p => p && !p.startsWith('voice='));
+  return base + (rest.length ? '#' + rest.join('&') : '');
+}
+
+function renderVoiceNote() {
+  const ch = current && current.choices, voices = ch && ch.voices || [];
+  const v = voices[+$('track').value];
+  const text = $('track').value === 'all'
+    ? L('Все озвучки — в одном MP4, переключаются в меню звука плеера. MP3 и M4A — с первой озвучкой.',
+      'All dubs go into one MP4 — switch them in the player’s audio menu. MP3 and M4A get the first dub.')
+    : v && v.n != null && ch.total && v.n < ch.total
+      ? L('В остальных сериях — озвучка по умолчанию.', 'Other episodes get the default dub.') : '';
+  $('track-note').textContent = text;
+  $('track-note').classList.toggle('hidden', !text);
+}
+
 function renderSizes() {
   if (!current) return;
-  // «все дорожки» — к размеру прибавляются остальные языки
-  const tracks = current.tracks || [];
+  // «все дорожки» — к размеру прибавляются остальные языки (или озвучки)
+  const voices = current.choices && current.choices.voices || [];
+  const tracks = voices.length ? voices : current.tracks || [];
   const extra = $('track').value === 'all' ? tracks.slice(1).reduce((a, t) => a + (t.size || 0), 0) : 0;
   $('video').querySelectorAll('.chip').forEach(btn => {
     const o = current.options.find(x => x.id === btn.dataset.id);
@@ -1758,6 +1825,13 @@ $('subs-mode').addEventListener('change', () => {
 
 // выбранная дорожка для этого варианта: «все сразу» бывает только у видео, MP3/M4A — первая (русская или оригинал)
 function trackFor(id) {
+  const voices = current.choices && current.choices.voices || [];
+  if (voices.length) {  // озвучка — в ссылке (#voice=), «все сразу» — только у видео
+    const all = $('track').value === 'all';
+    const v = voices[+$('track').value] || voices[+defaultVoice({...current.choices, voice: null})] || voices[0];
+    if (all && id.startsWith('v')) return {track: 'all', url: voiceUrl('all'), name: L('все озвучки', 'all dubs')};
+    return {url: voiceUrl(v.name), name: v.name};
+  }
   const tracks = current.tracks || [];
   if (!tracks.length) return {};
   const value = $('track').value === 'all' && !id.startsWith('v') ? tracks[0].id : $('track').value;
@@ -1765,7 +1839,14 @@ function trackFor(id) {
   const t = tracks.find(x => x.id === value) || tracks[0];
   return {track: t.id, name: t.label.replace(/ — (оригинал|original)$/, '')};
 }
-$('track').addEventListener('change', renderSizes);
+$('track').addEventListener('change', () => {
+  renderSizes();
+  renderVoiceNote();
+  if (selectedVoice()) {  // в поле — ссылка с этой озвучкой (разбирать заново не нужно)
+    $('url').value = voiceUrl(selectedVoice());
+    growInput();
+  }
+});
 
 async function startDownload(btn) {
   if (!current) return;
@@ -1774,12 +1855,12 @@ async function startDownload(btn) {
   const r = current;
   // из окна «Ещё форматы» — песня «Музыки»: ссылка ровно как у строки песни, чтобы ход загрузки был в ней
   const fromMusic = $('result').classList.contains('music') && dialogHit;
-  const {name, ...track} = trackFor(btn.dataset.id);
+  const {name, url: voiced, ...track} = trackFor(btn.dataset.id);
   const {name: subsName, ...subs} = subsFor(btn.dataset.id);
   const loop = r.loop && btn.dataset.id.startsWith('v') ? $('loop').value : '';
   try {
     await api('/api/download', {
-      url: fromMusic ? dialogHit.url : r.url, title: r.title, playlist: r.playlist, count: r.count,
+      url: fromMusic ? dialogHit.url : voiced || r.url, title: r.title, playlist: r.playlist, count: r.count,
       option: btn.dataset.id, dir, ...track, ...subs, origin: fromMusic ? 'music' : 'link',
       label: [btn.dataset.label, name, subsName, {loop: L('по кругу', 'looped'), once: L('один раз', 'once')}[loop]].filter(Boolean).join(' · '),
       ...(loop ? {loop: loop === 'loop'} : {}),
@@ -3012,7 +3093,9 @@ function renderTasks(list = allTasks) {
   });
   const shown = new Set();
   const r = $('result').parentElement === $('link-slot') && linkCurrent;
-  const card = r ? withCompress(list.filter(t => originOf(t) === 'link' && !t.from_list && t.url === r.url), list) : [];
+  // та же серия с другой озвучкой (#voice= в ссылке) — тоже в карточке
+  const card = r ? withCompress(list.filter(t => originOf(t) === 'link' && !t.from_list
+    && withoutVoice(t.url) === withoutVoice(r.url)), list) : [];
   card.forEach(t => shown.add(t.id));
   fillTasks($('card-tasks'), card, list, true);
   const ids = new Set(batch && batch.ids || []);

@@ -21,7 +21,7 @@ import json
 import re
 import time
 from collections import Counter
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import parse_qs, quote, urljoin, urlparse
 
 from yt_dlp.extractor import gen_extractor_classes, import_extractors
 from yt_dlp.extractor.common import InfoExtractor
@@ -466,6 +466,23 @@ def label_tracks(formats):
             f['quality'] = int(group[1])
 
 
+def voice_name(name):
+    """«01. Дубляж. ТВ-3 (RUS)» → «Дубляж. ТВ-3 (RUS)», «02. Baibako, high» (yt-dlp дописывает группу) → «Baibako».
+    Служебные имена дорожек без названия студии («rus0», «eng1», «Track 1 (UNK)») — пусто."""
+    name = re.sub(r',\s*(?:low|high)$', '', str(name or '').strip())
+    name = re.sub(r'^\d+\.\s*', '', name).strip()
+    return '' if re.fullmatch(r'(?i)[a-z]{2,3}\d*|default|unknown|track\s*\d+(?:\s*\(\w+\))?', name) else name
+
+
+def voice_key(name):
+    """Одна и та же озвучка в разных сериях и плеерах: без номера, знаков и регистра."""
+    return re.sub(r'\W+', ' ', voice_name(name)).strip().casefold()
+
+
+def voice_lang(name):
+    return next((lang for lang, rx in TRACK_LANGS if re.search(rx, name or '', re.I)), None)
+
+
 class BalancerIE(InfoExtractor):
     """Плееры фильмов и сериалов («балансеры»), которые стоят на kinogo и похожих сайтах. Каждый отдаёт сезоны и
     серии со ссылками на HLS (или mp4), ссылки живут недолго — поэтому сериал это плейлист из записей «этот же плеер
@@ -474,7 +491,13 @@ class BalancerIE(InfoExtractor):
     Без Referer сайта, на котором стоит плеер, они отдают заглушку или 404 — GenericIE передаёт его (smuggle_url).
     В info кладём udl_choices (сезоны, что выбрано) — по ним страница программы рисует выбор сезона и серии.
     Подкласс даёт _show(адрес, referer) → {id, title, thumbnail, movie: поток | seasons: {сезон: {серия: поток}}},
-    поток — {m3u8 | links: [(подпись, адрес)], duration, thumbnail, title}."""
+    поток — {m3u8 | links: [(подпись, адрес)] | alts: [{m3u8 | links, voice}], duration, thumbnail, title,
+    voices: [озвучки по порядку плеера], tracks: [имя дорожки HLS по её номеру]}.
+
+    Озвучка (студия перевода) — #voice=<имя> во фрагменте (all — все сразу). Озвучки у плееров — дорожки HLS
+    (имя из плеера по номеру дорожки — CCDN, или NAME в m3u8 — VeoVeo, ShizaHD) либо отдельные файлы (alts у ShizaHD).
+    Выбрана — у видео остаётся только её звук (у отдельных файлов — её файл первым); в этой серии её нет —
+    звук по умолчанию. В udl_choices: voices [{name, lang, n}] (n — в скольких сериях из total), voice."""
     _VALID_URL = False  # сам по себе не разборщик
 
     def _show(self, url, referer):
@@ -486,14 +509,17 @@ class BalancerIE(InfoExtractor):
     def _real_extract(self, url):
         url, data = unsmuggle_url(url, {})
         base, _, frag = url.partition('#')
-        pick = {k: int(v[-1]) for k, v in parse_qs(frag).items() if k in ('season', 'episode') and v[-1].isdigit()}
+        query = parse_qs(frag)
+        pick = {k: int(v[-1]) for k, v in query.items() if k in ('season', 'episode') and v[-1].isdigit()}
+        voice = traverse_obj(query, ('voice', -1)) or ''
+        voice = 'all' if voice.strip().lower() == 'all' else voice_name(voice) or None
         show = self._show(base, data.get('referer') or self._default_referer(base))
         season, episode = pick.get('season'), pick.get('episode')
         choices = {'base': base, 'season': season, 'episode': episode}
         common = {'thumbnail': show.get('thumbnail'), 'udl_choices': choices, 'extractor_key': self.IE_NAME}
         seasons = show.get('seasons')
         if not seasons:
-            return {**common, **self._stream(show['movie'], str(show['id']), base), 'title': show['title']}
+            return self._single(common, show['movie'], str(show['id']), base, voice, show['title'])
         choices['seasons'] = [{'season': s, 'episodes': sorted(eps)} for s, eps in sorted(seasons.items())]
         if season is not None and season not in seasons:
             raise ExtractorError(tr('В плеере {} нет {} сезона', 'Player {} has no season {}').format(self.IE_NAME, season), expected=True)
@@ -503,19 +529,70 @@ class BalancerIE(InfoExtractor):
                 raise ExtractorError(tr('В плеере {} нет {} сезона, {} серии', 'Player {} has no season {}, episode {}')
                                      .format(self.IE_NAME, season, episode), expected=True)
             return {
-                **common, **self._stream(ep, f'{show["id"]}-s{season}e{episode}', base),
-                'title': self._episode_title(show, season, episode, ep),
+                **self._single(common, ep, f'{show["id"]}-s{season}e{episode}', base, voice,
+                               self._episode_title(show, season, episode, ep)),
                 'thumbnail': ep.get('thumbnail') or show.get('thumbnail'),
                 'series': show['title'], 'season_number': season, 'episode_number': episode,
             }
+        scope = {s: eps for s, eps in sorted(seasons.items()) if season in (None, s)}
+        voices = self._scope_voices(scope, base)
+        choices.update(voices=voices, total=sum(map(len, scope.values())), voice=self._known(voice, voices))
+        suffix = f'&voice={quote(voice)}' if voice else ''
         entries = [
-            self.url_result(self._with_data(f'{base}#season={s}&episode={e}', data), self.ie_key(),
+            self.url_result(self._with_data(f'{base}#season={s}&episode={e}{suffix}', data), self.ie_key(),
                             f'{show["id"]}-s{s}e{e}', self._episode_title(show, s, e, ep),
                             duration=ep.get('duration'), thumbnail=ep.get('thumbnail'))
-            for s, eps in sorted(seasons.items()) if season in (None, s) for e, ep in sorted(eps.items())]
+            for s, eps in scope.items() for e, ep in sorted(eps.items())]
         title = show['title'] + (tr(' — {} сезон', ' — season {}').format(season) if season is not None else '')
+        if choices['voice'] and len(voices) > 1:  # своя папка для каждой озвучки
+            title += self._voice_suffix(choices['voice'])
         playlist_id = f'{show["id"]}' + (f'-s{season}' if season is not None else '')
         return self.playlist_result(entries, playlist_id, title, **common)
+
+    def _single(self, common, stream, video_id, base, voice, title):
+        info = self._stream(stream, video_id, base, voice)
+        voices, chosen = info.pop('_voices'), info.pop('_voice')
+        common['udl_choices'].update(voices=voices, voice=chosen)
+        if chosen and len(voices) > 1:  # «… — 5 сезон, 1 серия (Baibako)»: разные озвучки — разные файлы
+            title += self._voice_suffix(chosen)
+        return {**common, **info, 'title': title}
+
+    @staticmethod
+    def _voice_suffix(voice):
+        return tr(' (все озвучки)', ' (all dubs)') if voice == 'all' else f' ({voice})'
+
+    @staticmethod
+    def _known(voice, voices):
+        if voice == 'all':
+            return voice
+        return next((v['name'] for v in voices if voice and voice_key(v['name']) == voice_key(voice)), None)
+
+    def _probe_voices(self, stream, base):
+        """Озвучки серии, о которых плеер не сказал заранее (VeoVeo): имена дорожек в её m3u8."""
+        if not stream.get('m3u8'):
+            return []
+        doc = self._download_webpage(stream['m3u8'], None, 'Downloading m3u8 (dubs)', fatal=False,
+                                     headers={'Referer': urljoin(base, '/')}) or ''
+        names = re.findall(r'#EXT-X-MEDIA:(?=[^\n]*TYPE=AUDIO)[^\n]*NAME="([^"]*)"', doc)
+        return list(dict.fromkeys(filter(None, map(voice_name, names))))
+
+    def _scope_voices(self, scope, base):
+        """Озвучки сезона или всего сериала: [{name, lang, n}] — по месту в плеере (обычно русские, потом оригинал),
+        n — в скольких сериях есть. Если плеер их не перечисляет — смотрим первую серию каждого сезона (n нет)."""
+        lists = [ep.get('voices') or [] for eps in scope.values() for ep in eps.values()]
+        counted = any(lists)
+        if not counted:
+            lists = [self._probe_voices(eps[min(eps)], base) for eps in scope.values() if eps]
+        names, count, place = {}, Counter(), Counter()
+        for voices in lists:
+            for i, name in enumerate(voices):
+                k = voice_key(name)
+                if k:
+                    names.setdefault(k, voice_name(name))
+                    count[k] += 1
+                    place[k] += i / max(len(voices) - 1, 1)
+        order = sorted(names, key=lambda k: (place[k] / count[k], -count[k]))
+        return [{'name': names[k], 'lang': voice_lang(names[k]), 'n': count[k] if counted else None} for k in order]
 
     @staticmethod
     def _with_data(url, data):
@@ -544,11 +621,14 @@ class BalancerIE(InfoExtractor):
             subtitles.setdefault(lang, []).append(sub)
         return formats, subtitles
 
-    def _stream(self, stream, video_id, base):
+    def _stream(self, stream, video_id, base, voice=None):
         headers = {'Referer': urljoin(base, '/')}  # CDN плееров смотрит, откуда запрос
         formats, subtitles = [], {}
+        alts = stream.get('alts') or [stream]
+        if voice and voice != 'all':  # выбранная озвучка-файл — первой
+            alts = sorted(alts, key=lambda a: voice_key(a.get('voice')) != voice_key(voice))
         # alts — запасные источники (озвучки ShizaHD): берём первый, который отвечает
-        for alt in stream.get('alts') or [stream]:
+        for alt in alts:
             links = [('', alt['m3u8'])] if alt.get('m3u8') else alt.get('links') or []
             master = next((link for _, link in links if '.m3u8' in link), None)
             if master:  # первый m3u8 («Auto») — общий, со всеми качествами и дорожками
@@ -566,8 +646,49 @@ class BalancerIE(InfoExtractor):
         if not formats:
             raise ExtractorError(tr('Плеер {} не отдал видео', 'Player {} did not give the video').format(self.IE_NAME), expected=True)
         label_tracks(formats)
+        formats, voices, chosen = self._pick_voice(formats, stream, alt, voice)
         return {'id': video_id, 'formats': formats, 'subtitles': subtitles, 'http_headers': headers,
-                'duration': int_or_none(stream.get('duration'))}
+                'duration': int_or_none(stream.get('duration')), '_voices': voices, '_voice': chosen}
+
+    def _pick_voice(self, formats, stream, alt, voice):
+        """Дорожкам — имя озвучки (udl_voice), и звук только выбранной. → (formats, voices, выбранная или None)."""
+        tracks = stream.get('tracks') or []
+        audio = [f for f in formats if f.get('vcodec') == 'none']
+        # CCDN: дорожка «rus1» — вторая из audio.names; без номера («default» у фильма) — по порядку в m3u8
+        notes = list(dict.fromkeys(re.sub(r',\s*(?:low|high)$', '', f.get('format_note') or '') for f in audio))
+        for f in audio:
+            note = re.sub(r',\s*(?:low|high)$', '', f.get('format_note') or '')
+            num = re.search(r'(\d+)$', note)
+            num = int(num[1]) if num else notes.index(note)
+            f['udl_voice'] = voice_name(tracks[num] if num < len(tracks) else note) or None
+        found = list(dict.fromkeys(f['udl_voice'] for f in audio if f['udl_voice']))
+        declared = [voice_name(v) for v in stream.get('voices') or [] if voice_name(v)]
+        langs = {voice_key(f['udl_voice']): f.get('language') for f in audio if f['udl_voice'] and f.get('language')}
+        names = declared or found
+        voices = [{'name': n, 'lang': (langs.get(voice_key(n)) or voice_lang(n) or '').split('-')[0] or None, 'n': None}
+                  for n in names]
+        if not voice:
+            return formats, voices, None
+        if voice == 'all':  # по одной дорожке на озвучку: основная группа, лучшая по качеству
+            best = {}
+            for f in audio:
+                k = voice_key(f['udl_voice'])
+                rank = ('failover' not in (f.get('format_id') or ''), f.get('source_preference') or 0, f.get('quality') or 0)
+                if k and (k not in best or rank > best[k][0]):
+                    best[k] = (rank, f)
+            if len(best) < 2:
+                return formats, voices, None
+            keep = {id(f) for _, f in best.values()}
+            return [f for f in formats if f.get('vcodec') != 'none' or id(f) in keep], voices, 'all'
+        mine = [f for f in audio if voice_key(f['udl_voice']) == voice_key(voice)]
+        if mine:
+            keep = {id(f) for f in mine}
+            return [f for f in formats if f.get('vcodec') != 'none' or id(f) in keep], voices, mine[0]['udl_voice']
+        if not audio and voice_key(alt.get('voice')) == voice_key(voice):  # озвучка — отдельный файл со звуком
+            return formats, voices, voice_name(alt['voice'])
+        self.report_warning(tr('В этой серии нет озвучки «{}» — звук по умолчанию',
+                               'This episode has no «{}» dub — taking the default audio').format(voice))
+        return formats, voices, None
 
 
 def _number(text):
@@ -577,13 +698,20 @@ def _number(text):
 
 class CCDNIE(BalancerIE):
     """CCDN (api.namy.ws, api.nextembed.ws…): всё в makePlayer({…}) на странице плеера — у фильма source.hls,
-    у сериала playlist.seasons[{season, episodes[{episode, hls, duration, poster}]}]."""
+    у сериала playlist.seasons[{season, episodes[{episode, hls, duration, poster, audio}]}]. Озвучки — audio
+    {names: [имя дорожки HLS по её номеру: rus0 → names[0]], order: [порядок в плеере]}."""
     IE_NAME = 'CCDN'
     _VALID_URL = r'https?://(?:[\w-]+\.)*[\w-]+\.ws/embed/(?:movie|serial|kp|imdb)/(?P<id>\d+)'
 
     def _default_referer(self, url):
         host = traverse_obj(parse_qs(urlparse(url).query), ('host', -1))
         return f'https://{host}/' if host else None
+
+    @staticmethod
+    def _audio(audio):
+        names = [str(n) for n in traverse_obj(audio, ('names', ...)) or []]
+        order = [i for i in traverse_obj(audio, ('order', ..., {int_or_none})) or [] if 0 <= i < len(names)]
+        return {'tracks': names, 'voices': [names[i] for i in order] if len(order) == len(names) else names}
 
     def _show(self, url, referer):
         video_id = self._match_id(url)
@@ -599,7 +727,8 @@ class CCDNIE(BalancerIE):
             m3u8 = self._search_regex(r'\bhls:\s*"([^"]+)"', player, 'hls')
             title = self._search_regex(r'\btitle:\s*"([^"]+)"', player, 'title', default=None) \
                 or self._html_extract_title(webpage)
-            return {'id': video_id, 'title': title, 'thumbnail': poster, 'movie': {'m3u8': m3u8}}
+            audio = self._search_json(r'\baudio:', player, 'audio', video_id, default={})
+            return {'id': video_id, 'title': title, 'thumbnail': poster, 'movie': {'m3u8': m3u8, **self._audio(audio)}}
         raw = json.JSONDecoder().raw_decode(player[at + 8:].lstrip())[0]
         seasons = {}
         for season in raw:
@@ -608,7 +737,8 @@ class CCDNIE(BalancerIE):
             for ep in season.get('episodes') or []:
                 if _number(ep.get('episode')) is not None and url_or_none(ep.get('hls')):
                     seasons.setdefault(_number(season['season']), {})[_number(ep['episode'])] = {
-                        'm3u8': ep['hls'], 'duration': ep.get('duration'), 'thumbnail': url_or_none(ep.get('poster'))}
+                        'm3u8': ep['hls'], 'duration': ep.get('duration'), 'thumbnail': url_or_none(ep.get('poster')),
+                        **self._audio(ep.get('audio'))}
         # <title>Менталист (1 сезон) - 1 серия</title>
         title = re.sub(r'\s*\(\d+\s*сезон\).*', '', self._html_extract_title(webpage) or '') or video_id
         return {'id': video_id, 'title': title, 'thumbnail': poster, 'seasons': seasons}
@@ -625,9 +755,9 @@ class ShizaHDIE(BalancerIE):
     def _voice(voices):
         """Озвучки по порядку плеера (первая обычно русская) — запасные друг для друга: у фильмов первая бывает
         ссылкой на свой прокси src.mp4, который отвечает 502."""
-        alts = [{'links': playerjs_links(playerjs_decode(v['file']))}
+        alts = [{'links': playerjs_links(playerjs_decode(v['file'])), 'voice': v.get('title')}
                 for v in voices or [] if isinstance(v, dict) and v.get('file')]
-        return {'alts': alts} if alts else None
+        return {'alts': alts, 'voices': [a['voice'] for a in alts if voice_name(a['voice'])]} if alts else None
 
     def _show(self, url, referer):
         video_id = self._match_id(url)
@@ -775,12 +905,12 @@ class GenericIE(_GenericIE):
 
     def _extract_balancer(self, url, page_url, players):
         """Страница с несколькими плеерами (kinogo: CCDN, ShizaHD, VeoVeo…). Плеер — #player=N во фрагменте адреса
-        (с 1, по порядку на странице), туда же #season и #episode — их передаём плееру. Без выбора — первый, который
+        (с 1, по порядку на странице), туда же #season, #episode и #voice — их передаём плееру. Без выбора — первый, который
         открылся. Разбираем плеер здесь же, а не url_result: так в info остаются udl_choices со списком плееров."""
         base, _, frag = unsmuggle_url(url)[0].partition('#')
         pick = parse_qs(frag)
         chosen = int_or_none(traverse_obj(pick, ('player', -1)))
-        rest = '&'.join(f'{k}={pick[k][-1]}' for k in ('season', 'episode') if k in pick)
+        rest = '&'.join(f'{k}={quote(pick[k][-1])}' for k in ('season', 'episode', 'voice') if k in pick)
         order = [chosen] if chosen and 1 <= chosen <= len(players) else range(1, len(players) + 1)
         error = None
         for n in order:
