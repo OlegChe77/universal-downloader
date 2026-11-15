@@ -127,6 +127,7 @@ from yt_dlp.utils import download_range_func
 from flask import Flask, Response, jsonify, request, send_file, send_from_directory
 
 import sites
+import radio
 import top
 import updater
 
@@ -147,6 +148,7 @@ UPDATE_CACHE = Path(sys.prefix) / 'app-update.json'  # когда проверя
 UPDATE_EVERY = 3 * 24 * 3600
 BROWSER_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36'
 TOP_CACHE = Path(sys.prefix) / 'top-cache.json'  # списки вкладки «Топ» (top.py): обновляются раз в сутки
+RADIO_CACHE = Path(sys.prefix) / 'radio-cache.json'  # станции вкладки «Радио» (radio.py): раз в сутки
 DEV_COPY = (BASE / '.git').exists()  # папка разработки обновляется через git, а не архивом
 # proxy — прокси VPN-программы; proxy_all — все сайты через него; proxy_sites — сайты, которые не открылись напрямую
 # doh — защищённый DNS: адреса, которые не нашёл системный DNS, искать через DNS по HTTPS
@@ -1362,6 +1364,66 @@ def top_open(url):
 @app.get('/api/top')
 def api_top():
     return jsonify(top.snapshot())
+
+
+def int_arg(name, default, low, high):
+    try:
+        return min(max(int(request.args.get(name, default)), low), high)
+    except ValueError:
+        return default
+
+
+@app.get('/api/radio')
+def api_radio():
+    """Станции вкладки «Радио» по частям: жанр, страна, поиск; group=1 — блоки по странам."""
+    a = request.args
+    return jsonify(radio.query(genre=a.get('genre', ''), country=a.get('country', ''), q=a.get('q', ''),
+                               offset=int_arg('offset', 0, 0, 10 ** 6), limit=int_arg('limit', 50, 1, 200),
+                               group=a.get('group') == '1', with_counts=a.get('counts') != '0'))
+
+
+@app.get('/api/radio/now')
+def api_radio_now():
+    """«Сейчас играет» для нескольких станций: {id: песня | '' | null (HLS)}."""
+    return jsonify(radio.now(request.args.get('ids', '').split(','), fresh=request.args.get('fresh') == '1'))
+
+
+def radio_proxy(url):
+    proxy = proxy_for(url)
+    return proxy if proxy and proxy.startswith('http://') else None
+
+
+@app.get('/api/radio/play')
+def api_radio_play():
+    """Поток станции через ffmpeg (в MP3) — когда браузер не играет его сам: HLS, редкий кодек, закрытый сайт."""
+    s = radio.station(request.args.get('id', ''))
+    if not s:
+        return jsonify(error=tr('Станция не найдена — обновите список.', 'Station not found — reload the list.')), 404
+    proxy = radio_proxy(s['u'])
+    cmd = [str(FFMPEG), '-hide_banner', '-nostdin', '-loglevel', 'error', '-user_agent', BROWSER_UA,
+           '-reconnect', '1', '-reconnect_streamed', '1', '-reconnect_delay_max', '5', '-rw_timeout', '15000000',
+           *(['-http_proxy', proxy] if proxy else []),
+           '-i', s['u'], '-vn', '-c:a', 'libmp3lame', '-b:a', '160k', '-f', 'mp3', 'pipe:1']
+    try:
+        proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, stdin=subprocess.DEVNULL,
+                                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+    except OSError:
+        return jsonify(error=tr('Нет ffmpeg — перезапустите программу.', 'ffmpeg is missing — restart the program.')), 500
+    first = proc.stdout.read1(16384)
+    if not first:
+        proc.kill()
+        return jsonify(error=tr('Станция не отвечает.', 'The station does not respond.')), 502
+
+    def body():
+        try:
+            yield first
+            while chunk := proc.stdout.read1(65536):
+                yield chunk
+        finally:
+            proc.kill()
+            proc.wait()
+
+    return Response(body(), mimetype='audio/mpeg', headers={'Cache-Control': 'no-store'}, direct_passthrough=True)
 
 
 @app.get('/api/status')
@@ -2653,6 +2715,7 @@ def main():
     if not DEV_COPY:
         threading.Thread(target=check_app_update_regularly, daemon=True).start()
     top.init(TOP_CACHE, top_open)
+    radio.init(RADIO_CACHE, top_open, radio_proxy)  # список станций — только когда откроют вкладку
     threading.Thread(target=top_daily, daemon=True).start()
     if not TRAY:
         print(f'Универсальный скачиватель запущен: {url}')

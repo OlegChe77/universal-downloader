@@ -33,6 +33,7 @@ The interface is in English and Russian: the language button is at the top right
 - **Audio only**: MP3 with cover and tags (“Artist – Song” is taken from the video title) or M4A without re-encoding.
 - **Music search by name** on YouTube, SoundCloud and Rutube at once — one list of 10 songs with covers and a “Show 10 more” button. MP3 downloads in one click, and with checkboxes you can select several songs and download them with one button.
 - **Top chart**: the “Top” tab — the 20 most played songs: Russian (Yandex Music, daily) and international (Spotify, worldwide, weekly). The first three are cards with covers; the “Download” button puts the song into the “Music” tab and starts the search. The lists refresh once a day.
+- **Radio**: the “Radio” tab — all the world’s stations (about 50 thousand, from the Radio Browser directory), Russian ones always first. Genres, countries and search by name; each station shows what is playing now. ▶ plays the station right in the program, and “Download song” finds the song on air on the “Music” tab.
 - **Listen before downloading**: a player “island” above the field with seeking, volume and the next song. It works with the keyboard and media keys.
 - **Audio tracks and subtitles**: for videos in several languages — choose the track (the original by default) or all of them in one MP4; subtitles — embedded in the video or as a separate `.srt`.
 - **Compress video**: a button on a downloaded video makes the file smaller (H.265), the original stays.
@@ -119,6 +120,14 @@ The **“Top”** tab shows the 20 most played songs: Russian (the Yandex Music 
 - **Download**: the song goes into the “Music” tab and the search starts — then as usual.
 
 The lists refresh once a day.
+
+### Radio
+The **“Radio”** tab lists all the world’s stations from the open [Radio Browser](https://www.radio-browser.info) directory, Russian ones always on top. The list refreshes once a day.
+- **Genre** — the row at the top (“More” shows the rest); with a genre chosen, stations come in blocks by country, and a block can be collapsed.
+- **Country** — the bar at the bottom: the ten main countries, the rest under “More countries”.
+- **Search** — by station name, city or genre.
+- **Now playing** — the song title the station itself sends (some stations do not). “Refresh” checks again.
+- **▶** — listen to the station right here; **“Download song”** puts “artist — song” into the “Music” tab and starts the search — then as usual.
 
 ### Download right from a site
 Expand the **“Download right from a site”** panel at the top of the page. There are two ways:

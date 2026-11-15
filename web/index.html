@@ -601,6 +601,121 @@
     .top-col { padding: 14px 10px 8px; border-radius: 22px; }
   }
 
+  /* вкладка «Радио» (по макету radio-mockup.html): поиск, жанры, станции строками; страны — стеклянная полоса внизу.
+     Без жанра — общий список, с жанром — блоки по странам (сворачиваются); Россия всегда первой. */
+  .radio-hint { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
+  .rlbl { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 16px 4px 7px; }
+  .rchips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rchip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 99px; font-size: 13px; white-space: nowrap;
+    background: var(--card); border: 1px solid var(--line); color: var(--muted); transition: background .15s, color .15s, border-color .15s;
+  }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .rchip { background: var(--inner); } }
+  .rchip:hover { color: var(--text); border-color: var(--faint); }
+  .rchip b { font-weight: 400; color: var(--faint); font-size: 12px; }
+  .rchip.on { background: var(--accent-soft); color: var(--accent-text); border-color: var(--accent); }
+  .rchip.on b { color: var(--accent-text); opacity: .75; }
+  .rchip.more { color: var(--accent-text); border-style: dashed; }
+  .rchip .icon { width: 14px; height: 14px; transition: transform .15s; }
+  .rchip.more[aria-expanded="true"] .icon { transform: rotate(180deg); }
+  .rgroup { margin-top: 18px; }
+  .rghead {
+    display: flex; align-items: center; gap: 10px; width: 100%; margin: 0 0 8px; padding: 4px; border: 0; border-radius: 10px;
+    background: none; text-align: left; font-weight: 600; font-size: 15px;
+  }
+  .rghead:hover { background: var(--chip); }
+  .rghead small { color: var(--faint); font-weight: 400; font-size: 12px; white-space: nowrap; }
+  .rghead hr { flex: 1; border: 0; border-top: 1px solid var(--line); margin: 0; min-width: 12px; }
+  .rghead .icon { width: 16px; height: 16px; color: var(--faint); transition: transform .15s; }
+  .rgroup.closed .rghead .icon { transform: rotate(-90deg); }
+  .rgroup.closed .rgbody { display: none; }
+  .rgmore { display: block; margin: 2px auto 0; font-size: 13.5px; padding: 4px 8px; }
+  .rcc { font-size: 10.5px; font-weight: 700; letter-spacing: .02em; padding: 1px 5px; border-radius: 4px; background: var(--chip); color: var(--muted); flex-shrink: 0; }
+  .rcc.ru { background: var(--accent); color: var(--on-accent); }
+  .rghead .rcc { font-size: 11px; padding: 2px 6px; border-radius: 5px; }
+  .rrow {
+    display: grid; grid-template-columns: 44px minmax(150px, 1.2fr) minmax(0, 1.3fr) auto; gap: 12px; align-items: center;
+    padding: 9px 10px; margin-bottom: 7px; border-radius: 16px; box-shadow: none;
+  }
+  .rrow.pl { border-color: var(--accent); box-shadow: inset 3px 0 var(--accent); }
+  .rlogo {
+    position: relative; width: 44px; height: 44px; border-radius: 10px; overflow: hidden; flex-shrink: 0;
+    display: grid; place-items: center; font-weight: 600; font-size: 15px; color: #fff; background: hsl(var(--h, 170) 34% 34%);
+  }
+  .rlogo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #fff; }
+  .rinfo, .rnow { min-width: 0; }
+  .rname { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rmeta { display: flex; gap: 6px; align-items: center; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; }
+  .rwhere { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .rtag { background: var(--chip); border-radius: 99px; padding: 0 7px; font-size: 11px; flex-shrink: 0; }
+  .rnow small { display: block; color: var(--faint); font-size: 11px; }
+  .rnow .sk { height: 12px; width: 60%; margin-top: 5px; }
+  .rsong { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+  .rsong::before { content: "♪ "; color: var(--accent-text); }
+  .racts { display: flex; gap: 6px; align-items: center; }
+  .rib {
+    width: 36px; height: 36px; padding: 0; border-radius: 50%; border: 1px solid var(--line); background: transparent;
+    display: grid; place-items: center; color: var(--text); flex-shrink: 0;
+  }
+  .rib:hover { border-color: var(--accent); color: var(--accent-text); }
+  .rib.on, .rib.on:hover { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .rib .icon { width: 15px; height: 15px; fill: currentColor; stroke: none; }
+  .rib .spinner { width: 15px; height: 15px; }
+  .rdl {
+    display: inline-flex; align-items: center; gap: 6px; height: 36px; padding: 0 12px; border-radius: 99px; white-space: nowrap;
+    border: 1px solid var(--accent); background: transparent; color: var(--accent-text); font-size: 13px; font-weight: 600;
+  }
+  .rdl:hover { background: var(--accent-soft); }
+  .rdl:disabled { opacity: .45; cursor: default; background: transparent; border-color: var(--line); color: var(--muted); }
+  .rdl .icon { width: 15px; height: 15px; }
+  .rempty { color: var(--muted); padding: 30px 0; text-align: center; }
+  .rsk .sk { height: 64px; border-radius: 16px; margin-bottom: 7px; }
+  .rdock { position: sticky; bottom: 14px; z-index: 4; margin-top: 16px; padding: 10px 12px 8px 14px; border-radius: 22px; }
+  .rdock .rlbl { margin: 0 0 6px 2px; }
+  .rdock-row { display: flex; gap: 6px; align-items: flex-start; }
+  .rdock .rchips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  .rpop {
+    position: absolute; right: 10px; bottom: calc(100% + 8px); width: min(440px, calc(100% - 20px)); max-height: min(60vh, 440px);
+    display: flex; flex-direction: column; padding: 10px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .rpop[hidden] { display: none; }
+  .rpop input {
+    padding: 8px 12px; font: inherit; font-size: 14px; color: inherit; background: var(--card-2); border: 1px solid var(--line); border-radius: 10px; outline: none;
+  }
+  .rpop input:focus { border-color: var(--accent); }
+  .rpop-list { overflow-y: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 8px; }
+  .rpop-list button {
+    display: flex; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 0; border-radius: 8px; background: none; text-align: left; font-size: 13.5px;
+  }
+  .rpop-list button:hover { background: var(--chip); }
+  .rpop-list button.on { color: var(--accent-text); font-weight: 600; }
+  .rpop-list b { font-weight: 400; color: var(--faint); font-size: 12px; }
+  .rpop-list .rempty { grid-column: 1 / -1; padding: 14px 0; }
+  /* что играет — тёмный «островок», как у плеера песен */
+  .rbar {
+    position: -webkit-sticky; position: sticky; top: 14px; z-index: 9; width: min(720px, 100%); margin: 0 auto 4px;
+    display: flex; align-items: center; gap: 12px; padding: 8px 10px 8px 8px; border-radius: 34px;
+    color: #eef4f3; background: #0c1413; border: 1px solid rgba(255, 255, 255, .08); box-shadow: 0 12px 34px rgba(0, 20, 18, .4);
+  }
+  .rbar[hidden] { display: none; }
+  .rbar .rlogo { width: 44px; height: 44px; border-radius: 50%; }
+  .eq { display: flex; gap: 2px; align-items: flex-end; height: 18px; width: 20px; flex-shrink: 0; }
+  .eq i { flex: 1; height: 4px; background: #5fe0cb; border-radius: 1px; animation: eq 1s infinite ease-in-out; }
+  .eq i:nth-child(2) { animation-delay: .2s; }
+  .eq i:nth-child(3) { animation-delay: .4s; }
+  .rbar.wait .eq i { animation: none; opacity: .4; }
+  @keyframes eq { 0%, 100% { height: 4px; } 50% { height: 18px; } }
+  .rb-meta { flex: 1; min-width: 0; }
+  .rb-name { font-weight: 600; font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rb-song { font-size: 12.5px; color: #98aba8; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .rb-song.has { color: #eef4f3; }
+  .rb-song.has::before { content: "♪ "; color: #5fe0cb; }
+  .rbar .rdl { border-color: rgba(95, 224, 203, .55); color: #5fe0cb; }
+  .rbar .rdl:hover { background: rgba(255, 255, 255, .08); }
+  .rbar .rdl:disabled { border-color: rgba(255, 255, 255, .15); color: #98aba8; background: transparent; }
+  .rbar .rib { width: 42px; height: 42px; border: 0; background: #fff; color: #0c1413; }
+  .rbar .rib:hover { background: #d9f5ef; color: #0c1413; }
+
   /* скачивать прямо с сайта */
   .quick { margin: 0 0 4px; }
   .quick summary {
@@ -662,6 +777,16 @@
     .has-player main { padding-bottom: 140px; }
     .has-player .toast { bottom: 128px; }
     .has-player .pick-bar { top: 0; }
+    .rbar {
+      position: fixed; top: auto; bottom: 8px; left: 8px; right: 8px; width: auto; margin: 0; border-radius: 22px;
+      padding-bottom: calc(8px + env(safe-area-inset-bottom));
+    }
+    .has-radio main { padding-bottom: 110px; }
+    .has-radio .rdock { bottom: 84px; }
+    .has-radio .toast { bottom: 90px; }
+    .rrow { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 4px 12px; }
+    .rnow { grid-column: 2 / 4; order: 4; }
+    .rnow:empty { display: none; }
     .player-in {
       padding: 8px 12px 8px 8px; gap: 2px 10px;
       grid-template-columns: 44px minmax(0, 1fr) auto auto;
@@ -704,6 +829,10 @@
     .p-ctrl .icon-btn { width: 30px; }
     .p-mp3 .label { display: none; }
     .p-mp3.btn.small { padding: 6px 8px; }
+    .rrow .rdl .lbl, .rbar .rdl .lbl { display: none; }
+    .rdl { padding: 0 10px; }
+    .rpop-list { grid-template-columns: 1fr; }
+    .rbar .eq { display: none; }
   }
 </style>
 </head>
@@ -736,6 +865,9 @@
   <symbol id="i-puzzle" viewBox="0 0 24 24"><path d="M10 4.5a2 2 0 1 1 4 0V6h4a1 1 0 0 1 1 1v4h-1.5a2 2 0 1 0 0 4H19v4a1 1 0 0 1-1 1h-4v-1.5a2 2 0 1 0-4 0V20H6a1 1 0 0 1-1-1v-4h1.5a2 2 0 1 0 0-4H5V7a1 1 0 0 1 1-1h4z"/></symbol>
   <symbol id="i-heart" viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></symbol>
   <symbol id="i-chart" viewBox="0 0 24 24"><path d="M5 20V12M12 20V4M19 20v-6"/></symbol>
+  <symbol id="i-radio" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2"/><path d="M8.5 15.5a5 5 0 0 1 0-7M15.5 8.5a5 5 0 0 1 0 7M5.6 18.4a9 9 0 0 1 0-12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></symbol>
+  <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
   <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
 </svg>
 
@@ -757,6 +889,10 @@
     <button class="tab" role="tab" id="tab-top" data-tab="top" aria-controls="panel-top" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-chart"/></svg></span>
       <span><b>Топ</b><small>чарты песен</small></span>
+    </button>
+    <button class="tab" role="tab" id="tab-radio" data-tab="radio" aria-controls="panel-radio" aria-selected="false" tabindex="-1" type="button">
+      <span class="ico"><svg class="icon"><use href="#i-radio"/></svg></span>
+      <span><b>Радио</b><small>станции всего мира</small></span>
     </button>
     <button class="tab" role="tab" id="tab-vpn" data-tab="vpn" aria-controls="panel-vpn" aria-selected="false" tabindex="-1" type="button">
       <span class="ico"><svg class="icon"><use href="#i-shield"/></svg></span>
@@ -823,6 +959,18 @@
       <button class="icon-btn p-close" id="p-close" type="button" aria-label="Закрыть плеер" title="Закрыть"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
     <audio id="p-audio" preload="auto"></audio>
+  </section>
+
+  <section class="rbar" id="rbar" aria-label="Радио" hidden>
+    <span id="rb-logo"></span>
+    <span class="eq" aria-hidden="true"><i></i><i></i><i></i></span>
+    <div class="rb-meta">
+      <div class="rb-name" id="rb-name"></div>
+      <div class="rb-song" id="rb-song" aria-live="polite"></div>
+    </div>
+    <button class="rdl" id="rb-dl" type="button" title="Найти эту песню на вкладке «Музыка»"><svg class="icon"><use href="#i-download"/></svg><span class="lbl">Скачать песню</span></button>
+    <button class="rib" id="rb-stop" type="button" aria-label="Остановить радио" title="Остановить радио"><svg class="icon"><use href="#i-stop"/></svg></button>
+    <audio id="r-audio" preload="none"></audio>
   </section>
 
   <section class="card upd" id="app-update" aria-live="polite" hidden></section>
@@ -1029,6 +1177,30 @@
         </header>
         <div id="top-world-body"></div>
       </section>
+    </div>
+  </section>
+
+  <section class="card panel not-first" id="panel-radio" role="tabpanel" aria-labelledby="tab-radio" hidden>
+    <p class="radio-hint" data-en="All the world’s stations, Russian ones always first. ▶ plays the station right here; “Download song” finds what is on air now on the “Music” tab.">Все станции мира, российские — всегда первыми. ▶ включает станцию прямо здесь, «Скачать песню» найдёт то, что сейчас в эфире, на вкладке «Музыка».</p>
+    <form class="field" id="radio-form">
+      <input id="radio-q" type="search" placeholder="Название станции, город или жанр" autocomplete="off" spellcheck="false" aria-label="Название станции, город или жанр">
+      <button class="btn primary" id="radio-refresh" type="button" title="Узнать заново, что сейчас играет"><svg class="icon"><use href="#i-repeat"/></svg>Обновить</button>
+    </form>
+    <div class="rlbl">Жанр</div>
+    <div class="rchips" id="radio-genres"></div>
+    <div class="rlbl" id="radio-count" aria-live="polite"></div>
+    <div id="radio-list"></div>
+    <div class="more-row hidden" id="radio-more-row"><button class="btn ghost" id="radio-more" type="button">Показать ещё</button></div>
+    <div class="rdock glass" id="radio-dock">
+      <div class="rlbl">Страна</div>
+      <div class="rdock-row">
+        <div class="rchips" id="radio-countries"></div>
+        <button class="rchip more" id="radio-cmore" type="button" aria-expanded="false" aria-controls="radio-pop">Ещё страны <svg class="icon"><use href="#i-chev"/></svg></button>
+      </div>
+      <div class="rpop" id="radio-pop" hidden>
+        <input id="radio-pop-q" type="search" placeholder="Найти страну" autocomplete="off" aria-label="Найти страну">
+        <div class="rpop-list" id="radio-pop-list"></div>
+      </div>
     </div>
   </section>
 
@@ -1329,8 +1501,8 @@ $('panel-top').addEventListener('click', e => {
 $('panel-top').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);  // нет обложки — значок
 
 // ---------- вкладки ----------
-const TABS = ['link', 'music', 'top', 'vpn'];
-const TAB_FOCUS = {link: 'url', music: 'query', top: '', vpn: 'proxy'};
+const TABS = ['link', 'music', 'top', 'radio', 'vpn'];
+const TAB_FOCUS = {link: 'url', music: 'query', top: '', radio: '', vpn: 'proxy'};
 function setTab(name, focus = false) {
   TABS.forEach(t => {
     const on = t === name;
@@ -1343,6 +1515,7 @@ function setTab(name, focus = false) {
   store.set('tab', name);
   if (name === 'vpn') loadSettings();
   if (name === 'top') loadTop();
+  if (name === 'radio') queueMicrotask(openRadio);  // код радио — ниже, после плеера: зовём, когда скрипт дочитан
   if (focus && TAB_FOCUS[name]) $(TAB_FOCUS[name]).focus();
 }
 document.querySelector('.tabs').addEventListener('click', e => {
@@ -2112,6 +2285,429 @@ audioEl.addEventListener('volumechange', syncVolume);
 const savedVolume = parseFloat(store.get('volume'));
 if (savedVolume >= 0 && savedVolume <= 1) audioEl.volume = savedVolume;
 syncVolume();
+
+// ---------- вкладка «Радио» ----------
+// Станции готовит сервер (radio.py: Radio Browser, кеш на сутки) и отдаёт по частям. Без жанра — общий список,
+// с жанром — блоки по странам (Россия первой, блоки сворачиваются). «Сейчас играет» — из потока станции (ICY),
+// у HLS-станций его нет. ▶ — слушать прямо в браузере (не заиграло — через сервер и ffmpeg);
+// «Скачать песню» подставляет «исполнитель — песня» на вкладку «Музыка» и запускает поиск.
+const R_PAGE = 50, R_GROUPS = 8, R_IN_GROUP = 20, R_SHORT_GENRES = 8, R_TOP_COUNTRIES = 10;
+const radio = {genre: '', country: '', q: '', data: null, genreList: [], items: [], groups: [], total: 0, groupsTotal: 0,
+  token: 0, timer: 0, closed: new Set(), genresOpen: false, opened: false, rest: []};
+const rById = new Map();  // id → станция (всё, что показано на странице)
+const rNow = new Map();   // id → «исполнитель — песня»; '' — станция не передаёт; null — HLS (не бывает)
+const rAudio = $('r-audio');
+const rPlay = {st: null, viaServer: false, loading: false, wait: 0};
+const rNum = n => Number(n || 0).toLocaleString(EN ? 'en' : 'ru');
+let regionNames = null;
+try { regionNames = new Intl.DisplayNames([EN ? 'en' : 'ru'], {type: 'region'}); } catch { /* старый браузер — название с сервера */ }
+const R_SHORT_NAMES = L({US: 'США', GB: 'Великобритания', AE: 'ОАЭ', KR: 'Южная Корея'}, {US: 'USA', GB: 'UK'});
+function rCountry(cc, fallback = '') {
+  try { return R_SHORT_NAMES[cc] || (cc && regionNames && regionNames.of(cc)) || fallback || cc; } catch { return fallback || cc; }
+}
+const rGenreName = id => { const g = radio.genreList.find(x => x.id === id); return g ? L(g.ru, g.en) : ''; };
+try { Object.assign(radio, JSON.parse(store.get('radio') || '{}')); } catch { /* нет сохранённого выбора */ }
+radio.genre = String(radio.genre || ''); radio.country = String(radio.country || ''); radio.q = '';
+radio.closed = new Set();
+
+// буквы для квадрата без картинки: «Наше Радио» → НР, «DFM Дискач» → DF
+function rLetters(name) {
+  const w = name.replace(/[^\p{L}\p{N}]+/gu, ' ').trim().split(' ').filter(Boolean);
+  if (!w.length) return '♪';
+  if (w.length === 1 || (w[0].length <= 4 && w[0] === w[0].toUpperCase())) return w[0].slice(0, 2).toUpperCase();
+  return (w[0][0] + w[1][0]).toUpperCase();
+}
+const rHue = name => { let h = 0; for (const c of name) h = (h * 31 + c.codePointAt(0)) % 360; return h; };
+const rLogo = s => `<span class="rlogo" style="--h:${rHue(s.name)}">${esc(rLetters(s.name))}${s.favicon
+  ? `<img src="${esc(s.favicon)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}</span>`;
+const rNoSong = s => s.hls || rNow.get(s.id) === null || rNow.get(s.id) === ''
+  ? L('Станция не сообщает, что сейчас играет', 'The station does not say what is playing')
+  : L('Узнаём, что играет…', 'Checking what is playing…');
+
+function rNowHtml(s) {
+  const t = rNow.get(s.id);
+  if (s.hls || t === null || t === '') return '';
+  const head = `<small>${L('Сейчас играет', 'Now playing')}</small>`;
+  return t === undefined ? head + '<div class="sk"></div>' : head + `<div class="rsong" title="${esc(t)}">${esc(t)}</div>`;
+}
+function rDlBtn(s) {
+  const t = rNow.get(s.id);
+  return `<button class="rdl" type="button" data-rdl="${esc(s.id)}"${t ? '' : ' disabled'}
+    title="${esc(t ? L('Найти эту песню на вкладке «Музыка»', 'Find this song on the Music tab') : rNoSong(s))}">${icon('download')}<span class="lbl">${L('Скачать песню', 'Download song')}</span></button>`;
+}
+function rRow(s) {
+  rById.set(s.id, s);
+  const genre = rGenreName(s.genre) || s.tag;
+  const where = [rCountry(s.cc, s.country), s.city].filter(Boolean).join(', ');
+  return `<div class="rrow glass" data-id="${esc(s.id)}">
+    ${rLogo(s)}
+    <div class="rinfo">
+      <div class="rname" title="${esc(s.name)}">${esc(s.name)}</div>
+      <div class="rmeta">${s.cc ? `<span class="rcc${s.cc === 'RU' ? ' ru' : ''}">${esc(s.cc)}</span>` : ''}<span class="rwhere" title="${esc(where)}">${esc(where)}</span>${genre ? `<span class="rtag">${esc(genre)}</span>` : ''}</div>
+    </div>
+    <div class="rnow">${rNowHtml(s)}</div>
+    <div class="racts">${rDlBtn(s)}<button class="rib" type="button" data-rplay="${esc(s.id)}"></button></div>
+  </div>`;
+}
+
+// ▶ / ■ / загрузка у строк и подсветка играющей станции
+function rSync() {
+  const id = rPlay.st && rPlay.st.id;
+  document.querySelectorAll('#radio-list .rrow').forEach(row => {
+    const on = row.dataset.id === id;
+    row.classList.toggle('pl', on);
+    const b = row.querySelector('[data-rplay]');
+    const st = !on ? 'idle' : rPlay.loading ? 'load' : 'play';
+    if (b.dataset.st === st) return;
+    b.dataset.st = st;
+    b.classList.toggle('on', on);
+    b.innerHTML = st === 'load' ? '<span class="spinner"></span>' : fillIcon(on ? 'stop' : 'play');
+    const label = on ? L('Остановить', 'Stop') : L('Слушать', 'Listen');
+    b.title = label;
+    b.setAttribute('aria-label', label);
+  });
+}
+function rUpdateNow(id) {
+  const s = rById.get(id);
+  if (!s) return;
+  document.querySelectorAll('#radio-list .rrow').forEach(row => {
+    if (row.dataset.id !== id) return;
+    row.querySelector('.rnow').innerHTML = rNowHtml(s);
+    row.querySelector('.rdl').outerHTML = rDlBtn(s);
+  });
+  if (rPlay.st && rPlay.st.id === id) rBar();
+}
+
+function renderRadioChips() {
+  const all = radio.genreList.find(g => !g.id);
+  const list = radio.genreList.filter(g => g.id && (g.n || g.id === radio.genre));
+  const short = list.slice(0, R_SHORT_GENRES);
+  if (radio.genre && !short.some(g => g.id === radio.genre)) short.push(...list.filter(g => g.id === radio.genre));
+  const shown = radio.genresOpen ? list : short;
+  $('radio-genres').innerHTML = [all && {...all, ru: 'Все жанры', en: 'All genres'}, ...shown].filter(Boolean)
+    .map(g => `<button class="rchip${g.id === radio.genre ? ' on' : ''}" type="button" data-rgenre="${esc(g.id)}">${esc(L(g.ru, g.en))}<b>${rNum(g.n)}</b></button>`).join('')
+    + (list.length > short.length || radio.genresOpen
+      ? `<button class="rchip more" type="button" id="radio-gmore" aria-expanded="${radio.genresOpen}">${radio.genresOpen ? L('Свернуть', 'Less') : L('Ещё', 'More')} ${icon('chev')}</button>` : '');
+
+  const cl = (radio.data && radio.data.countries) || [];
+  const top = cl.slice(0, R_TOP_COUNTRIES);  // сервер ставит Россию первой, дальше — где больше станций
+  if (radio.country && !top.some(c => c.cc === radio.country)) top.push(cl.find(c => c.cc === radio.country) || {cc: radio.country, n: 0});
+  radio.rest = cl.filter(c => !top.includes(c));
+  $('radio-countries').innerHTML = [{cc: '', n: radio.data.all_countries}, ...top]
+    .map(c => `<button class="rchip${c.cc === radio.country ? ' on' : ''}" type="button" data-rcountry="${esc(c.cc)}">${esc(c.cc ? rCountry(c.cc) : L('Все страны', 'All countries'))}<b>${rNum(c.n)}</b></button>`).join('');
+  $('radio-cmore').hidden = !radio.rest.length;
+  if (!$('radio-pop').hidden) renderRadioPop();
+}
+
+function renderRadioPop() {
+  const q = $('radio-pop-q').value.trim().toLowerCase();
+  const items = radio.rest.map(c => ({...c, name: rCountry(c.cc)}))
+    .filter(c => !q || c.name.toLowerCase().includes(q) || c.cc.toLowerCase() === q)
+    .sort((a, b) => a.name.localeCompare(b.name, EN ? 'en' : 'ru'));
+  $('radio-pop-list').innerHTML = items.length
+    ? items.map(c => `<button type="button" data-rcountry="${esc(c.cc)}"${c.cc === radio.country ? ' class="on"' : ''}><span>${esc(c.name)}</span><b>${rNum(c.n)}</b></button>`).join('')
+    : `<div class="rempty">${L('Такой страны нет в списке', 'No such country in the list')}</div>`;
+}
+function radioPop(open) {
+  $('radio-pop').hidden = !open;
+  $('radio-cmore').setAttribute('aria-expanded', open);
+  if (!open) return;
+  $('radio-pop-q').value = '';
+  renderRadioPop();
+  $('radio-pop-q').focus();
+}
+
+function renderRadioList() {
+  const box = $('radio-list');
+  const group = !!radio.genre && !radio.country;
+  const shown = group ? radio.groups.reduce((a, g) => a + g.items.length, 0) : radio.items.length;
+  $('radio-count').textContent = !radio.total ? '' : group
+    ? L(`${rNum(radio.total)} ${plural(radio.total, 'станция', 'станции', 'станций')} в ${rNum(radio.groupsTotal)} ${plural(radio.groupsTotal, 'стране', 'странах', 'странах')}`,
+        `${rNum(radio.total)} ${radio.total === 1 ? 'station' : 'stations'} in ${rNum(radio.groupsTotal)} ${radio.groupsTotal === 1 ? 'country' : 'countries'}`)
+    : L(`Показано ${rNum(shown)} из ${rNum(radio.total)}`, `Showing ${rNum(shown)} of ${rNum(radio.total)}`);
+  if (!radio.total) {
+    box.innerHTML = `<div class="rempty">${L('Ничего не нашлось. Попробуйте другой жанр, страну или запрос.', 'Nothing found. Try another genre, country or search.')}</div>`;
+    $('radio-more-row').classList.add('hidden');
+    return;
+  }
+  let left;
+  if (group) {
+    box.innerHTML = radio.groups.map(g => {
+      const closed = radio.closed.has(g.cc), rest = g.total - g.items.length;
+      return `<section class="rgroup${closed ? ' closed' : ''}">
+        <button class="rghead" type="button" data-rg="${esc(g.cc)}" aria-expanded="${!closed}">
+          <span class="rcc${g.cc === 'RU' ? ' ru' : ''}">${esc(g.cc || '—')}</span>${esc(g.cc ? rCountry(g.cc, g.country) : L('Страна не указана', 'No country'))}
+          <small>${rNum(g.total)} ${plural(g.total, 'станция', 'станции', 'станций', 'station', 'stations')}</small><hr>${icon('chev')}
+        </button>
+        <div class="rgbody">${g.items.map(rRow).join('')}${rest > 0 && g.cc
+          ? `<button class="link rgmore" type="button" data-rgmore="${esc(g.cc)}">${L('Ещё станции этой страны', 'More stations from this country')} (${rNum(rest)})</button>` : ''}</div>
+      </section>`;
+    }).join('');
+    left = radio.groupsTotal - radio.groups.length;
+    $('radio-more').textContent = L('Показать ещё страны', 'Show more countries');
+  } else {
+    box.innerHTML = radio.items.map(rRow).join('');
+    left = radio.total - radio.items.length;
+    $('radio-more').textContent = L(`Показать ещё ${Math.min(R_PAGE, left)}`, `Show ${Math.min(R_PAGE, left)} more`);
+  }
+  $('radio-more').disabled = false;
+  $('radio-more-row').classList.toggle('hidden', left <= 0);
+  rSync();
+}
+
+function radioParams(extra) {
+  const p = new URLSearchParams({genre: radio.genre, country: radio.country, q: radio.q});
+  for (const [k, v] of Object.entries(extra)) p.set(k, v);
+  return '/api/radio?' + p;
+}
+async function loadRadio({more = false, tries = 0} = {}) {
+  clearTimeout(radio.timer);
+  const group = !!radio.genre && !radio.country;
+  const token = ++radio.token;
+  store.set('radio', JSON.stringify({genre: radio.genre, country: radio.country}));
+  if (more) {
+    $('radio-more').disabled = true;
+    $('radio-more').innerHTML = '<span class="spinner"></span>' + L('Загружаю…', 'Loading…');
+  } else if (!radio.data) {
+    $('radio-list').innerHTML = `<div class="rsk">${'<div class="sk"></div>'.repeat(6)}</div>`;
+  }
+  const offset = more ? (group ? radio.groups.length : radio.items.length) : 0;
+  let data = null;
+  try {
+    data = await api(radioParams({offset, limit: group ? R_GROUPS : R_PAGE, ...(group ? {group: 1} : {}), ...(more ? {counts: 0} : {})}));
+  } catch { /* сервер не ответил */ }
+  if (token !== radio.token) return;  // пока ждали, выбрали другой жанр или страну
+  if (!data || !data.count) {
+    $('radio-more-row').classList.add('hidden');
+    $('radio-count').textContent = '';
+    if (data && data.loading && tries < 90) {
+      $('radio-list').innerHTML = `<div class="rempty"><span class="spinner"></span> ${L('Загружаю список станций со всего мира — это около минуты, только в первый раз за день…', 'Loading the list of stations from all over the world — about a minute, once a day…')}</div>`
+        + `<div class="rsk">${'<div class="sk"></div>'.repeat(4)}</div>`;
+      radio.timer = setTimeout(() => { if (activeTab === 'radio') loadRadio({tries: tries + 1}); }, 2000);
+    } else {
+      $('radio-list').innerHTML = `<div class="top-fail"><b>${L('Список станций недоступен', 'The station list is unavailable')}</b>${L('Сервер Radio Browser не ответил. Попробуем ещё раз позже — откройте вкладку снова.', 'The Radio Browser server did not respond. We will try again later — open the tab again.')}</div>`;
+    }
+    return;
+  }
+  if (!more) {
+    radio.data = data;
+    if (data.genres && data.genres.length) radio.genreList = data.genres;
+    radio.items = [];
+    radio.groups = [];
+  }
+  radio.total = data.total;
+  if (group) {
+    radio.groups.push(...data.groups);
+    radio.groupsTotal = data.groups_total;
+  } else radio.items.push(...data.items);
+  if (!more) renderRadioChips();
+  renderRadioList();
+  rFetchNow();
+}
+async function rGroupMore(btn) {
+  const g = radio.groups.find(x => x.cc === btn.dataset.rgmore);
+  if (!g) return;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>' + L('Загружаю…', 'Loading…');
+  const token = radio.token;
+  try {
+    const data = await api(radioParams({country: g.cc, offset: g.items.length, limit: R_IN_GROUP, counts: 0}));
+    if (token !== radio.token) return;
+    g.items.push(...data.items);
+  } catch (e) { toast(e.message); }
+  renderRadioList();
+  rFetchNow();
+}
+
+// «Сейчас играет»: спрашиваем сервер пачками по 10 (две пачки разом), видимые строки — заново раз в минуту
+let rNowBusy = false, rNowAgain = false;
+async function rFetchNow({fresh = false, visibleOnly = false} = {}) {
+  if (rNowBusy) { rNowAgain = true; return; }
+  const rows = [...document.querySelectorAll('#radio-list .rrow')].filter(r => {
+    if (!visibleOnly) return true;
+    const b = r.getBoundingClientRect();
+    return b.bottom > 0 && b.top < innerHeight && b.height;
+  });
+  const ids = [...new Set(rows.map(r => r.dataset.id))].filter(id => {
+    const s = rById.get(id);
+    return s && !s.hls && (fresh || !rNow.has(id));
+  });
+  if (!ids.length) return;
+  rNowBusy = true;
+  const parts = [];
+  for (let i = 0; i < ids.length; i += 10) parts.push(ids.slice(i, i + 10));
+  const worker = async () => {
+    for (let part; (part = parts.shift());) {
+      let res = {};
+      try { res = await api('/api/radio/now?ids=' + part.map(encodeURIComponent).join(',') + (fresh ? '&fresh=1' : '')); } catch { /* не ответил */ }
+      for (const id of part) {
+        const t = id in res ? res[id] : (rNow.has(id) ? rNow.get(id) : '');
+        if (rNow.get(id) === t && rNow.has(id)) continue;
+        rNow.set(id, t);
+        rUpdateNow(id);
+      }
+    }
+  };
+  await Promise.all([worker(), worker()]);
+  rNowBusy = false;
+  if (rNowAgain) { rNowAgain = false; rFetchNow(); }
+}
+async function rRefreshPlaying() {
+  const s = rPlay.st;
+  if (!s || s.hls) return;
+  try {
+    const res = await api('/api/radio/now?fresh=1&ids=' + encodeURIComponent(s.id));
+    if (s.id in res && rNow.get(s.id) !== res[s.id]) { rNow.set(s.id, res[s.id]); rUpdateNow(s.id); }
+  } catch { /* не ответил — оставляем прошлое */ }
+}
+let rTick = 0;
+setInterval(() => {
+  if (document.hidden) return;
+  if (rPlay.st) rRefreshPlaying();
+  if (activeTab === 'radio' && ++rTick % 3 === 0) rFetchNow({fresh: true, visibleOnly: true});
+}, 20000);
+
+// ---------- слушать станцию ----------
+function rBar() {
+  const s = rPlay.st;
+  if (!s) return;
+  const t = rNow.get(s.id);
+  $('rb-name').textContent = [s.name, rCountry(s.cc, s.country)].filter(Boolean).join(' · ');
+  $('rb-name').title = s.name;
+  const song = t || (rPlay.loading ? L('Подключаюсь к станции…', 'Connecting to the station…')
+    : s.hls || t === null || t === '' ? L('Станция не сообщает, что сейчас играет', 'The station does not say what is playing') : '');
+  $('rb-song').textContent = song;
+  $('rb-song').title = song;
+  $('rb-song').classList.toggle('has', !!t);
+  $('rb-dl').disabled = !t;
+  $('rb-dl').title = t ? L('Найти эту песню на вкладке «Музыка»', 'Find this song on the Music tab') : rNoSong(s);
+  $('rbar').classList.toggle('wait', rPlay.loading);
+  if ('mediaSession' in navigator && window.MediaMetadata) {
+    navigator.mediaSession.metadata = new MediaMetadata({title: t || s.name, artist: t ? s.name : rCountry(s.cc, s.country),
+      artwork: s.favicon ? [{src: s.favicon}] : []});
+  }
+}
+function rStart() {
+  clearTimeout(rPlay.wait);
+  const s = rPlay.st;
+  rPlay.loading = true;
+  rAudio.src = rPlay.viaServer ? '/api/radio/play?id=' + encodeURIComponent(s.id) : s.url;
+  rAudio.volume = audioEl.volume;
+  rAudio.play().catch(() => {});
+  rPlay.wait = setTimeout(rFail, rPlay.viaServer ? 25000 : 10000);  // молчит — пробуем через сервер
+  rBar();
+  rSync();
+}
+function rFail() {
+  if (!rPlay.st) return;
+  if (!rPlay.viaServer) { rPlay.viaServer = true; rStart(); return; }
+  const name = rPlay.st.name;
+  radioStop();
+  toast(L(`Станция «${name}» сейчас не отвечает — попробуйте другую.`, `“${name}” does not respond right now — try another station.`));
+}
+function radioPlay(s) {
+  if (rPlay.st && rPlay.st.id === s.id) { radioStop(); return; }
+  if (player.url) closePlayer();  // один плеер: песня из «Музыки» и радио вместе не играют
+  rPlay.st = s;
+  // HLS (m3u8) браузеры, кроме Safari, сами не играют — сразу через сервер
+  rPlay.viaServer = s.hls && !rAudio.canPlayType('application/vnd.apple.mpegurl');
+  $('rb-logo').innerHTML = rLogo(s);
+  $('rbar').hidden = false;
+  document.documentElement.classList.add('has-radio');
+  rStart();
+  if (!s.hls && !rNow.has(s.id)) rRefreshPlaying();
+}
+function radioStop() {
+  clearTimeout(rPlay.wait);
+  rPlay.st = null;
+  rPlay.loading = false;
+  rAudio.pause();
+  rAudio.removeAttribute('src');
+  rAudio.load();
+  $('rbar').hidden = true;
+  document.documentElement.classList.remove('has-radio');
+  rSync();
+}
+function radioSong(id) {
+  const t = rNow.get(id);
+  if (!t) return;
+  $('query').value = t;
+  setTab('music');
+  window.scrollTo({top: 0, behavior: 'smooth'});
+  runSearch();
+}
+rAudio.addEventListener('playing', () => {
+  clearTimeout(rPlay.wait);
+  rPlay.loading = false;
+  rBar();
+  rSync();
+});
+rAudio.addEventListener('waiting', () => { if (rPlay.st) { rPlay.loading = true; rBar(); rSync(); } });
+rAudio.addEventListener('error', () => { if (rAudio.getAttribute('src')) rFail(); });
+audioEl.addEventListener('play', () => { if (rPlay.st) radioStop(); });
+$('rb-stop').addEventListener('click', radioStop);
+$('rb-dl').addEventListener('click', () => { if (rPlay.st) radioSong(rPlay.st.id); });
+$('rbar').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);
+
+function openRadio() {
+  if (!radio.opened) { radio.opened = true; loadRadio(); return; }
+  if (!radio.data) loadRadio();
+  else rFetchNow({visibleOnly: true});
+}
+let rSearchTimer = 0;
+$('radio-q').addEventListener('input', () => {
+  clearTimeout(rSearchTimer);
+  rSearchTimer = setTimeout(() => {
+    if (radio.q === $('radio-q').value.trim()) return;
+    radio.q = $('radio-q').value.trim();
+    loadRadio();
+  }, 350);
+});
+$('radio-form').addEventListener('submit', e => {
+  e.preventDefault();
+  clearTimeout(rSearchTimer);
+  radio.q = $('radio-q').value.trim();
+  loadRadio();
+});
+$('radio-refresh').addEventListener('click', async () => {
+  const b = $('radio-refresh');
+  b.disabled = true;
+  await Promise.all([rFetchNow({fresh: true, visibleOnly: true}), rRefreshPlaying()]);
+  b.disabled = false;
+});
+$('radio-more').addEventListener('click', () => loadRadio({more: true}));
+$('radio-pop-q').addEventListener('input', renderRadioPop);
+$('panel-radio').addEventListener('click', e => {
+  const t = e.target;
+  let el;
+  if ((el = t.closest('[data-rplay]'))) { const s = rById.get(el.dataset.rplay); if (s) radioPlay(s); }
+  else if ((el = t.closest('[data-rdl]'))) radioSong(el.dataset.rdl);
+  else if ((el = t.closest('[data-rgenre]'))) {
+    if (radio.genre === el.dataset.rgenre) return;
+    radio.genre = el.dataset.rgenre;
+    radio.closed.clear();
+    loadRadio();
+  } else if ((el = t.closest('[data-rcountry]'))) {
+    radioPop(false);
+    if (radio.country === el.dataset.rcountry) return;
+    radio.country = el.dataset.rcountry;
+    loadRadio();
+  } else if (t.closest('#radio-gmore')) { radio.genresOpen = !radio.genresOpen; renderRadioChips(); }
+  else if (t.closest('#radio-cmore')) radioPop($('radio-pop').hidden);
+  else if ((el = t.closest('[data-rg]'))) {
+    const cc = el.dataset.rg, closed = !radio.closed.has(cc);
+    if (closed) radio.closed.add(cc); else radio.closed.delete(cc);
+    el.closest('.rgroup').classList.toggle('closed', closed);
+    el.setAttribute('aria-expanded', !closed);
+  } else if ((el = t.closest('[data-rgmore]'))) rGroupMore(el);
+});
+$('panel-radio').addEventListener('error', e => { if (e.target.tagName === 'IMG') e.target.remove(); }, true);  // нет картинки — буквы
+document.addEventListener('click', e => {
+  if (!$('radio-pop').hidden && !e.target.closest('#radio-pop, #radio-cmore')) radioPop(false);
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && !$('radio-pop').hidden) { radioPop(false); $('radio-cmore').focus(); }
+});
 
 // ---------- папка ----------
 let settings = {download_dir: '', ask_every_time: true};
