@@ -581,7 +581,9 @@
   .trow-pos { text-align: center; font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
   .trow-cover { position: relative; width: 40px; height: 40px; border-radius: 9px; overflow: hidden; background: var(--chip); display: grid; place-items: center; color: var(--faint); }
   .trow-cover .icon { width: 18px; height: 18px; }
-  .trow-body { min-width: 0; }
+  .trow-body { min-width: 0; container-type: inline-size; }
+  /* английский «▲from 12 · 112 weeks on chart» не влезает в узкую строку (телефон) — без «on chart» */
+  @container (max-width: 184px) { :lang(en) .top-age .sfx { display: none; } }
   .trow-title { font-weight: 600; font-size: 14px; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .trow-act { display: flex; align-items: center; gap: 6px; }
   /* кнопка «Слушать» в строке списка — круглая, без подписи */
@@ -608,13 +610,17 @@
     .trow.c0 { border-top-color: var(--line); }
     .trow:first-child { border-top-color: transparent; }
   }
-  /* совсем узко (телефон): кнопки в карточке — под текстом, «Скачать» в списке — значком */
+  /* «Скачать» в списке — значком: и на телефоне, и когда список ещё в две колонки, но строки узкие
+     (столбец 720–880 px: с подписью на название и «▲ с 12 · 112 дней» оставалось ~100 px) */
+  @container (max-width: 479px) or ((min-width: 720px) and (max-width: 879px)) {
+    .trow-act .btn .lbl { display: none; }
+    .trow-act .btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; justify-content: center; }
+  }
+  /* совсем узко (телефон): кнопки в карточке — под текстом */
   @container (max-width: 479px) {
     .pod { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: "cover text" "act act"; }
     .pod-act .btn { flex: 1; }
     .trow { gap: 8px; }
-    .trow-act .btn .lbl { display: none; }
-    .trow-act .btn { width: 34px; height: 34px; padding: 0; border-radius: 50%; justify-content: center; }
   }
   @media (max-width: 560px) {
     .top-col { padding: 14px 10px 8px; border-radius: 22px; }
@@ -1444,7 +1450,7 @@ function topSource(key, d) {
     : L('Яндекс Музыка, Россия · обновляется каждый день', 'Yandex Music, Russia · updated daily');
   let s = L('Spotify, мир', 'Spotify, worldwide');
   const day = d.asof && new Date(d.asof + 'T12:00:00');
-  if (day && !isNaN(day)) s += ' · ' + L('неделя по ', 'week to ') + day.toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long'});
+  if (day && !isNaN(day)) s += ' · ' + L('неделя по ', 'week ending ') + day.toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long'});
   return s;
 }
 const topCover = it => icon('music') + (it.cover
@@ -1457,7 +1463,7 @@ function topMove(it) {
   if (m === 'up') return `<span class="mv up" title="${esc(L(`Поднялась с ${it.from}-го места`, `Up from #${it.from}`))}"><b>▲</b>${L('с ', 'from ')}${it.from}</span>`;
   if (m === 'down') {
     const n = it.pos - it.from;
-    return `<span class="mv down" title="${esc(L(`Упала на ${n} ${plural(n, 'место', 'места', 'мест')} (была ${it.from}-й)`, `Down ${n} (was #${it.from})`))}"><b>▼</b>${n}</span>`;
+    return `<span class="mv down" title="${esc(L(`Упала на ${n} ${plural(n, 'место', 'места', 'мест')} (была ${it.from}-й)`, `Down ${n} ${plural(n, '', '', '', 'place', 'places')} (was #${it.from})`))}"><b>▼</b>${n}</span>`;
   }
   if (m === 'same') return `<span class="mv same" title="${esc(L('Место не изменилось', 'No change'))}">=</span>`;
   if (m === 'new') return `<span class="mv new" title="${esc(L('Впервые в топе', 'New entry'))}">${L('Новинка', 'New')}</span>`;
@@ -1466,18 +1472,20 @@ function topMove(it) {
 }
 function topAge(it) {
   if (it.move === 'new') return '';  // у новинки срок — первая неделя/день, пометки хватает
-  let n, s;
+  let n, unit;
   if (it.weeks) {
     n = it.weeks;
-    s = `${n} ${plural(n, 'неделя', 'недели', 'недель', 'week', 'weeks')} ${L('в топе', 'on chart')}`;
+    unit = `${n} ${plural(n, 'неделя', 'недели', 'недель', 'week', 'weeks')}`;
   } else if (it.since) {
     const [y, mo, d] = it.since.split('-').map(Number), now = new Date();
     n = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(y, mo - 1, d)) / 864e5) + 1;
     if (!(n >= 1) || (it.since_min && n < 2)) return '';  // история только началась — срок ещё неизвестен
     const plus = it.since_min ? '+' : '';
-    s = `${n}${plus} ${plural(n, 'день', 'дня', 'дней', 'day', 'days')} ${L('в топе', 'on chart')}`;
+    unit = `${n}${plus} ${plural(n, 'день', 'дня', 'дней', 'day', 'days')}`;
   } else return '';
-  return `<span class="top-age" title="${esc(it.since && !it.weeks ? L('В топе с ', 'On chart since ') + new Date(it.since + 'T12:00:00').toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long', year: 'numeric'}) + (it.since_min ? L(' (или раньше)', ' (or earlier)') : '') : s)}">${esc(s)}</span>`;
+  const sfx = L('в топе', 'on chart'), s = unit + ' ' + sfx;
+  // «on chart» в узкой строке списка прячется (CSS .sfx), полный срок — в подсказке
+  return `<span class="top-age" title="${esc(it.since && !it.weeks ? L('В топе с ', 'On chart since ') + new Date(it.since + 'T12:00:00').toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long', year: 'numeric'}) + (it.since_min ? L(' (или раньше)', ' (or earlier)') : '') : s)}">${esc(unit)}<span class="sfx"> ${esc(sfx)}</span></span>`;
 }
 const topMeta = it => {
   const h = topMove(it) + topAge(it);
