@@ -24,6 +24,7 @@
     --on-accent: #ffffff; --ok: #15803d; --ok-soft: rgba(21, 128, 61, .13); --err: #c62828; --err-soft: #fdeded;
     --chip: rgba(10, 60, 55, .07); --skeleton: rgba(10, 60, 55, .08); --skeleton-hi: rgba(10, 60, 55, .03); --overlay: rgba(6, 22, 20, .5);
     --shadow: 0 1px 2px rgba(10, 60, 55, .06), 0 14px 44px rgba(10, 80, 70, .16);
+    --g: #7044c4; --g-text: #5f34b0; --g-soft: rgba(112, 68, 196, .1); --g-line: rgba(112, 68, 196, .28);  /* второй цвет: жанры радио */
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -35,6 +36,7 @@
       --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: rgba(60, 207, 115, .15); --err: #ff7b7b; --err-soft: #3a1c1e;
       --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
       --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
+      --g: #7b50d6; --g-text: #c7b0ff; --g-soft: rgba(160, 120, 255, .13); --g-line: rgba(170, 135, 255, .3);
     }
   }
   :root[data-theme="dark"] {
@@ -46,6 +48,7 @@
     --on-accent: #ffffff; --ok: #3ccf73; --ok-soft: rgba(60, 207, 115, .15); --err: #ff7b7b; --err-soft: #3a1c1e;
     --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
     --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
+    --g: #7b50d6; --g-text: #c7b0ff; --g-soft: rgba(160, 120, 255, .13); --g-line: rgba(170, 135, 255, .3);
   }
 
   * { box-sizing: border-box; }
@@ -676,8 +679,25 @@
   .rfilter { position: relative; padding: 10px 12px 10px 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
   @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .rfilter { background: var(--inner); } }
   .rf-country { box-shadow: inset 3px 0 var(--accent); }
-  .rf-country .rchip.on { background: var(--accent); color: var(--on-accent); }
-  .rf-country .rchip.on b { color: var(--on-accent); }
+  .rf-genre { box-shadow: inset 3px 0 var(--g); }
+  .rf-genre .rfh .icon { color: var(--g-text); }
+  /* страны: скруглённый прямоугольник, слева код страны (как .rcc), выбранная — сплошной акцент */
+  .rf-country .rchip { border-radius: 10px; padding: 4px 11px 4px 4px; gap: 7px; }
+  .rf-country .rchip.more { padding: 4px 10px; }
+  .rf-country .rchip .rcc { min-width: 24px; text-align: center; padding: 2px 5px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-text); }
+  .rf-country .rchip .rcc .icon { width: 12px; height: 12px; vertical-align: -2px; }
+  .rf-country .rchip:hover { border-color: var(--accent); }
+  .rf-country .rchip.on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); box-shadow: 0 2px 10px rgba(10, 128, 112, .3); }
+  .rf-country .rchip.on b { color: var(--on-accent); opacity: .8; }
+  .rf-country .rchip.on .rcc { background: var(--on-accent); color: var(--accent); }
+  /* жанры: «таблетки» с мягким фиолетовым оттенком и точкой, выбранный — сплошной яркий */
+  .rf-genre .rchip:not(.more) { background: var(--g-soft); border-color: var(--g-line); color: var(--text); }
+  .rf-genre .rchip:not(.more)::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--g); opacity: .7; }
+  .rf-genre .rchip:hover { border-color: var(--g); color: var(--g-text); }
+  .rf-genre .rchip.more { color: var(--g-text); border-color: var(--g-line); }
+  .rf-genre .rchip.on, .rf-genre .rchip.on:hover { background: var(--g); border-color: var(--g); color: #fff; font-weight: 600; box-shadow: 0 2px 12px rgba(112, 68, 196, .38); }
+  .rf-genre .rchip.on::before { background: #fff; opacity: 1; }
+  .rf-genre .rchip.on b { color: #fff; opacity: .8; }
   .rfh { display: flex; align-items: center; gap: 7px; margin: 0 0 8px 2px; font-size: 13.5px; font-weight: 700; color: var(--text); }
   .rfh .icon { width: 16px; height: 16px; color: var(--accent-text); }
   .rf-row { display: flex; gap: 6px; align-items: flex-start; }
@@ -2419,7 +2439,7 @@ function renderRadioChips() {
   if (radio.country && !top.some(c => c.cc === radio.country)) top.push(cl.find(c => c.cc === radio.country) || {cc: radio.country, n: 0});
   radio.rest = cl.filter(c => !top.includes(c));
   $('radio-countries').innerHTML = [{cc: '', n: radio.data.all_countries}, ...top]
-    .map(c => `<button class="rchip${c.cc === radio.country ? ' on' : ''}" type="button" data-rcountry="${esc(c.cc)}">${esc(c.cc ? rCountry(c.cc) : L('Все страны', 'All countries'))}<b>${rNum(c.n)}</b></button>`).join('');
+    .map(c => `<button class="rchip${c.cc === radio.country ? ' on' : ''}" type="button" data-rcountry="${esc(c.cc)}"><span class="rcc" aria-hidden="true">${c.cc ? esc(c.cc) : icon('globe')}</span>${esc(c.cc ? rCountry(c.cc) : L('Все страны', 'All countries'))}<b>${rNum(c.n)}</b></button>`).join('');
   $('radio-cmore').hidden = !radio.rest.length;
   if (!$('radio-pop').hidden) renderRadioPop();
 }
