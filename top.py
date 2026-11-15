@@ -16,7 +16,11 @@ from pathlib import Path
 COUNT = 20
 DAY = 24 * 3600
 RETRY = 15 * 60  # после неудачи пробуем не чаще
-CACHE_VER = 2  # сменился источник или поля — старый кеш не берём
+CACHE_VER = 3  # сменился источник или поля — старый кеш не берём
+# Сдвиг и срок у песни: move — up/down/same/new/back (вернулась), from — прошлое место (у up/down),
+# weeks — недель в чарте (kworb) или since — в чарте с даты ГГГГ-ММ-ДД (Яндекс; zaycev — по своей истории,
+# since_min — песня уже была в топе, когда история началась: срок не меньше). Чего источник не дал — поля нет.
+HIST_KEEP = 200  # сколько песен помнить в истории zaycev
 YANDEX = 'https://api.music.yandex.net/landing3/chart/russia'
 ZAYCEV = 'https://zaycev.net/popular/index.html?popular-sort=week'
 KWORB = 'https://kworb.net/spotify/country/global_weekly.html'
@@ -37,6 +41,7 @@ K_DATE = re.compile(r'Chart - Global - (\d{4})/(\d{2})/(\d{2})')
 lock = threading.Lock()
 state = {k: {'items': [], 'asof': '', 'src': '', 'updated': 0.0, 'tried': 0.0, 'busy': False} for k in ('ru', 'world')}
 cache_file = None
+hist_lock = threading.Lock()
 opener = None  # opener(url) → bytes
 
 
@@ -47,6 +52,68 @@ def clean(text):
 def query_of(artist, title):
     """Что подставить в поиск вкладки «Музыка»: «исполнитель — название»."""
     return f'{artist} — {title}'
+
+
+def set_move(it, move, shift=0):
+    """move: up/down/same/new/back; shift — на сколько мест поднялась (+) или упала (−)."""
+    try:
+        shift = int(shift or 0)
+    except (TypeError, ValueError):
+        shift = 0
+    if move in ('up', 'down') and shift:
+        it.update(move='up' if shift > 0 else 'down', **{'from': it['pos'] + shift})
+    elif move in ('same', 'new', 'back') or move in ('up', 'down'):
+        it['move'] = 'same' if move in ('up', 'down') else move
+
+
+def song_key(it):
+    return re.sub(r'\s+', ' ', f"{it['artist']}\n{it['title']}".lower()).strip()
+
+
+def hist_file():
+    return Path(cache_file).with_name('top-history.json') if cache_file else None
+
+
+def apply_history(name, items, today=None):
+    """Источник не даёт прошлых мест (zaycev): сравниваем со своим прошлым списком — файл рядом с кешем.
+    История: day — день последнего списка, cur/prev — {песня: место} последнего и предыдущего дня,
+    since — {песня: день, с которого она в топе подряд}, start — день первого списка."""
+    today = today or time.strftime('%Y-%m-%d')
+    path = hist_file()
+    with hist_lock:
+        try:
+            all_h = json.loads(path.read_text(encoding='utf-8')) if path else {}
+            if not isinstance(all_h, dict):
+                all_h = {}
+        except (OSError, ValueError):
+            all_h = {}
+        h = all_h.get(name) if isinstance(all_h.get(name), dict) else {}
+        cur = {song_key(it): it['pos'] for it in items}
+        start = h.get('start') or today
+        if h.get('day') == today:  # второй раз за день: сравниваем с тем же прошлым днём
+            prev, old_since = h.get('prev'), h.get('prev_since') or {}
+        else:
+            prev, old_since = h.get('cur'), h.get('since') or {}
+        prev_since = old_since
+        since = {k: (old_since.get(k) if prev and k in prev and old_since.get(k) else today) for k in cur}
+        for it in items:
+            k = song_key(it)
+            if prev:
+                if k not in prev:
+                    it['move'] = 'new'
+                else:
+                    set_move(it, 'up' if prev[k] > it['pos'] else 'down' if prev[k] < it['pos'] else 'same', prev[k] - it['pos'])
+            it['since'] = since[k]
+            if since[k] == start:
+                it['since_min'] = True
+        all_h[name] = {'day': today, 'start': start, 'cur': cur, 'prev': prev or None,
+                       'since': since, 'prev_since': prev_since}
+        if path:
+            try:
+                path.write_text(json.dumps(all_h, ensure_ascii=False), encoding='utf-8')
+            except OSError:
+                pass
+    return items
 
 
 def fetch_yandex():
@@ -62,9 +129,15 @@ def fetch_yandex():
         if tr.get('version'):
             title += f" ({tr['version'].strip()})"
         cover = tr.get('coverUri') or ''
-        items.append({'pos': len(items) + 1, 'artist': ', '.join(names), 'title': title,
-                      'query': query_of(names[0], title), 'plays': int((t.get('chart') or {}).get('listeners') or 0),
-                      'per': 'day', 'cover': 'https://' + cover.replace('%%', '200x200') if cover else ''})
+        chart = t.get('chart') or {}
+        it = {'pos': len(items) + 1, 'artist': ', '.join(names), 'title': title,
+              'query': query_of(names[0], title), 'plays': int(chart.get('listeners') or 0),
+              'per': 'day', 'cover': 'https://' + cover.replace('%%', '200x200') if cover else ''}
+        set_move(it, chart.get('progress'), chart.get('shift'))
+        # timestamp — когда песня попала в плейлист чарта (с тех пор в нём)
+        if re.match(r'\d{4}-\d{2}-\d{2}', str(t.get('timestamp') or '')):
+            it['since'] = t['timestamp'][:10]
+        items.append(it)
         if len(items) == COUNT:
             break
     if len(items) < 3:
@@ -93,13 +166,14 @@ def fetch_zaycev():
         name = re.sub(r'^By\s+', '', clean(artist.group(1)))  # на zaycev у части исполнителей приставка «By»
         items.append({'pos': len(items) + 1, 'artist': name, 'title': clean(title.group(1)),
                       'cover': cover.group(1) if cover else ''})
-        if len(items) == COUNT:
+        if len(items) == HIST_KEEP:
             break
     if len(items) < 3:
         raise ValueError('zaycev: список не найден')
     for it in items:
         it['query'] = query_of(it['artist'], it['title'])
-    return items, '', 'zaycev'
+    # прошлых мест zaycev не даёт: история по всему списку страницы (не только 20 — чтобы «▲ с 34»)
+    return apply_history('zaycev', items)[:COUNT], '', 'zaycev'
 
 
 def spotify_cover(track_id):
@@ -129,8 +203,17 @@ def fetch_world():
         streams = int(re.sub(r'\D', '', cells[5]) or 0) if len(cells) > 5 else 0
         track = K_TRACK.search(text.group(1))
         ids.append(track.group(1) if track else '')
-        items.append({'pos': int(m.group(1)), 'artist': artist + (f', {feat}' if feat else ''), 'title': title,
-                      'query': query_of(artist, title), 'plays': streams, 'per': 'week', 'cover': ''})
+        it = {'pos': int(m.group(1)), 'artist': artist + (f', {feat}' if feat else ''), 'title': title,
+              'query': query_of(artist, title), 'plays': streams, 'per': 'week', 'cover': ''}
+        # P+ — сдвиг с прошлой недели («+3», «-2», «=», «NEW», «RE» — вернулась), Wks — недель в чарте
+        change = cells[0] if cells else ''
+        if re.fullmatch(r'[+-]\d+', change):
+            set_move(it, 'up' if change[0] == '+' else 'down', int(change))
+        elif change in ('=', 'NEW', 'RE'):
+            set_move(it, {'=': 'same', 'NEW': 'new', 'RE': 'back'}[change])
+        if len(cells) > 2 and cells[2].isdigit():
+            it['weeks'] = int(cells[2])
+        items.append(it)
         if len(items) == COUNT:
             break
     if len(items) < 3:

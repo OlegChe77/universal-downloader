@@ -25,6 +25,7 @@
     --chip: rgba(10, 60, 55, .07); --skeleton: rgba(10, 60, 55, .08); --skeleton-hi: rgba(10, 60, 55, .03); --overlay: rgba(6, 22, 20, .5);
     --shadow: 0 1px 2px rgba(10, 60, 55, .06), 0 14px 44px rgba(10, 80, 70, .16);
     --g: #7044c4; --g-text: #5f34b0; --g-soft: rgba(112, 68, 196, .1); --g-line: rgba(112, 68, 196, .28);  /* второй цвет: жанры радио */
+    --new: #a85a00; --new-soft: rgba(240, 150, 20, .16);  /* «Новинка» во вкладке «Топ» */
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -37,6 +38,7 @@
       --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
       --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
       --g: #7b50d6; --g-text: #c7b0ff; --g-soft: rgba(160, 120, 255, .13); --g-line: rgba(170, 135, 255, .3);
+    --new: #ffc14d; --new-soft: rgba(255, 180, 50, .14);
     }
   }
   :root[data-theme="dark"] {
@@ -49,6 +51,7 @@
     --chip: rgba(255, 255, 255, .08); --skeleton: rgba(255, 255, 255, .07); --skeleton-hi: rgba(255, 255, 255, .13); --overlay: rgba(0, 0, 0, .62);
     --shadow: 0 1px 2px rgba(0, 0, 0, .35), 0 14px 44px rgba(0, 0, 0, .5);
     --g: #7b50d6; --g-text: #c7b0ff; --g-soft: rgba(160, 120, 255, .13); --g-line: rgba(170, 135, 255, .3);
+    --new: #ffc14d; --new-soft: rgba(255, 180, 50, .14);
   }
 
   * { box-sizing: border-box; }
@@ -548,6 +551,19 @@
   }
   .pod-artist, .trow-sub { font-size: 12.5px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .pod-plays { font-size: 12px; font-weight: 600; color: var(--accent-text); }
+  /* сдвиг с прошлого раза (▲ с 12, ▼ 3, =, «Новинка») и сколько песня в топе */
+  .top-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 3px 8px; min-width: 0; margin: 2px 0 1px; font-size: 12px; color: var(--muted); }
+  .trow .top-meta { flex-wrap: nowrap; margin: 1px 0 0; }
+  .top-age { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+  .mv {
+    flex: none; display: inline-flex; align-items: center; gap: 3px; height: 18px; padding: 0 6px; border-radius: 6px;
+    font-size: 11.5px; font-weight: 700; line-height: 1; white-space: nowrap; font-variant-numeric: tabular-nums;
+  }
+  .mv b { font-size: 9px; font-weight: 400; }
+  .mv.up { color: var(--ok); background: var(--ok-soft); }
+  .mv.down { color: var(--err); background: var(--err-soft); }
+  .mv.same { color: var(--muted); background: var(--chip); min-width: 22px; justify-content: center; padding: 0 5px; font-size: 13px; }
+  .mv.new, .mv.back { color: var(--new); background: var(--new-soft); letter-spacing: .01em; }
   .pod-act { grid-area: act; display: flex; gap: 6px; }
   .pod-act .btn { flex: 1; min-width: 0; padding: 6px 8px; font-size: 13px; border-radius: 10px; white-space: nowrap; }
   .pod-act .btn.on { border-color: var(--accent); color: var(--accent-text); }
@@ -1435,6 +1451,38 @@ const topCover = it => icon('music') + (it.cover
   ? `<img src="${esc(it.cover)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : '');
 const topPlays = it => !it.plays ? '' : compactNum.format(it.plays) + ' '
   + (it.per === 'day' ? L('слушателей за сутки', 'listeners a day') : L('за неделю', 'streams'));
+// сдвиг с прошлого раза и срок в топе (поля move/from/weeks/since/since_min — см. top.py)
+function topMove(it) {
+  const m = it.move;
+  if (m === 'up') return `<span class="mv up" title="${esc(L(`Поднялась с ${it.from}-го места`, `Up from #${it.from}`))}"><b>▲</b>${L('с ', 'from ')}${it.from}</span>`;
+  if (m === 'down') {
+    const n = it.pos - it.from;
+    return `<span class="mv down" title="${esc(L(`Упала на ${n} ${plural(n, 'место', 'места', 'мест')} (была ${it.from}-й)`, `Down ${n} (was #${it.from})`))}"><b>▼</b>${n}</span>`;
+  }
+  if (m === 'same') return `<span class="mv same" title="${esc(L('Место не изменилось', 'No change'))}">=</span>`;
+  if (m === 'new') return `<span class="mv new" title="${esc(L('Впервые в топе', 'New entry'))}">${L('Новинка', 'New')}</span>`;
+  if (m === 'back') return `<span class="mv back" title="${esc(L('Снова в топе', 'Re-entry'))}">${L('Вернулась', 'Back')}</span>`;
+  return '';
+}
+function topAge(it) {
+  if (it.move === 'new') return '';  // у новинки срок — первая неделя/день, пометки хватает
+  let n, s;
+  if (it.weeks) {
+    n = it.weeks;
+    s = `${n} ${plural(n, 'неделя', 'недели', 'недель', 'week', 'weeks')} ${L('в топе', 'on chart')}`;
+  } else if (it.since) {
+    const [y, mo, d] = it.since.split('-').map(Number), now = new Date();
+    n = Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(y, mo - 1, d)) / 864e5) + 1;
+    if (!(n >= 1) || (it.since_min && n < 2)) return '';  // история только началась — срок ещё неизвестен
+    const plus = it.since_min ? '+' : '';
+    s = `${n}${plus} ${plural(n, 'день', 'дня', 'дней', 'day', 'days')} ${L('в топе', 'on chart')}`;
+  } else return '';
+  return `<span class="top-age" title="${esc(it.since && !it.weeks ? L('В топе с ', 'On chart since ') + new Date(it.since + 'T12:00:00').toLocaleDateString(EN ? 'en' : 'ru', {day: 'numeric', month: 'long', year: 'numeric'}) + (it.since_min ? L(' (или раньше)', ' (or earlier)') : '') : s)}">${esc(s)}</span>`;
+}
+const topMeta = it => {
+  const h = topMove(it) + topAge(it);
+  return h ? `<div class="top-meta">${h}</div>` : '';
+};
 const topHits = new Map();  // запрос → найденная для него песня (то, что включает «Слушать»)
 let topListenToken = 0;
 const topBtns = (key, i, big) => {
@@ -1454,6 +1502,7 @@ function topPodium(key, it, i) {
     <div class="pod-text">
       <div class="pod-title" title="${esc(it.title)}">${esc(it.title)}</div>
       <div class="pod-artist" title="${esc(it.artist)}">${esc(it.artist)}</div>
+      ${topMeta(it)}
       ${topPlays(it) ? `<div class="pod-plays">${esc(topPlays(it))}</div>` : ''}
     </div>
     <div class="pod-act">${topBtns(key, i, true)}</div>
@@ -1467,6 +1516,7 @@ function topRow(key, it, i, first) {
     <div class="trow-body">
       <div class="trow-title" title="${esc(it.title)}">${esc(it.title)}</div>
       <div class="trow-sub" title="${esc(sub)}">${esc(sub)}</div>
+      ${topMeta(it)}
     </div>
     <div class="trow-act">${topBtns(key, i, false)}</div>
   </div>`;
