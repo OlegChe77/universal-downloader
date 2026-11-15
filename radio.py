@@ -302,7 +302,7 @@ class IcyResponse(http.client.HTTPResponse):
         return parts[0], int(parts[1]), parts[2] if len(parts) > 2 else ''
 
 
-def open_icy(url, proxy, hops=3):
+def open_icy(url, proxy, hops=6):
     for _ in range(hops):
         p = urllib.parse.urlsplit(url)
         https = p.scheme == 'https'
@@ -374,31 +374,94 @@ def stream_proxy(s):
 
 
 def probe(s):
-    """HLS: только проверить, что плейлист открывается (ошибка — исключение)."""
+    """HLS: только проверить, что открывается плейлист, а не страница-заглушка (ошибка — исключение)."""
     conn, resp = open_icy(s['u'], stream_proxy(s))
     try:
         alive_or_raise(resp)
+        if resp.status == 200 and not resp.read(1024).lstrip(b'\xef\xbb\xbf \t\r\n').startswith(b'#EXTM3U'):
+            raise OSError('не плейлист')
     finally:
         conn.close()
 
 
+AUDIO_MIN = 16 * 1024  # столько звука должно прийти за AUDIO_WAIT секунд, иначе станция «не отвечает»
+AUDIO_WAIT = 6
+AUDIO_TYPE = re.compile(r'^audio/|ogg|aac|mpeg|mp2t|flac|^application/octet-stream|^$')
+AUDIO_MAGIC = (b'ID3', b'OggS', b'fLaC', b'RIFF')
+
+
+class Enough(Exception):
+    """Звук идёт, но время вышло — название песни не дождались."""
+
+
+def looks_like_text(head):
+    """HTML, плейлист, сообщение об ошибке — а не сжатый звук (в нём байты любые)."""
+    head = head[:256]
+    if not head or head.startswith(AUDIO_MAGIC):
+        return False
+    return sum(32 <= b < 127 or b in (9, 10, 13) for b in head) >= len(head) * 0.95
+
+
+class Audio:
+    """Поток станции: читаем и считаем, пришёл ли настоящий звук (need байт за AUDIO_WAIT секунд)."""
+
+    def __init__(self, resp, s):
+        self.resp, self.got, self.end = resp, 0, time.monotonic() + AUDIO_WAIT
+        self.need = min(AUDIO_MIN, s['br'] * 125 * 3) if s.get('br') else AUDIO_MIN  # низкий битрейт — 3 секунды звука
+        ctype = (resp.getheader('Content-Type') or '').split(';')[0].strip().lower()
+        if not AUDIO_TYPE.search(ctype):
+            raise OSError(f'не звук: {ctype}')
+
+    def read(self, n):
+        buf = b''
+        while len(buf) < n:
+            if time.monotonic() > self.end:
+                if self.got >= self.need:
+                    raise Enough
+                raise OSError(f'звука мало: {self.got} байт за {AUDIO_WAIT} с')
+            part = self.resp.read1(min(n - len(buf), 65536))
+            if not part:
+                if self.got >= self.need:
+                    raise Enough
+                raise OSError(f'поток оборвался: {self.got} байт')
+            if not self.got and looks_like_text(part):
+                raise OSError('вместо звука текст')
+            self.got += len(part)
+            buf += part
+        return buf
+
+    def check(self):
+        """Дочитать до need байт (если ещё не набралось)."""
+        if self.got < self.need:
+            self.read(self.need - self.got)
+
+
 def read_now(s):
-    """Название песни из потока станции; '' — станция его не передаёт."""
+    """Название песни из потока станции; '' — станция его не передаёт. Звука нет (пустой поток,
+    заглушка, HTML вместо аудио) — исключение, как если бы поток не открылся."""
     conn, resp = open_icy(s['u'], stream_proxy(s))
     try:
         alive_or_raise(resp)
+        if resp.status != 200:
+            return ''  # 401/403/429: нашу проверку не пускает, а сама станция, может быть, играет
         metaint = int(resp.getheader('icy-metaint') or 0)
-        if resp.status != 200 or metaint <= 0 or metaint > 256 * 1024:
-            return ''
-        for _ in range(3):  # первый блок бывает пустым — название приходит со следующим
-            read_exact(resp, metaint)
-            size = read_exact(resp, 1)[0] * 16
-            if not size:
-                continue
-            meta = decode_meta(read_exact(resp, size), s['c'])
-            m = re.search(r"StreamTitle='(.*?)';(?=\s*\w+=|\s*$)", meta, re.S) or re.search(r"StreamTitle='(.*?)';", meta, re.S)
-            return clean_title(m.group(1), s) if m else ''
-        return ''
+        audio = Audio(resp, s)
+        title = ''
+        try:
+            if 0 < metaint <= 256 * 1024:
+                for _ in range(3):  # первый блок бывает пустым — название приходит со следующим
+                    audio.read(metaint)
+                    size = audio.read(1)[0] * 16
+                    if not size:
+                        continue
+                    meta = decode_meta(audio.read(size), s['c'])
+                    m = re.search(r"StreamTitle='(.*?)';(?=\s*\w+=|\s*$)", meta, re.S) or re.search(r"StreamTitle='(.*?)';", meta, re.S)
+                    title = clean_title(m.group(1), s) if m else ''
+                    break
+            audio.check()
+        except Enough:
+            pass
+        return title
     finally:
         conn.close()
 

@@ -601,7 +601,7 @@
     .top-col { padding: 14px 10px 8px; border-radius: 22px; }
   }
 
-  /* вкладка «Радио» (по макету radio-mockup.html): поиск, жанры, станции строками; страны — стеклянная полоса внизу.
+  /* вкладка «Радио» (по макету radio-mockup.html): поиск, ряд «Страны» (в одну строку, «Ещё страны» — окно со всеми), ряд «Жанры», станции строками.
      Без жанра — общий список, с жанром — блоки по странам (сворачиваются); Россия всегда первой. */
   .radio-hint { margin: 0 0 14px; font-size: 14px; color: var(--muted); }
   .rlbl { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--faint); margin: 16px 4px 7px; }
@@ -671,12 +671,19 @@
   .rdl .icon { width: 15px; height: 15px; }
   .rempty { color: var(--muted); padding: 30px 0; text-align: center; }
   .rsk .sk { height: 64px; border-radius: 16px; margin-bottom: 7px; }
-  .rdock { position: sticky; bottom: 14px; z-index: 4; margin-top: 16px; padding: 10px 12px 8px 14px; border-radius: 22px; }
-  .rdock .rlbl { margin: 0 0 6px 2px; }
-  .rdock-row { display: flex; gap: 6px; align-items: flex-start; }
-  .rdock .rchips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
+  /* ряды «Страны» и «Жанры» — каждый в своей рамке с заголовком; у стран — полоса акцента слева */
+  .rfilters { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 4px; }
+  .rfilter { position: relative; padding: 10px 12px 10px 14px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); }
+  @supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) { .rfilter { background: var(--inner); } }
+  .rf-country { box-shadow: inset 3px 0 var(--accent); }
+  .rf-country .rchip.on { background: var(--accent); color: var(--on-accent); }
+  .rf-country .rchip.on b { color: var(--on-accent); }
+  .rfh { display: flex; align-items: center; gap: 7px; margin: 0 0 8px 2px; font-size: 13.5px; font-weight: 700; color: var(--text); }
+  .rfh .icon { width: 16px; height: 16px; color: var(--accent-text); }
+  .rf-row { display: flex; gap: 6px; align-items: flex-start; }
+  .rf-row .rchips { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; padding-bottom: 4px; scrollbar-width: thin; }
   .rpop {
-    position: absolute; right: 10px; bottom: calc(100% + 8px); width: min(440px, calc(100% - 20px)); max-height: min(60vh, 440px);
+    position: absolute; z-index: 12; right: 10px; top: calc(100% - 4px); width: min(440px, calc(100% - 20px)); max-height: min(60vh, 440px);
     display: flex; flex-direction: column; padding: 10px; border-radius: 18px; background: var(--card); border: 1px solid var(--line); box-shadow: var(--shadow);
   }
   .rpop[hidden] { display: none; }
@@ -783,7 +790,6 @@
       padding-bottom: calc(8px + env(safe-area-inset-bottom));
     }
     .has-radio main { padding-bottom: 110px; }
-    .has-radio .rdock { bottom: 84px; }
     .has-radio .toast { bottom: 90px; }
     .rrow { grid-template-columns: 44px minmax(0, 1fr) auto; gap: 4px 12px; }
     .rnow { grid-column: 2 / 4; order: 4; }
@@ -1187,22 +1193,26 @@
       <input id="radio-q" type="search" placeholder="Название станции, город или жанр" autocomplete="off" spellcheck="false" aria-label="Название станции, город или жанр">
       <button class="btn primary" id="radio-refresh" type="button" title="Узнать заново, что сейчас играет"><svg class="icon"><use href="#i-repeat"/></svg>Обновить</button>
     </form>
-    <div class="rlbl">Жанр</div>
-    <div class="rchips" id="radio-genres"></div>
+    <div class="rfilters">
+      <section class="rfilter rf-country" aria-labelledby="radio-c-h">
+        <h3 class="rfh" id="radio-c-h"><svg class="icon"><use href="#i-globe"/></svg>Страны</h3>
+        <div class="rf-row">
+          <div class="rchips" id="radio-countries"></div>
+          <button class="rchip more" id="radio-cmore" type="button" aria-expanded="false" aria-controls="radio-pop">Ещё страны <svg class="icon"><use href="#i-chev"/></svg></button>
+        </div>
+        <div class="rpop" id="radio-pop" hidden>
+          <input id="radio-pop-q" type="search" placeholder="Найти страну" autocomplete="off" aria-label="Найти страну">
+          <div class="rpop-list" id="radio-pop-list"></div>
+        </div>
+      </section>
+      <section class="rfilter rf-genre" aria-labelledby="radio-g-h">
+        <h3 class="rfh" id="radio-g-h"><svg class="icon"><use href="#i-music"/></svg>Жанры</h3>
+        <div class="rchips" id="radio-genres"></div>
+      </section>
+    </div>
     <div class="rlbl" id="radio-count" aria-live="polite"></div>
     <div id="radio-list"></div>
     <div class="more-row hidden" id="radio-more-row"><button class="btn ghost" id="radio-more" type="button">Показать ещё</button></div>
-    <div class="rdock glass" id="radio-dock">
-      <div class="rlbl">Страна</div>
-      <div class="rdock-row">
-        <div class="rchips" id="radio-countries"></div>
-        <button class="rchip more" id="radio-cmore" type="button" aria-expanded="false" aria-controls="radio-pop">Ещё страны <svg class="icon"><use href="#i-chev"/></svg></button>
-      </div>
-      <div class="rpop" id="radio-pop" hidden>
-        <input id="radio-pop-q" type="search" placeholder="Найти страну" autocomplete="off" aria-label="Найти страну">
-        <div class="rpop-list" id="radio-pop-list"></div>
-      </div>
-    </div>
   </section>
 
   <section class="card panel not-first is-last" id="panel-vpn" role="tabpanel" aria-labelledby="tab-vpn" hidden>
