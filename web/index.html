@@ -124,6 +124,11 @@
   .hero h2 { margin: 0 0 6px; font-size: 32px; line-height: 1.2; letter-spacing: -.02em; }
   .hero p { margin: 0; color: var(--muted); }
 
+  /* «Контакты» — синяя, цвет Telegram */
+  a.btn.contact { color: #fff; border-color: transparent; background: linear-gradient(135deg, #37aee2 0%, #1e96c8 100%); box-shadow: 0 2px 8px rgba(34, 158, 217, .35); transition: filter .15s, transform .15s; }
+  a.btn.ghost.contact:hover { background: linear-gradient(135deg, #37aee2 0%, #1e96c8 100%); border-color: transparent; filter: brightness(1.08); transform: translateY(-1px); }
+  a.btn.contact:active { transform: none; }
+
   /* «Помощь проекту» — тёплая, заметнее остальных кнопок */
   a.btn.donate {
     position: relative; overflow: hidden; padding: 11px 20px; border-radius: 12px; font-size: 15.5px;
@@ -1013,7 +1018,7 @@
       <a class="btn ghost small" href="/help" title="Как это работает и что делать, если не качает">
         <svg class="icon"><use href="#i-help"/></svg><span class="label">Помощь</span>
       </a>
-      <a class="btn ghost small" href="https://t.me/PravDoruB" target="_blank" rel="noopener" title="Связаться с автором — Telegram-канал">
+      <a class="btn ghost small contact" href="https://t.me/PravDoruB" target="_blank" rel="noopener" title="Связаться с автором — Telegram-канал">
         <svg class="icon"><use href="#i-telegram"/></svg><span class="label">Контакты</span>
       </a>
       <button class="btn ghost small lang-btn" id="lang" type="button" title="Switch to English" lang="en">
