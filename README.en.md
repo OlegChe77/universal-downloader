@@ -32,8 +32,8 @@ The interface is in English and Russian: the language button is at the top right
 - **Video by link**: MP4 in the quality you choose, from 144p to 4K. Video and audio are merged automatically.
 - **Audio only**: MP3 with cover and tags (“Artist – Song” is taken from the video title) or M4A without re-encoding.
 - **Music search by name** on YouTube, SoundCloud and Rutube at once — one list of 10 songs with covers and a “Show 10 more” button. MP3 downloads in one click, and with checkboxes you can select several songs and download them with one button.
-- **Top chart**: the “Top” tab — the 20 most played songs: Russian (Yandex Music, daily) and international (Spotify, worldwide, weekly). The first three are cards with covers; the “Download” button puts the song into the “Music” tab and starts the search. The lists refresh once a day.
-- **Radio**: the “Radio” tab — all the world’s stations (about 50 thousand, from the Radio Browser directory), Russian ones always first. Genres, countries and search by name; each station shows what is playing now. ▶ plays the station right in the program, and “Download song” finds the song on air on the “Music” tab.
+- **Top chart**: the “Top” tab — the 20 most played songs: Russian (Yandex Music, daily) and international (Spotify, worldwide, weekly). The first three are cards with covers; each song shows how it moved since last time (▲ from 12, ▼ 3, “New”) and how long it has been on the chart. The “Download” button puts the song into the “Music” tab and starts the search. The lists refresh once a day.
+- **Radio**: the “Radio” tab — all the world’s stations (about 50 thousand, from the Radio Browser directory), Russian ones always first. Genres, countries and search by name; each station shows what is playing now. Every station has a star: favorites are kept on a separate “Favorites” view. Stations that do not respond hide themselves. ▶ plays the station right in the program (with volume in the “Now playing” bar), and “Download song” finds the song on air on the “Music” tab.
 - **Listen before downloading**: a player “island” above the field with seeking, volume and the next song. It works with the keyboard and media keys.
 - **Audio tracks and subtitles**: for videos in several languages — choose the track (the original by default) or all of them in one MP4; subtitles — embedded in the video or as a separate `.srt`.
 - **Compress video**: a button on a downloaded video makes the file smaller (H.265), the original stays.
@@ -43,8 +43,13 @@ The interface is in English and Russian: the language button is at the top right
 - **VPN app with a proxy** (v2rayN, Hiddify, NekoBox, Clash, Happ…): if a site does not open directly, the program finds the proxy by itself and goes through it. The “Secure DNS” checkbox helps when your provider “does not know” a site’s address.
 - **Icon by the clock**: the program runs in the background without extra windows. Icon menu: “Open”, “Downloads folder”, “Exit”. Starting it again does not pile up tabs: if the page is already open, its title blinks.
 - **Your own download folder**, light and dark theme, clear explanations of errors.
+- **Contacts**: a blue Telegram button in the panel (and on the “Help” page) opens the [author’s channel](https://t.me/PravDoruB).
 - **Updates yt-dlp by itself** once a day: sites often change their protection, and a fresh yt-dlp fixes that.
 - **Updates itself too**: every three days it checks GitHub for a new version and installs it with one click (with a SHA-256 check; if the new version does not start, it rolls back).
+
+| Radio: all the world’s stations, favorites, genres and countries |
+|---|
+| ![The “Radio” tab: the “All stations / Favorites” switch, search, country and genre chips, stations with a star, “Download song” and ▶](docs/screenshots/en/radio.png) |
 
 | Music: search by name, checkboxes and “Download MP3 / M4A” | Listen before downloading |
 |---|---|
@@ -119,13 +124,16 @@ The **“Top”** tab shows the 20 most played songs: Russian (the Yandex Music 
 - **Listen**: the song plays in the player;
 - **Download**: the song goes into the “Music” tab and the search starts — then as usual.
 
-The lists refresh once a day.
+Every song carries a movement mark: ▲ from 12 (it was 12th), ▼ 3, “=”, “New” or “Back” — and how long it has been on the chart. The lists refresh once a day.
 
 ### Radio
 The **“Radio”** tab lists all the world’s stations from the open [Radio Browser](https://www.radio-browser.info) directory, Russian ones always on top. The list refreshes once a day.
 - **Genre** — the row at the top (“More” shows the rest); with a genre chosen, stations come in blocks by country, and a block can be collapsed.
 - **Country** — the bar at the bottom: the ten main countries, the rest under “More countries”.
 - **Search** — by station name, city or genre.
+- **Favorites** — the star on a station (and in the “Now playing” bar); the “All stations / Favorites” switch above the search shows only the starred ones; the list is kept in the browser.
+- **Volume** — a mute button and a slider in the “Now playing” bar; the volume is shared with the song player.
+- **Not responding** — silent stations hide and are checked again after 2, 10, 30 minutes, then hourly.
 - **Now playing** — the song title the station itself sends (some stations do not). “Refresh” checks again.
 - **▶** — listen to the station right here; **“Download song”** puts “artist — song” into the “Music” tab and starts the search — then as usual.
 
