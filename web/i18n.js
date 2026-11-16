@@ -18,6 +18,8 @@ const EN_TEXT = {
   'Тема: как в Windows': 'Theme: as in Windows',
   'Как это работает и что делать, если не качает': 'How it works and what to do if downloads fail',
   'Помощь': 'Help',
+  'Контакты': 'Contacts',
+  'Связаться с автором — Telegram-канал': 'Contact the author — Telegram channel',
   'Скачивать прямо с сайта': 'Download right from a site',
   '— расширение и кнопка-закладка для всех браузеров': '— an extension and a bookmark button for all browsers',
   'Яндекс Браузер': 'Yandex Browser',
