@@ -86,6 +86,15 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) a.donate { box-shadow: 0 4px 16px rgba(255, 90, 110, .22), inset 0 1px 0 rgba(255, 255, 255, .2); }
   }
+  /* «Контакты» — синяя, цвет Telegram */
+  a.contact {
+    display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 10px;
+    font-size: 14px; font-weight: 600; text-decoration: none; color: #fff;
+    background: linear-gradient(135deg, #37aee2 0%, #1e96c8 100%); box-shadow: 0 2px 8px rgba(34, 158, 217, .35);
+    transition: filter .15s, transform .15s;
+  }
+  a.contact:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  a.contact svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   h1 { font-size: 26px; margin: 0 0 4px; letter-spacing: -0.01em; }
   h2 { font-size: 19px; margin: 36px 0 12px; }
   .sub { color: var(--muted); margin: 0; }
@@ -178,7 +187,8 @@
 <main>
   <div class="head-row">
     <span class="head-left"><a class="back" href="/">← Back to downloads</a>
-      <button class="link lang-link" id="lang" type="button" lang="ru" title="Переключить на русский">Русский</button></span>
+      <button class="link lang-link" id="lang" type="button" lang="ru" title="Переключить на русский">Русский</button>
+      <a class="contact" href="https://t.me/PravDoruB" target="_blank" rel="noopener" title="Contact the author — Telegram channel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 2.5 10.5 13.5M21.5 2.5l-7 19-4-8.5-8.5-4z"/></svg>Contacts</a></span>
     <a class="donate" href="https://dalink.to/olegche" target="_blank" rel="noopener"
        title="Support the development of the program (DonationAlerts)">
       <span class="hearts" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.4C1.5 7.8 3.6 4.5 7 4.5c2 0 3.5 1.1 5 3 1.5-1.9 3-3 5-3 3.4 0 5.5 3.3 4.3 6.6-1.8 4.8-9.3 9.4-9.3 9.4z"/></svg></span>Support the project
